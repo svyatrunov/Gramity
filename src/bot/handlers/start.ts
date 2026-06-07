@@ -63,6 +63,8 @@ const FREQ_LABELS: Record<string, string> = {
   weekly: "Еженедельно",
   biweekly: "Раз в 2 недели",
   monthly: "Раз в месяц",
+  minutely: "Каждую минуту (тест)",
+  hourly: "Каждый час (тест)",
 };
 
 // ─── /start command ───────────────────────────────────────────────────────────
@@ -246,7 +248,7 @@ export async function handleCallbackQuery(ctx: GramityContext) {
   }
 
   if (data.startsWith("freq_")) {
-    const freq = data.slice(5) as "weekly" | "biweekly" | "monthly";
+    const freq = data.slice(5) as "weekly" | "biweekly" | "monthly" | "minutely" | "hourly";
     ctx.session.frequency = freq;
     ctx.session.step = "confirming";
     await showConfirmation(ctx);
@@ -272,6 +274,12 @@ async function showFrequencyKeyboard(ctx: GramityContext) {
     .text("🗓 Раз в 2 нед.", "freq_biweekly")
     .row()
     .text("📆 Раз в месяц", "freq_monthly");
+
+  if (process.env.NODE_ENV !== "production") {
+    kb.row()
+      .text("⚡ Каждую минуту (тест)", "freq_minutely")
+      .text("🕐 Каждый час (тест)", "freq_hourly");
+  }
 
   await ctx.reply("Как часто?", { reply_markup: kb });
 }

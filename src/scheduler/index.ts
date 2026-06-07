@@ -17,7 +17,9 @@ export function setNotifyUser(
 
 function getNextExecutionDate(frequency: string): Date {
   const next = new Date();
-  if (frequency === "weekly") next.setDate(next.getDate() + 7);
+  if (frequency === "minutely") next.setMinutes(next.getMinutes() + 1);
+  else if (frequency === "hourly") next.setHours(next.getHours() + 1);
+  else if (frequency === "weekly") next.setDate(next.getDate() + 7);
   else if (frequency === "biweekly") next.setDate(next.getDate() + 14);
   else if (frequency === "monthly") next.setMonth(next.getMonth() + 1);
   else next.setDate(next.getDate() + 7);

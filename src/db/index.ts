@@ -62,7 +62,7 @@ export interface Plan {
   ton_address: string;
   agent_wallet: string | null;
   usdt_amount: number;
-  frequency: "weekly" | "biweekly" | "monthly";
+  frequency: "weekly" | "biweekly" | "monthly" | "minutely" | "hourly";
   active: boolean;
   next_execution_at: string;
   created_at: string;

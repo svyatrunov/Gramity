@@ -14,7 +14,7 @@ export interface UserSession {
   tonAddress?: string;
   usdtBalance?: number;
   amount?: number;
-  frequency?: "weekly" | "biweekly" | "monthly";
+  frequency?: "weekly" | "biweekly" | "monthly" | "minutely" | "hourly";
 }
 
 export type GramityContext = Context & SessionFlavor<UserSession>;
