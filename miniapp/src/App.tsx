@@ -6,7 +6,7 @@ import { WalletsScreen } from "./screens/WalletsScreen";
 import { WithdrawScreen } from "./screens/WithdrawScreen";
 import { BuyScreen } from "./screens/BuyScreen";
 
-const MANIFEST_URL = `${window.location.origin}/tonconnect-manifest.json`;
+const MANIFEST_URL = `${window.location.origin}/app/tonconnect-manifest.json`;
 
 type Screen = "portfolio" | "wallets" | "withdraw" | "buy";
 

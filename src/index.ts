@@ -26,6 +26,11 @@ app.use(express.json());
 // Serve Mini App static files at /app
 const miniappDist = path.resolve(__dirname, "../dist-miniapp");
 app.use("/app", express.static(miniappDist));
+
+// Serve TonConnect manifest at root level for wallet compatibility
+app.get("/tonconnect-manifest.json", (_req, res) => {
+  res.sendFile(path.join(miniappDist, "tonconnect-manifest.json"));
+});
 app.use("/app", (_req, res, next) => {
   const filePath = path.join(miniappDist, "index.html");
   res.sendFile(filePath, (err) => {
