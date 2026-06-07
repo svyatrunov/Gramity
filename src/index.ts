@@ -26,8 +26,11 @@ app.use(express.json());
 // Serve Mini App static files at /app
 const miniappDist = path.resolve(__dirname, "../dist-miniapp");
 app.use("/app", express.static(miniappDist));
-app.get("/app/*", (_req, res) => {
-  res.sendFile(path.join(miniappDist, "index.html"));
+app.use("/app", (_req, res, next) => {
+  const filePath = path.join(miniappDist, "index.html");
+  res.sendFile(filePath, (err) => {
+    if (err) next(err);
+  });
 });
 
 // Health check (required by Railway)
