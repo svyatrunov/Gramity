@@ -1,0 +1,34 @@
+{
+  "name": "gramity",
+  "version": "0.1.0",
+  "description": "Gramity — TON DCA liquidity bot",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "start:engine": "node dist/main.js",
+    "dev": "ts-node src/index.ts",
+    "dev:engine": "ts-node src/main.ts",
+    "gen-wallet": "node -e \"require('./dist/scripts/gen-wallet.js').default?.() ?? require('./dist/scripts/gen-wallet.js')\"",
+    "step1": "node -e \"const {createWallet}=require('./dist/wallet.js');const {step1Swap}=require('./dist/step1-swap.js');createWallet().then(ctx=>step1Swap(ctx)).then(r=>{ console.log('[DONE] TON received:',r.toString()); process.exit(0); }).catch(e=>{ console.error('[ERROR]',e.message); process.exit(1); })\""
+  },
+  "dependencies": {
+    "@ston-fi/api": "0.32.0",
+    "@ston-fi/omniston-sdk": "0.8.3",
+    "@ston-fi/sdk": "2.7.0",
+    "@supabase/supabase-js": "^2.107.0",
+    "@ton/crypto": "3.3.0",
+    "@ton/ton": "16.3.0",
+    "@types/node-cron": "^3.0.11",
+    "dotenv": "^16.4.5",
+    "grammy": "^1.43.0",
+    "node-cron": "^4.2.1",
+    "rxjs": "^7.8.1",
+    "tonstakers-sdk": "0.0.20-development"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0"
+  }
+}
