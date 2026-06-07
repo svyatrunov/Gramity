@@ -15,6 +15,7 @@ import {
 } from "./handlers/withdraw.js";
 import { handleReset, handleResetCallback } from "./handlers/reset.js";
 import { handleSettings, handleSettingsCallback } from "./handlers/settings.js";
+import { handleHistory } from "./handlers/history.js";
 import { setNotifyUser, setNotifyInsufficientFunds } from "../scheduler/index.js";
 import { setPollerSender, stopDepositPoller } from "./depositPoller.js";
 import { setGasNotifier } from "../execution/index.js";
@@ -43,6 +44,7 @@ bot.command("resume", handleResume);
 bot.command("withdraw", handleWithdrawMenu);
 bot.command("reset", handleReset);
 bot.command("settings", handleSettings);
+bot.command("history", handleHistory);
 
 bot.command("cancel", async (ctx) => {
   const telegramId = ctx.from?.id;
@@ -267,6 +269,7 @@ export async function startBot() {
     { command: "withdraw", description: "Вывод средств" },
     { command: "reset", description: "Удалить стратегию" },
     { command: "cancel", description: "Отменить текущее действие" },
+    { command: "history", description: "История последних 5 циклов" },
     { command: "help", description: "Помощь" },
   ]);
 
