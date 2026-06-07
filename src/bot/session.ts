@@ -15,6 +15,8 @@ export interface UserSession {
   usdtBalance?: number;
   amount?: number;
   frequency?: "weekly" | "biweekly" | "monthly" | "minutely" | "hourly";
+  /** Enabled via /dev — shows test frequencies in prod */
+  devMode?: boolean;
 }
 
 export type GramityContext = Context & SessionFlavor<UserSession>;

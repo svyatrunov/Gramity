@@ -10,6 +10,7 @@ import { handleStatus } from "./handlers/status.js";
 import { handlePause, handleResume, handleWithdrawInfo } from "./handlers/pause.js";
 import { handleReset, handleResetCallback } from "./handlers/reset.js";
 import { setNotifyUser, setNotifyInsufficientFunds } from "../scheduler/index.js";
+import { setPollerSender, stopDepositPoller } from "./depositPoller.js";
 import { BOT_TOKEN } from "../config.js";
 import type { ExecutionResult } from "../execution/index.js";
 import { InlineKeyboard } from "grammy";
@@ -35,14 +36,39 @@ bot.command("resume", handleResume);
 bot.command("withdraw", handleWithdrawInfo);
 bot.command("reset", handleReset);
 
+bot.command("cancel", async (ctx) => {
+  const telegramId = ctx.from?.id;
+  if (telegramId) stopDepositPoller(telegramId);
+
+  const wasOnboarding = ctx.session.step !== "idle";
+  ctx.session.step = "idle";
+
+  await ctx.reply(
+    wasOnboarding
+      ? "❌ Настройка отменена.\n\nНажми /start когда будешь готов."
+      : "Нет активного действия для отмены."
+  );
+});
+
+bot.command("dev", async (ctx) => {
+  ctx.session.devMode = !ctx.session.devMode;
+  await ctx.reply(
+    ctx.session.devMode
+      ? "🔧 Dev mode ON — тестовые интервалы включены в меню частоты."
+      : "🔧 Dev mode OFF — тестовые интервалы скрыты."
+  );
+});
+
 bot.command("help", async (ctx) => {
   await ctx.reply(
     "📋 *Команды Gramity*\n\n" +
-      "/start — настройка или статус\n" +
+      "/start — настройка или главное меню\n" +
       "/status — текущая позиция\n" +
       "/pause — пауза стратегии\n" +
       "/resume — возобновить\n" +
-      "/withdraw — информация о выводе",
+      "/reset — удалить стратегию\n" +
+      "/withdraw — информация о выводе\n" +
+      "/cancel — отменить текущее действие",
     { parse_mode: "Markdown" }
   );
 });
@@ -97,7 +123,7 @@ bot.catch((err) => {
   console.error("[BOT] Error:", err.message);
 });
 
-// ─── Execution notification sender ────────────────────────────────────────────
+// ─── Execution notification ───────────────────────────────────────────────────
 
 async function sendExecutionNotification(
   telegramId: number,
@@ -108,14 +134,22 @@ async function sendExecutionNotification(
     if (!result || result.status === "failed") {
       await bot.api.sendMessage(
         telegramId,
-        `⚠️ *Gramity — ошибка выполнения*\n\n` +
-          `Не удалось выполнить стратегию.\n` +
-          (error ? `Причина: ${error.slice(0, 200)}\n\n` : "\n") +
-          `Средства в безопасности. Следующая попытка через расписание.`,
+        `⚠️ *Gramity — ошибка цикла*\n\n` +
+          (error ? `Причина: ${error.slice(0, 200)}\n\n` : "") +
+          `Средства в безопасности. Следующая попытка по расписанию.\n` +
+          `/status — проверить позицию`,
         { parse_mode: "Markdown" }
       );
       return;
     }
+
+    const isPartial = result.status === "partial";
+
+    // Compact one-screen report
+    const tonPrice =
+      result.tonReceived > 0
+        ? (result.usdtSpent / result.tonReceived).toFixed(2)
+        : null;
 
     const nextDate = new Date();
     nextDate.setDate(nextDate.getDate() + 7);
@@ -126,38 +160,39 @@ async function sendExecutionNotification(
       timeZone: "Europe/Moscow",
     });
 
-    const tonPriceApprox =
-      result.tonReceived > 0
-        ? (result.usdtSpent / result.tonReceived).toFixed(2)
-        : "N/A";
+    const headline = isPartial
+      ? `⚡ Gramity выполнен частично`
+      : `⚡ *Gramity сработал — $${result.usdtSpent.toFixed(0)} в пул*`;
 
-    const statusLabel =
-      result.status === "partial" ? "⚡ частично" : "⚡ Gramity сработал";
+    const lines = [
+      headline,
+      "",
+      `💵 $${result.usdtSpent.toFixed(2)}${tonPrice ? ` → ${result.tonReceived.toFixed(3)} TON по $${tonPrice}` : " USDT потрачено"}`,
+      result.tstonReceived > 0
+        ? `🔒 ${result.tstonReceived.toFixed(3)} tsTON застейкано`
+        : null,
+      `🏊 LP позиция: ${result.lpPositionValue !== "N/A" ? `$${result.lpPositionValue}` : "обновляется..."}`,
+      "",
+      `⏰ Следующий цикл: ${nextStr}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     const kb = new InlineKeyboard()
       .text("📊 Статус", "status_check")
-      .text("⏸ Пауза", "pause")
-      .text("💸 Вывести", "withdraw");
+      .text("⏸ Пауза", "pause");
 
-    await bot.api.sendMessage(
-      telegramId,
-      `${statusLabel}\n\n` +
-        `Потрачено: $${result.usdtSpent.toFixed(2)} USDT\n` +
-        `Куплено: ${result.tonReceived.toFixed(4)} TON по $${tonPriceApprox}\n` +
-        `Застейкано: ${(result.tonReceived / 2).toFixed(4)} TON → ${result.tstonReceived.toFixed(4)} tsTON\n` +
-        `Добавлено в пул: tsTON + TON ✅\n\n` +
-        `📊 *Твоя позиция*\n` +
-        `LP позиция: $${result.lpPositionValue}\n` +
-        `Текущий APY: ~${result.apy7d !== "N/A" ? (5 + Number(result.apy7d)).toFixed(1) : "8.0"}%\n\n` +
-        `⏰ Следующий запуск: ${nextStr}`,
-      { parse_mode: "Markdown", reply_markup: kb }
-    );
+    await bot.api.sendMessage(telegramId, lines, {
+      parse_mode: "Markdown",
+      reply_markup: kb,
+    });
   } catch (err) {
     console.error("[BOT] Failed to send notification:", err);
   }
 }
 
-// Register notification handlers with scheduler
+// ─── Register callbacks with scheduler ────────────────────────────────────────
+
 setNotifyUser(sendExecutionNotification);
 
 setNotifyInsufficientFunds(async (telegramId, balance, required) => {
@@ -176,6 +211,14 @@ setNotifyInsufficientFunds(async (telegramId, balance, required) => {
   }
 });
 
+// ─── Inject Telegram sender into deposit poller (no circular dep) ─────────────
+
+setPollerSender(async (chatId, text, extra) => {
+  await bot.api.sendMessage(chatId, text, extra as any);
+});
+
+// ─── Bot startup ──────────────────────────────────────────────────────────────
+
 export async function startBot() {
   await bot.api.setMyCommands([
     { command: "start", description: "Настройка или главное меню" },
@@ -184,12 +227,12 @@ export async function startBot() {
     { command: "resume", description: "Возобновить стратегию" },
     { command: "withdraw", description: "Информация о выводе" },
     { command: "reset", description: "Удалить стратегию" },
+    { command: "cancel", description: "Отменить текущее действие" },
     { command: "help", description: "Помощь" },
   ]);
 
   bot.start({
-    onStart: (info) =>
-      console.log(`[BOT] Started as @${info.username}`),
+    onStart: (info) => console.log(`[BOT] Started as @${info.username}`),
   });
 
   console.log("[BOT] Bot is running via long polling");
