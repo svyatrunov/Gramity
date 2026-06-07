@@ -4,6 +4,7 @@ import {
   getPlanByTelegramId,
   getLastExecutions,
   getTotalInvested,
+  pool,
 } from "../../db/index.js";
 import {
   getTonPriceUsd,
@@ -127,6 +128,63 @@ export async function handleStatus(ctx: GramityContext) {
       `   из них yield: +$${proj.yieldEarnedUsd.toFixed(0)}\n`;
   } catch { /* non-critical */ }
 
+  // ── Strategy comparison & time saved ──────────────────────────────────────
+  let comparisonBlock = "";
+  let timeSavedBlock = "";
+  try {
+    const createdAt = new Date(plan.created_at);
+    const daysActive = Math.max(1, (Date.now() - createdAt.getTime()) / (1000 * 86400));
+
+    const execResult = await pool.query(
+      "SELECT COUNT(*) as cnt FROM executions WHERE plan_id = $1 AND status = 'success'",
+      [plan.id]
+    );
+    const cycleCount = parseInt(execResult.rows[0]?.cnt ?? "0");
+
+    if (totalInvested > 0) {
+      const bankPnl    = totalInvested * 0.02 * (daysActive / 365);
+      const stakingPnl = totalInvested * 0.05 * (daysActive / 365);
+      const pnlVal     = pnlAbs ?? 0;
+      const pnlPctVal  = pnlPct ?? 0;
+
+      const fmtPnl = (v: number) => `${v >= 0 ? "+" : ""}$${v.toFixed(2)}`;
+
+      const lines: string[] = [
+        `\n━━━━━━━━━━━━━━━`,
+        `📊 *Что принесли бы те же $${totalInvested.toFixed(0)} за ${Math.round(daysActive)} дн:*`,
+        ``,
+        `Gramity DCA:      ${fmtPnl(pnlVal)} (${pnlVal >= 0 ? "+" : ""}${pnlPctVal.toFixed(1)}%) ✅`,
+        `Только стейкинг:  ${fmtPnl(stakingPnl)} (${((stakingPnl / totalInvested) * 100).toFixed(1)}%)`,
+        `Банк 2%:          ${fmtPnl(bankPnl)}`,
+        `Держать USDT:     $0.00 (0%)`,
+        ``,
+      ];
+      if (avgEntryPrice != null) {
+        lines.push(`DCA усреднил цену входа: $${avgEntryPrice.toFixed(3)}/TON`);
+      }
+      if (tonPrice > 0) {
+        lines.push(`Текущая цена:            $${tonPrice.toFixed(3)}/TON`);
+      }
+      comparisonBlock = lines.join("\n");
+    }
+
+    const minutesPerCycle = 45;
+    const hoursSaved = (cycleCount * minutesPerCycle) / 60;
+    const intervalHoursVal = FREQ_HOURS[plan.frequency] ?? 7 * 24;
+    const cyclesPerYear = (365 * 24) / intervalHoursVal;
+    const yearlyHours = Math.round(cyclesPerYear * minutesPerCycle / 60);
+
+    if (cycleCount > 0) {
+      const plural =
+        cycleCount === 1 ? "" : cycleCount % 10 >= 2 && cycleCount % 10 <= 4 && !(cycleCount % 100 >= 11 && cycleCount % 100 <= 14) ? "а" : "ов";
+      timeSavedBlock = [
+        `\n⏱ *Gramity сэкономил тебе:*`,
+        `${cycleCount} цикл${plural} × ${minutesPerCycle} мин = *${hoursSaved.toFixed(1)} ч*`,
+        `В год при текущей частоте: ~${yearlyHours} часов`,
+      ].join("\n");
+    }
+  } catch { /* non-critical */ }
+
   // ── Format strings ─────────────────────────────────────────────────────────
   const statusEmoji = plan.active ? "🟢" : "⏸";
   const freqLabel = FREQ_LABELS[plan.frequency] ?? plan.frequency;
@@ -168,7 +226,9 @@ export async function handleStatus(ctx: GramityContext) {
     `  LP + фарминг:   ~${apy7d != null ? fmt(apy7d, 1) : poolApy.lpApy.toFixed(1)}%\n` +
     `  *Итого APY:*    ~${fmt(apyTotal, 1)}%\n` +
     projectionBlock +
-    `\n⏰ Следующий: ${nextDate}`;
+    comparisonBlock +
+    timeSavedBlock +
+    `\n\n⏰ Следующий: ${nextDate}`;
 
   const pnlSign = pnlAbs != null && pnlAbs >= 0 ? "+" : "-";
   const shareText = encodeURIComponent(
