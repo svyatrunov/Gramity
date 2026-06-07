@@ -146,13 +146,34 @@ async function main() {
   const tonBalance = await client.getBalance(wallet.address);
   console.log(`TON balance: ${fromNano(tonBalance)} TON`);
 
-  // Step 1: Burn LP tokens
-  const lpBalance = await getJettonBalance(client, address, POOL_ADDRESS);
+  // Step 1: Burn LP tokens via STON.fi SDK
+  const { removeLpViaSdk } = await import("../services/stonfi.js");
+  const { JettonMaster: JM, JettonWallet: JW } = await import("@ton/ton");
+
+  // Get LP balance on-chain
+  let lpBalance = 0n;
+  try {
+    const lpMaster = client.open(JM.create(Address.parse(POOL_ADDRESS)));
+    const userLpWalletAddr = await lpMaster.getWalletAddress(Address.parse(address));
+    const userLpWallet = client.open(JW.create(userLpWalletAddr));
+    lpBalance = await userLpWallet.getBalance();
+  } catch {
+    console.log("Could not query LP balance on-chain.");
+  }
+
   console.log(`LP balance: ${fromNano(lpBalance)} LP tokens`);
 
   if (lpBalance > 0n) {
-    console.log("Burning LP tokens...");
-    await burnJetton(contract, key, client, address, POOL_ADDRESS, lpBalance);
+    // Build a minimal WalletContext for removeLpViaSdk
+    const recoverCtx = {
+      key,
+      wallet,
+      client,
+      contract: contract as any,
+      address,
+    };
+    console.log("Removing LP via STON.fi SDK...");
+    await removeLpViaSdk(recoverCtx as any, lpBalance);
     console.log("LP burn sent. Waiting 90s for TON + tsTON to arrive...");
     await sleep(90_000);
   } else {

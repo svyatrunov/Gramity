@@ -23,6 +23,7 @@ import {
 import type { Plan } from "../db/index.js";
 import { getUserWalletContext } from "../services/userWallet.js";
 import { sendJettonTransfer, burnJetton } from "../services/jetton.js";
+import { removeLpViaSdk } from "../services/stonfi.js";
 import { getAllVerifiedJettons, getTonBalance } from "../services/tonapi.js";
 import { POOL_ADDRESS, TSTON_ADDRESS, USDT_ADDRESS, USDT_DECIMALS } from "../config.js";
 import { sleep } from "../wallet.js";
@@ -95,15 +96,15 @@ export async function executeFullExit(plan: Plan): Promise<ExitResult> {
 
   const summary: string[] = [];
 
-  // ── Step 1: Burn LP tokens (on-chain balance check) ─────────────────────────
+  // ── Step 1: Burn LP tokens via STON.fi SDK (on-chain balance check) ─────────
   try {
     console.log("[EXIT] Step 1: Checking LP balance on-chain...");
     const lpBalance = await getLpBalanceOnChain(walletCtx, POOL_ADDRESS);
     console.log(`[EXIT] LP balance: ${fromNano(lpBalance)} LP tokens`);
 
     if (lpBalance > 0n) {
-      console.log("[EXIT] Burning LP tokens...");
-      await burnJetton(walletCtx, POOL_ADDRESS, lpBalance);
+      console.log("[EXIT] Removing LP via STON.fi SDK...");
+      await removeLpViaSdk(walletCtx, lpBalance);
       console.log("[EXIT] LP burn TX sent. Waiting 90s for TON + tsTON to arrive...");
       await sleep(90_000);
     } else {
