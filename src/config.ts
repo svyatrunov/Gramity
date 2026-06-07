@@ -8,7 +8,12 @@ function require_env(key: string): string {
 }
 
 // ─── Wallet ───────────────────────────────────────────────────────────────────
-export const MNEMONIC = require_env("BACKEND_WALLET_MNEMONIC").split(" ");
+// Lazy — only validated when execution engine actually runs
+export function getMnemonic(): string[] {
+  return require_env("BACKEND_WALLET_MNEMONIC").split(" ");
+}
+/** @deprecated use getMnemonic() — kept for CLI scripts */
+export const MNEMONIC = process.env.BACKEND_WALLET_MNEMONIC?.split(" ") ?? [];
 export const TONCENTER_API_KEY = process.env.TONCENTER_API_KEY ?? "";
 export const REFERRER_WALLET = process.env.REFERRER_WALLET ?? "";
 

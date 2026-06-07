@@ -7,7 +7,7 @@ import {
   type OpenedContract,
 } from "@ton/ton";
 import {
-  MNEMONIC,
+  getMnemonic,
   TONCENTER_API_KEY,
   TONCENTER_URL,
 } from "./config.js";
@@ -21,7 +21,7 @@ export interface WalletContext {
 }
 
 export async function createWallet(): Promise<WalletContext> {
-  const key = await mnemonicToWalletKey(MNEMONIC);
+  const key = await mnemonicToWalletKey(getMnemonic());
 
   const wallet = WalletContractV4.create({
     publicKey: key.publicKey,
