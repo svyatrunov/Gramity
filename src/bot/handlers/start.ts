@@ -229,6 +229,12 @@ export async function handleCallbackQuery(ctx: GramityContext) {
   await ctx.answerCallbackQuery();
 
   if (data === "deposit_done") {
+    if (!ctx.session.tonAddress) {
+      await ctx.reply(
+        "⚠️ Сессия устарела.\n\nНажми /start чтобы начать заново."
+      );
+      return;
+    }
     ctx.session.step = "waiting_deposit_confirm";
     await handleDepositConfirm(ctx);
     return;
@@ -251,6 +257,16 @@ export async function handleCallbackQuery(ctx: GramityContext) {
     const freq = data.slice(5) as "weekly" | "biweekly" | "monthly" | "minutely" | "hourly";
     ctx.session.frequency = freq;
     ctx.session.step = "confirming";
+
+    // Session lost after redeploy — ask user to restart
+    if (!ctx.session.amount || !ctx.session.tonAddress) {
+      await ctx.reply(
+        "⚠️ Сессия устарела (бот перезапустился).\n\nНажми /start и пройди настройку заново — займёт 30 секунд."
+      );
+      ctx.session.step = "idle";
+      return;
+    }
+
     await showConfirmation(ctx);
     return;
   }
