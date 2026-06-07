@@ -8,6 +8,7 @@ import {
 } from "./handlers/start.js";
 import { handleStatus } from "./handlers/status.js";
 import { handlePause, handleResume, handleWithdrawInfo } from "./handlers/pause.js";
+import { handleReset, handleResetCallback } from "./handlers/reset.js";
 import { setNotifyUser } from "../scheduler/index.js";
 import { BOT_TOKEN } from "../config.js";
 import type { ExecutionResult } from "../execution/index.js";
@@ -32,6 +33,7 @@ bot.command("status", handleStatus);
 bot.command("pause", handlePause);
 bot.command("resume", handleResume);
 bot.command("withdraw", handleWithdrawInfo);
+bot.command("reset", handleReset);
 
 bot.command("help", async (ctx) => {
   await ctx.reply(
@@ -68,6 +70,16 @@ bot.on("callback_query:data", async (ctx) => {
   if (data === "status_check") {
     await ctx.answerCallbackQuery();
     await handleStatus(ctx);
+    return;
+  }
+  if (data === "confirm_reset") {
+    await ctx.answerCallbackQuery();
+    await handleResetCallback(ctx, "confirm");
+    return;
+  }
+  if (data === "cancel_reset") {
+    await ctx.answerCallbackQuery();
+    await handleResetCallback(ctx, "cancel");
     return;
   }
 
@@ -155,6 +167,7 @@ export async function startBot() {
     { command: "pause", description: "Пауза стратегии" },
     { command: "resume", description: "Возобновить стратегию" },
     { command: "withdraw", description: "Информация о выводе" },
+    { command: "reset", description: "Удалить стратегию" },
     { command: "help", description: "Помощь" },
   ]);
 

@@ -189,6 +189,10 @@ export async function getLastExecutions(
   return rows;
 }
 
+export async function deletePlan(telegramId: number): Promise<void> {
+  await getPool().query("DELETE FROM plans WHERE telegram_id = $1", [telegramId]);
+}
+
 export async function getTotalInvested(planId: string): Promise<number> {
   const { rows } = await getPool().query<{ total: string }>(
     "SELECT COALESCE(SUM(usdt_spent), 0) AS total FROM executions WHERE plan_id = $1 AND status = 'success'",
