@@ -13,6 +13,7 @@
 import { InlineKeyboard } from "grammy";
 import { Address } from "@ton/ton";
 import type { GramityContext } from "../session.js";
+import { RAILWAY_PUBLIC_URL } from "../../config.js";
 import {
   getPlanByTelegramId,
   upsertPlan,
@@ -262,10 +263,7 @@ export async function handleCallbackQuery(ctx: GramityContext) {
   if (data === "onboard_start") {
     ctx.session.step = "waiting_wallet";
 
-    const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN
-      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-      : (process.env.RAILWAY_STATIC_URL ?? "https://gramity.up.railway.app");
-    const miniAppUrl = `${railwayUrl}/app?mode=connect`;
+    const miniAppUrl = `${RAILWAY_PUBLIC_URL}/app?mode=connect`;
 
     const kb = new InlineKeyboard()
       .webApp("🔗 Подключить кошелёк", miniAppUrl);

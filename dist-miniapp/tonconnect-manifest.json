@@ -1,7 +1,7 @@
 {
-  "url": "https://gramity.up.railway.app",
+  "url": "https://gramity-production.up.railway.app",
   "name": "Gramity",
-  "iconUrl": "https://gramity.up.railway.app/icon.png",
-  "termsOfUseUrl": "https://gramity.up.railway.app",
-  "privacyPolicyUrl": "https://gramity.up.railway.app"
+  "iconUrl": "https://gramity-production.up.railway.app/icon.png",
+  "termsOfUseUrl": "https://gramity-production.up.railway.app",
+  "privacyPolicyUrl": "https://gramity-production.up.railway.app"
 }

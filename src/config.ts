@@ -74,3 +74,9 @@ export const BOT_TOKEN = process.env.BOT_TOKEN ?? "";
 
 // ─── Server ───────────────────────────────────────────────────────────────────
 export const PORT = process.env.PORT ?? "3000";
+
+// ─── Public URL ───────────────────────────────────────────────────────────────
+export const RAILWAY_PUBLIC_URL =
+  process.env.RAILWAY_PUBLIC_DOMAIN
+    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+    : process.env.APP_URL ?? "https://gramity-production.up.railway.app";
