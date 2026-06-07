@@ -56,8 +56,8 @@ bot.command("cancel", async (ctx) => {
 
   await ctx.reply(
     wasOnboarding
-      ? "❌ Настройка отменена.\n\nНажми /start когда будешь готов."
-      : "Нет активного действия для отмены."
+      ? "❌ Setup cancelled.\n\nTap /start when you're ready."
+      : "Nothing active to cancel."
   );
 });
 
@@ -65,21 +65,21 @@ bot.command("dev", async (ctx) => {
   ctx.session.devMode = !ctx.session.devMode;
   await ctx.reply(
     ctx.session.devMode
-      ? "🔧 Dev mode ON — тестовые интервалы включены в меню частоты."
-      : "🔧 Dev mode OFF — тестовые интервалы скрыты."
+      ? "🔧 Dev mode ON — test intervals enabled in frequency menu."
+      : "🔧 Dev mode OFF — test intervals hidden."
   );
 });
 
 bot.command("help", async (ctx) => {
   await ctx.reply(
-    "📋 *Команды Gramity*\n\n" +
-      "/start — настройка или главное меню\n" +
-      "/status — текущая позиция\n" +
-      "/pause — пауза стратегии\n" +
-      "/resume — возобновить\n" +
-      "/reset — удалить стратегию\n" +
-      "/withdraw — информация о выводе\n" +
-      "/cancel — отменить текущее действие",
+    "📋 *Gramity Commands*\n\n" +
+      "/start — setup or main menu\n" +
+      "/status — current position\n" +
+      "/pause — pause strategy\n" +
+      "/resume — resume strategy\n" +
+      "/reset — delete strategy\n" +
+      "/withdraw — withdraw funds\n" +
+      "/cancel — cancel current action",
     { parse_mode: "Markdown" }
   );
 });
@@ -116,7 +116,7 @@ bot.on("callback_query:data", async (ctx) => {
   }
   if (data === "withdraw_cancel") {
     await ctx.answerCallbackQuery();
-    await ctx.reply("❌ Вывод отменён.");
+    await ctx.reply("❌ Withdrawal cancelled.");
     return;
   }
   if (data.startsWith("settings_")) {
@@ -199,10 +199,10 @@ bot.on("message:web_app_data", async (ctx) => {
         ctx.session.tonAddress = friendlyAddress;
 
         await ctx.reply(
-          `✅ *Кошелёк обновлён*\n\n` +
-            `Адрес для вывода:\n\`${friendlyAddress}\`\n\n` +
-            (data.walletName ? `Кошелёк: ${data.walletName}\n\n` : "") +
-            `Средства будут поступать на этот адрес при /withdraw.`,
+          `✅ *Wallet updated*\n\n` +
+            `Withdrawal address:\n\`${friendlyAddress}\`\n\n` +
+            (data.walletName ? `Wallet: ${data.walletName}\n\n` : "") +
+            `Funds will be sent to this address on /withdraw.`,
           { parse_mode: "Markdown" }
         );
       }
@@ -233,10 +233,10 @@ async function sendExecutionNotification(
     if (!result || result.status === "failed") {
       await bot.api.sendMessage(
         telegramId,
-        `⚠️ *Gramity — ошибка цикла*\n\n` +
-          (error ? `Причина: ${error.slice(0, 200)}\n\n` : "") +
-          `Средства в безопасности. Следующая попытка по расписанию.\n` +
-          `/status — проверить позицию`,
+        `⚠️ *Gramity — cycle error*\n\n` +
+          (error ? `Reason: ${error.slice(0, 200)}\n\n` : "") +
+          `Funds are safe. Next attempt is scheduled.\n` +
+          `/status — check position`,
         { parse_mode: "Markdown" }
       );
       return;
@@ -244,7 +244,6 @@ async function sendExecutionNotification(
 
     const isPartial = result.status === "partial";
 
-    // Compact one-screen report
     const tonPrice =
       result.tonReceived > 0
         ? (result.usdtSpent / result.tonReceived).toFixed(2)
@@ -252,37 +251,37 @@ async function sendExecutionNotification(
 
     const nextDate = new Date();
     nextDate.setDate(nextDate.getDate() + 7);
-    const nextStr = nextDate.toLocaleDateString("ru-RU", {
+    const nextStr = nextDate.toLocaleDateString("en-US", {
       weekday: "short",
-      day: "numeric",
-      month: "long",
-      timeZone: "Europe/Moscow",
+      day:     "numeric",
+      month:   "short",
+      timeZone: "UTC",
     });
 
     const headline = isPartial
-      ? `⚡ Gramity выполнен частично`
-      : `⚡ *Gramity сработал — $${result.usdtSpent.toFixed(0)} в пул*`;
+      ? `⚡ Gramity executed partially`
+      : `⚡ *DCA cycle complete — $${result.usdtSpent.toFixed(0)} deployed*`;
 
     const lines = [
       headline,
       "",
-      `💵 $${result.usdtSpent.toFixed(2)}${tonPrice ? ` → ${result.tonReceived.toFixed(3)} TON по $${tonPrice}` : " USDT потрачено"}`,
+      `💵 $${result.usdtSpent.toFixed(2)}${tonPrice ? ` → ${result.tonReceived.toFixed(3)} TON @ $${tonPrice}` : " USDT spent"}`,
       result.tstonReceived > 0
-        ? `🔒 ${result.tstonReceived.toFixed(3)} tsTON застейкано`
+        ? `🔒 ${result.tstonReceived.toFixed(3)} tsTON staked`
         : null,
-      `🏊 LP позиция: ${result.lpPositionValue !== "N/A" ? `$${result.lpPositionValue}` : "обновляется..."}`,
+      `🏊 LP position: ${result.lpPositionValue !== "N/A" ? `$${result.lpPositionValue}` : "updating..."}`,
       "",
-      `⏰ Следующий цикл: ${nextStr}`,
+      `⏰ Next cycle: ${nextStr}`,
     ]
       .filter(Boolean)
       .join("\n");
 
     const kb = new InlineKeyboard()
-      .text("📊 Статус", "status_check")
-      .text("⏸ Пауза", "pause");
+      .text("📊 Status", "status_check")
+      .text("⏸ Pause",  "pause");
 
     await bot.api.sendMessage(telegramId, lines, {
-      parse_mode: "Markdown",
+      parse_mode:   "Markdown",
       reply_markup: kb,
     });
   } catch (err) {
@@ -298,11 +297,11 @@ setNotifyInsufficientFunds(async (telegramId, balance, required) => {
   try {
     await bot.api.sendMessage(
       telegramId,
-      `⚠️ *Недостаточно USDT для цикла*\n\n` +
-        `На депозите: $${balance.toFixed(2)}\n` +
-        `Нужно: $${required.toFixed(2)}\n\n` +
-        `Стратегия поставлена на паузу.\n` +
-        `Пополни депозит и нажми /resume`,
+      `⚠️ *Insufficient USDT for cycle*\n\n` +
+        `On deposit: $${balance.toFixed(2)}\n` +
+        `Required:   $${required.toFixed(2)}\n\n` +
+        `Strategy paused.\n` +
+        `Top up your deposit and tap /resume`,
       { parse_mode: "Markdown" }
     );
   } catch (err) {
@@ -330,16 +329,16 @@ setGasNotifier(async (telegramId, msg) => {
 
 export async function startBot() {
   await bot.api.setMyCommands([
-    { command: "start", description: "Настройка или главное меню" },
-    { command: "status", description: "Текущая позиция" },
-    { command: "pause", description: "Пауза стратегии" },
-    { command: "resume", description: "Возобновить стратегию" },
-    { command: "settings", description: "Настройки стратегии" },
-    { command: "withdraw", description: "Вывод средств" },
-    { command: "reset", description: "Удалить стратегию" },
-    { command: "cancel", description: "Отменить текущее действие" },
-    { command: "history", description: "История последних 5 циклов" },
-    { command: "help", description: "Помощь" },
+    { command: "start",    description: "Setup or main menu" },
+    { command: "status",   description: "Current position" },
+    { command: "pause",    description: "Pause strategy" },
+    { command: "resume",   description: "Resume strategy" },
+    { command: "settings", description: "Strategy settings" },
+    { command: "withdraw", description: "Withdraw funds" },
+    { command: "reset",    description: "Delete strategy" },
+    { command: "cancel",   description: "Cancel current action" },
+    { command: "history",  description: "Last 5 cycle history" },
+    { command: "help",     description: "Help" },
   ]);
 
   bot.start({

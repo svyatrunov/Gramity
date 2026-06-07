@@ -12,7 +12,10 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "@telegram-apps/sdk-react": "^2.0.0",
-    "@tonconnect/ui-react": "^2.0.0"
+    "@tonconnect/ui-react": "^2.0.0",
+    "@ston-fi/omniston-sdk": "0.8.3",
+    "ethers": "^6.13.5",
+    "rxjs": "^7.8.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.1",

@@ -5,6 +5,7 @@ import { PortfolioScreen } from "./screens/PortfolioScreen";
 import { WalletsScreen } from "./screens/WalletsScreen";
 import { WithdrawScreen } from "./screens/WithdrawScreen";
 import { BuyScreen } from "./screens/BuyScreen";
+import { DepositScreen } from "./screens/DepositScreen";
 
 const MANIFEST_URL = `${window.location.origin}/app/tonconnect-manifest.json`;
 
@@ -44,6 +45,10 @@ export function App() {
         <ConnectWallet />
       </TonConnectUIProvider>
     );
+  }
+
+  if (mode === "deposit") {
+    return <DepositScreen />;
   }
 
   const [screen, setScreen] = useState<Screen>("portfolio");

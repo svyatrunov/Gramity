@@ -72,6 +72,9 @@ export const USDT_DECIMALS = 6;
 // ─── Bot ──────────────────────────────────────────────────────────────────────
 export const BOT_TOKEN = process.env.BOT_TOKEN ?? "";
 
+/** TON hot wallet — cross-chain deposit destination */
+export const BOT_WALLET_ADDRESS = process.env.BOT_WALLET_ADDRESS ?? "";
+
 // ─── Server ───────────────────────────────────────────────────────────────────
 export const PORT = process.env.PORT ?? "3000";
 

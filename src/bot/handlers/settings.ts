@@ -7,17 +7,18 @@ import type { GramityContext } from "../session.js";
 import { getPlanByTelegramId, updatePlan, type Plan } from "../../db/index.js";
 
 const MODE_LABELS: Record<string, string> = {
-  full: "Полная (своп + стейкинг + LP)",
-  stake_only: "Только стейкинг (без LP)",
-  accumulate: "Только TON (без стейкинга и LP)",
+  full:       "Full (swap + staking + LP)",
+  stake_only: "Staking only (no LP)",
+  accumulate: "TON only (no staking, no LP)",
 };
 
 const FREQ_LABELS: Record<string, string> = {
-  weekly: "Еженедельно",
-  biweekly: "Раз в 2 нед.",
-  monthly: "Раз в месяц",
-  minutely: "Каждую минуту (тест)",
-  hourly: "Каждый час (тест)",
+  weekly:   "Weekly",
+  biweekly: "Every 2 weeks",
+  monthly:  "Monthly",
+  daily:    "Daily",
+  minutely: "Every minute (test)",
+  hourly:   "Every hour (test)",
 };
 
 export async function handleSettings(ctx: GramityContext) {
@@ -27,7 +28,7 @@ export async function handleSettings(ctx: GramityContext) {
   const plan = await getPlanByTelegramId(telegramId).catch(() => null);
   if (!plan) {
     await ctx.reply(
-      "У тебя нет активной стратегии.\nНажми /start чтобы настроить Gramity."
+      "No active strategy.\nUse /start to set up Gramity."
     );
     return;
   }
@@ -40,32 +41,29 @@ async function showSettingsMenu(ctx: GramityContext, plan: Plan) {
   const freq = plan.frequency;
 
   const kb = new InlineKeyboard()
-    .text("🔄 Сменить стратегию", "settings_mode")
+    .text("🔄 Change strategy", "settings_mode")
     .row()
-    .text("💰 Сменить сумму", "settings_amount")
+    .text("💰 Change amount",   "settings_amount")
     .row()
-    .text("⏱ Сменить частоту", "settings_freq");
+    .text("⏱ Change frequency", "settings_freq");
 
   await ctx.reply(
-    `⚙️ *Настройки стратегии*\n\n` +
-      `Режим: *${MODE_LABELS[mode] ?? mode}*\n` +
-      `Сумма: *$${plan.usdt_amount}* за цикл\n` +
-      `Частота: *${FREQ_LABELS[freq] ?? freq}*\n\n` +
-      `Выбери что изменить:`,
+    `⚙️ *Strategy Settings*\n\n` +
+      `Mode:      *${MODE_LABELS[mode] ?? mode}*\n` +
+      `Amount:    *$${plan.usdt_amount}* per cycle\n` +
+      `Frequency: *${FREQ_LABELS[freq] ?? freq}*\n\n` +
+      `Choose what to change:`,
     { parse_mode: "Markdown", reply_markup: kb }
   );
 }
 
-export async function handleSettingsCallback(
-  ctx: GramityContext,
-  action: string
-) {
+export async function handleSettingsCallback(ctx: GramityContext, action: string) {
   const telegramId = ctx.from?.id;
   if (!telegramId) return;
 
   const plan = await getPlanByTelegramId(telegramId).catch(() => null);
   if (!plan) {
-    await ctx.reply("⚠️ Стратегия не найдена.");
+    await ctx.reply("⚠️ Strategy not found.");
     return;
   }
 
@@ -73,42 +71,39 @@ export async function handleSettingsCallback(
     const current = plan.strategy_mode ?? "full";
     const kb = new InlineKeyboard()
       .text(
-        `${current === "full" ? "✅ " : ""}Полная (LP + стейкинг)`,
+        `${current === "full" ? "✅ " : ""}Full (LP + staking)`,
         "settings_set_mode_full"
       )
       .row()
       .text(
-        `${current === "stake_only" ? "✅ " : ""}Только стейкинг`,
+        `${current === "stake_only" ? "✅ " : ""}Staking only`,
         "settings_set_mode_stake_only"
       )
       .row()
       .text(
-        `${current === "accumulate" ? "✅ " : ""}Только TON`,
+        `${current === "accumulate" ? "✅ " : ""}TON only`,
         "settings_set_mode_accumulate"
       )
       .row()
-      .text("← Назад", "settings_back");
+      .text("← Back", "settings_back");
 
     await ctx.reply(
-      `🔄 *Режим стратегии*\n\n` +
-        `• *Полная* — своп USDT→TON, стейкинг→tsTON, добавление в пул STON.fi (~8% APY)\n` +
-        `• *Только стейкинг* — своп USDT→TON, стейкинг→tsTON. Без LP, без риска непост. потерь (~5% APY)\n` +
-        `• *Только TON* — только своп USDT→TON, копить в кошельке\n\n` +
-        `Текущий: *${MODE_LABELS[current] ?? current}*`,
+      `🔄 *Strategy Mode*\n\n` +
+        `• *Full* — swap USDT→TON, stake→tsTON, add to STON.fi LP (~5.4% APY)\n` +
+        `• *Staking only* — swap USDT→TON, stake→tsTON. No LP risk (~5% APY)\n` +
+        `• *TON only* — swap USDT→TON, accumulate in wallet\n\n` +
+        `Current: *${MODE_LABELS[current] ?? current}*`,
       { parse_mode: "Markdown", reply_markup: kb }
     );
     return;
   }
 
   if (action.startsWith("set_mode_")) {
-    const newMode = action.replace("set_mode_", "") as
-      | "full"
-      | "stake_only"
-      | "accumulate";
+    const newMode = action.replace("set_mode_", "") as "full" | "stake_only" | "accumulate";
     await updatePlan(telegramId, { strategy_mode: newMode });
     await ctx.reply(
-      `✅ Стратегия изменена на *${MODE_LABELS[newMode] ?? newMode}*\n\n` +
-        `Вступит в силу на следующем цикле.`,
+      `✅ Strategy changed to *${MODE_LABELS[newMode] ?? newMode}*\n\n` +
+        `Takes effect on the next cycle.`,
       { parse_mode: "Markdown" }
     );
     return;
@@ -117,7 +112,7 @@ export async function handleSettingsCallback(
   if (action === "amount") {
     ctx.session.step = "waiting_custom_amount";
     await ctx.reply(
-      `💰 Введи новую сумму за цикл в USDT (например: \`50\`)`,
+      `💰 Enter new amount per cycle in USDT (e.g. \`50\`)`,
       { parse_mode: "Markdown" }
     );
     return;
@@ -125,21 +120,21 @@ export async function handleSettingsCallback(
 
   if (action === "freq") {
     const kb = new InlineKeyboard()
-      .text("📅 Еженедельно", "settings_set_freq_weekly")
+      .text("📅 Weekly",        "settings_set_freq_weekly")
       .row()
-      .text("🗓 Раз в 2 нед.", "settings_set_freq_biweekly")
+      .text("🗓 Every 2 weeks", "settings_set_freq_biweekly")
       .row()
-      .text("📆 Раз в месяц", "settings_set_freq_monthly")
+      .text("📆 Monthly",       "settings_set_freq_monthly")
       .row()
-      .text("← Назад", "settings_back");
+      .text("← Back", "settings_back");
 
     if (ctx.session.devMode || process.env.NODE_ENV !== "production") {
       kb.row()
-        .text("⚡ 1 мин (тест)", "settings_set_freq_minutely")
-        .text("🕐 1 час (тест)", "settings_set_freq_hourly");
+        .text("⚡ 1 min (test)",  "settings_set_freq_minutely")
+        .text("🕐 1 hour (test)", "settings_set_freq_hourly");
     }
 
-    await ctx.reply("⏱ Выбери новую частоту:", { reply_markup: kb });
+    await ctx.reply("⏱ Choose new frequency:", { reply_markup: kb });
     return;
   }
 
@@ -147,7 +142,7 @@ export async function handleSettingsCallback(
     const newFreq = action.replace("set_freq_", "") as Plan["frequency"];
     await updatePlan(telegramId, { frequency: newFreq });
     await ctx.reply(
-      `✅ Частота изменена: *${FREQ_LABELS[newFreq] ?? newFreq}*`,
+      `✅ Frequency changed to: *${FREQ_LABELS[newFreq] ?? newFreq}*`,
       { parse_mode: "Markdown" }
     );
     return;

@@ -12,7 +12,14 @@ import path from "path";
 import { startBot } from "./bot/index.js";
 import { startScheduler } from "./scheduler/index.js";
 import { initDb, getUserWallets } from "./db/index.js";
-import { PORT, USDT_ADDRESS, USDT_DECIMALS, TON_API_URL } from "./config.js";
+import {
+  PORT,
+  USDT_ADDRESS,
+  USDT_DECIMALS,
+  TON_API_URL,
+  BOT_WALLET_ADDRESS,
+  OMNISTON_WS_URL,
+} from "./config.js";
 import { getAllVerifiedJettons, getTonBalance, getUsdtBalance } from "./services/tonapi.js";
 import { createUserWallet, createNamedWallet, getUserWalletContext } from "./services/userWallet.js";
 import { executeFullExit } from "./execution/exit.js";
@@ -252,7 +259,128 @@ app.get("/api/tokens/popular", async (_req, res) => {
   }
 });
 
-// Gas estimate
+// Cross-chain deposit config (public fields for Mini App)
+app.get("/api/deposit/config", tgAuth, (_req, res) => {
+  if (!BOT_WALLET_ADDRESS) {
+    res.status(503).json({ error: "BOT_WALLET_ADDRESS not configured" });
+    return;
+  }
+  res.json({
+    botWalletAddress: BOT_WALLET_ADDRESS,
+    omnistonWsUrl: OMNISTON_WS_URL,
+    tonUsdtAddress: USDT_ADDRESS,
+  });
+});
+
+// Notify bot after cross-chain deposit tx confirmed
+app.post("/api/deposit-initiated", tgAuth, async (req, res) => {
+  try {
+    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const { txHash, amount, sourceChain, sourceToken } = req.body ?? {};
+
+    if (!txHash || typeof txHash !== "string") {
+      res.status(400).json({ error: "txHash required" });
+      return;
+    }
+
+    const { bot } = await import("./bot/index.js");
+    const amt = amount != null ? String(amount) : "?";
+    const chain = sourceChain != null ? String(sourceChain) : "?";
+    const token = sourceToken != null ? String(sourceToken) : "?";
+
+    await bot.api.sendMessage(
+      telegramId,
+      `🌉 *Cross-chain deposit sent*\n\n` +
+        `Amount: ${amt} ${token}\n` +
+        `Network: ${chain}\n` +
+        `Tx: \`${txHash.slice(0, 10)}…${txHash.slice(-8)}\`\n\n` +
+        `_Funds will arrive on TON after bridge confirmation (usually 5–15 min)._`,
+      { parse_mode: "Markdown" }
+    );
+
+    console.log(
+      `[DEPOSIT] Cross-chain initiated user=${telegramId} chain=${chain} token=${token} tx=${txHash}`
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// Create / update DCA plan from Mini App
+app.post("/api/plans", tgAuth, async (req, res) => {
+  try {
+    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const { ton_address, amount_usdt, frequency, strategy } = req.body ?? {};
+
+    if (!ton_address || typeof ton_address !== "string") {
+      res.status(400).json({ error: "ton_address is required" });
+      return;
+    }
+    const amount = Number(amount_usdt);
+    if (!amount || isNaN(amount) || amount < 1) {
+      res.status(400).json({ error: "amount_usdt must be >= 1" });
+      return;
+    }
+
+    const VALID_FREQS: Array<"weekly" | "biweekly" | "monthly" | "daily" | "minutely" | "hourly"> =
+      ["daily", "weekly", "biweekly", "monthly", "minutely", "hourly"];
+    const normalizedFreq = VALID_FREQS.includes(String(frequency) as "weekly") ? (String(frequency) as "weekly" | "biweekly" | "monthly" | "daily" | "minutely" | "hourly") : "weekly";
+
+    const nextExec = new Date();
+    if (normalizedFreq === "daily")       nextExec.setDate(nextExec.getDate() + 1);
+    else if (normalizedFreq === "monthly") nextExec.setMonth(nextExec.getMonth() + 1);
+    else if (normalizedFreq === "biweekly") nextExec.setDate(nextExec.getDate() + 14);
+    else if (normalizedFreq === "minutely") nextExec.setMinutes(nextExec.getMinutes() + 1);
+    else if (normalizedFreq === "hourly")   nextExec.setHours(nextExec.getHours() + 1);
+    else                                    nextExec.setDate(nextExec.getDate() + 7);
+
+    const { upsertPlan } = await import("./db/index.js");
+    await upsertPlan({
+      telegram_id:       telegramId,
+      ton_address:       String(ton_address),
+      agent_wallet:      null,
+      usdt_amount:       amount,
+      frequency:         normalizedFreq,
+      strategy_mode:     "full",
+      active:            true,
+      next_execution_at: nextExec.toISOString(),
+    });
+
+    await createUserWallet(telegramId);
+
+    const FREQ_LABELS: Record<string, string> = {
+      daily: "daily", weekly: "weekly", biweekly: "every 2 weeks",
+      monthly: "monthly", minutely: "every minute", hourly: "every hour",
+    };
+    const STRATEGY_LABELS: Record<string, string> = {
+      ton: "TON + Stake + LP",
+      ston: "STON accumulation",
+    };
+
+    const { bot } = await import("./bot/index.js");
+    await bot.api.sendMessage(
+      telegramId,
+      `✅ *DCA Strategy Created*\n\n` +
+        `Strategy: ${STRATEGY_LABELS[String(strategy)] ?? "TON + Stake + LP"}\n` +
+        `Amount: $${amount.toFixed(0)} USDT / cycle\n` +
+        `Frequency: ${FREQ_LABELS[normalizedFreq] ?? normalizedFreq}\n` +
+        `Est. APY: ~5.4%\n` +
+        `Withdrawal: \`${String(ton_address).slice(0, 8)}…${String(ton_address).slice(-6)}\`\n\n` +
+        `First cycle will run within 24 hours.\n\n` +
+        `/status — check your position anytime`,
+      { parse_mode: "Markdown" }
+    );
+
+    console.log(`[API/plans] Strategy created user=${telegramId} amount=${amount} freq=${normalizedFreq}`);
+    res.json({ ok: true, message: "Strategy created successfully" });
+  } catch (err) {
+    console.error("[API/plans] Error:", err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+
 app.get("/api/gas/:action", async (req, res) => {
   const { getTonPriceUsd } = await import("./services/tonapi.js");
   const GAS_BY_ACTION: Record<string, number> = {

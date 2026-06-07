@@ -17,18 +17,18 @@ export async function handleHistory(ctx: GramityContext) {
   );
 
   if (result.rows.length === 0) {
-    await ctx.reply("История пуста. Первый цикл ещё не выполнился.");
+    await ctx.reply("No history yet. The first cycle hasn't run yet.");
     return;
   }
 
   const lines = result.rows.map((row, i) => {
-    const date = new Date(row.created_at).toLocaleDateString("ru-RU", {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
+    const date = new Date(row.created_at).toLocaleDateString("en-US", {
+      day:    "2-digit",
+      month:  "short",
+      hour:   "2-digit",
       minute: "2-digit",
     });
-    const lp = row.lp_tokens_received
+    const lp     = row.lp_tokens_received
       ? `→ ${parseFloat(row.lp_tokens_received).toFixed(2)} LP`
       : "";
     const status = row.status === "success" ? "✅" : row.status === "pending" ? "⏳" : "❌";
@@ -36,8 +36,8 @@ export async function handleHistory(ctx: GramityContext) {
   });
 
   const text =
-    `📋 *История последних циклов*\n\n${lines.join("\n")}\n\n` +
-    `_Каждый цикл: USDT → TON → стейкинг → ликвидность_`;
+    `📋 *Last cycle history*\n\n${lines.join("\n")}\n\n` +
+    `_Each cycle: USDT → TON → staking → liquidity_`;
 
   await ctx.reply(text, { parse_mode: "Markdown" });
 }

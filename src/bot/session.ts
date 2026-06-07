@@ -16,7 +16,7 @@ export interface UserSession {
   depositAddress?: string;
   usdtBalance?: number;
   amount?: number;
-  frequency?: "weekly" | "biweekly" | "monthly" | "minutely" | "hourly";
+  frequency?: "weekly" | "biweekly" | "monthly" | "daily" | "minutely" | "hourly";
   /** Enabled via /dev — shows test frequencies in prod */
   devMode?: boolean;
 }

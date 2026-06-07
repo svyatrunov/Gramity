@@ -1,13 +1,6 @@
 /**
- * /start onboarding flow — multi-step state machine
- *
- * Steps:
- *  1. Welcome (with [🚀 Начать] button)
- *  2. Ask TON address (reframed: "where to withdraw later")
- *  3. Validate → show deposit address → start background poller
- *  4. Deposit detected (auto or manual) → amount selection with APY framing
- *  5. Frequency selection (test options behind /dev or non-prod)
- *  6. Summary + risk disclosure → [✅ Активировать]
+ * /start — shows Open App button (Mini App handles full onboarding).
+ * Text-based fallback kept for edge cases / API-less environments.
  */
 
 import { InlineKeyboard } from "grammy";
@@ -38,40 +31,38 @@ function normalizeTonAddress(input: string): string | null {
   }
 }
 
-function getFirstFriday(): Date {
-  const now = new Date();
-  const daysUntilFriday = ((5 - now.getDay() + 7) % 7) || 7;
-  const next = new Date(now);
-  next.setDate(now.getDate() + daysUntilFriday);
-  next.setUTCHours(9, 0, 0, 0); // 12:00 Moscow = 09:00 UTC
+function getNextCycleDate(frequency: string): Date {
+  const next = new Date();
+  if (frequency === "daily")        next.setDate(next.getDate() + 1);
+  else if (frequency === "monthly") next.setMonth(next.getMonth() + 1);
+  else                              next.setDate(next.getDate() + 7); // weekly default
   return next;
 }
 
 function formatDate(d: Date): string {
-  return d.toLocaleDateString("ru-RU", {
-    weekday: "long",
+  return d.toLocaleDateString("en-US", {
+    weekday: "short",
     day: "numeric",
-    month: "long",
+    month: "short",
     hour: "2-digit",
     minute: "2-digit",
-    timeZone: "Europe/Moscow",
+    timeZone: "UTC",
   });
 }
 
 const FREQ_LABELS: Record<string, string> = {
-  weekly: "еженедельно",
-  biweekly: "раз в 2 нед.",
-  monthly: "раз в месяц",
-  minutely: "каждую минуту",
-  hourly: "каждый час",
+  weekly:   "weekly",
+  biweekly: "every 2 weeks",
+  monthly:  "monthly",
+  daily:    "daily",
+  minutely: "every minute",
+  hourly:   "every hour",
 };
 
 const TEST_FREQS = ["minutely", "hourly"];
 
-/** Estimated annual yield at a given weekly amount and 8% APY on average deployed capital */
 function estimateYearlyUsd(weeklyAmount: number): number {
-  // Average capital ≈ 26 weeks of deposits × amount; 8% APY
-  return Math.round(weeklyAmount * 26 * 0.08);
+  return Math.round(weeklyAmount * 26 * 0.054);
 }
 
 // ─── /start command ───────────────────────────────────────────────────────────
@@ -81,50 +72,55 @@ export async function handleStart(ctx: GramityContext) {
   if (!telegramId) return;
 
   const existingPlan = await getPlanByTelegramId(telegramId).catch(() => null);
+  const appUrl = `${RAILWAY_PUBLIC_URL}/app/onboarding.html`;
 
   if (existingPlan) {
-    const status = existingPlan.active ? "🟢 Активна" : "⏸ Пауза";
-    const nextDate = new Date(existingPlan.next_execution_at);
-    const execs = await getLastExecutions(existingPlan.id, 1).catch(() => []);
-    const lastExec = execs[0];
+    const statusEmoji = existingPlan.active ? "🟢" : "⏸";
+    const statusLabel = existingPlan.active ? "Active" : "Paused";
+    const freqLabel   = FREQ_LABELS[existingPlan.frequency] ?? existingPlan.frequency;
+    const nextDate    = formatDate(new Date(existingPlan.next_execution_at));
+    const execs       = await getLastExecutions(existingPlan.id, 1).catch(() => []);
+    const lastExec    = execs[0];
 
     const kb = new InlineKeyboard()
-      .text("📊 Статус", "status_check")
-      .text("⏸ Пауза", existingPlan.active ? "pause" : "resume");
+      .text("📊 Status", "status_check")
+      .text(existingPlan.active ? "⏸ Pause" : "▶️ Resume", existingPlan.active ? "pause" : "resume")
+      .row()
+      .webApp("🚀 Open App", appUrl);
 
     await ctx.reply(
-      `👋 С возвращением!\n\n` +
-        `📊 *Твоя стратегия Gramity*\n\n` +
-        `Статус: ${status}\n` +
-        `Сумма: $${existingPlan.usdt_amount} ${FREQ_LABELS[existingPlan.frequency] ?? existingPlan.frequency}\n` +
-        `Кошелёк: \`${existingPlan.ton_address.slice(0, 6)}…${existingPlan.ton_address.slice(-4)}\`\n` +
+      `👋 Welcome back!\n\n` +
+        `📊 *Your Gramity Strategy*\n\n` +
+        `${statusEmoji} ${statusLabel} · $${existingPlan.usdt_amount} USDT ${freqLabel}\n` +
+        `Wallet: \`${existingPlan.ton_address.slice(0, 6)}…${existingPlan.ton_address.slice(-4)}\`\n` +
         (lastExec
-          ? `Последний запуск: ${new Date(lastExec.executed_at).toLocaleDateString("ru-RU")}\n`
+          ? `Last run: ${new Date(lastExec.executed_at).toLocaleDateString("en-US")}\n`
           : "") +
-        `Следующий: ${formatDate(nextDate)}\n\n` +
-        `Команды: /status · /pause · /resume · /reset`,
+        `Next: ${nextDate}\n\n` +
+        `Commands: /status · /pause · /withdraw`,
       { parse_mode: "Markdown", reply_markup: kb }
     );
     ctx.session.step = "idle";
     return;
   }
 
-  // ── Fresh onboarding ───────────────────────────────────────────────────────
+  // ── New user — Open App button ─────────────────────────────────────────────
   ctx.session.step = "idle";
 
-  const kb = new InlineKeyboard().text("🚀 Начать", "onboard_start");
+  const kb = new InlineKeyboard()
+    .webApp("🚀 Open App", appUrl);
 
   await ctx.reply(
-    `👋 Привет! Я *Gramity* — авто-инвестирование в TON DeFi.\n\n` +
-      `*Как работает:*\n` +
-      `💵 Ты кладёшь USDT на депозит\n` +
-      `⚡ Каждую неделю я автоматически:\n` +
-      `  › меняю USDT → TON (Omniston)\n` +
-      `  › стейкаю часть → tsTON (~5% APY)\n` +
-      `  › добавляю в пул STON.fi (~8% APY)\n\n` +
-      `*Ожидаемый доход: ~8% годовых*\n` +
-      `Без комиссий платформы. Только газ.\n\n` +
-      `Настройка займёт 2 минуты 👇`,
+    `👋 Welcome to *Gramity* — automated DCA on TON.\n\n` +
+      `*How it works:*\n` +
+      `💵 Deposit USDT once (any chain: ETH, Base, BNB, Polygon or TON)\n` +
+      `⚡ Every cycle, Gramity automatically:\n` +
+      `  › Swaps USDT → TON via Omniston\n` +
+      `  › Stakes → tsTON via Tonstakers (~5% APY)\n` +
+      `  › Provides liquidity on STON.fi (~5.4% APY)\n\n` +
+      `*LP tokens go directly to your wallet.*\n` +
+      `0% platform fee · Non-custodial · ~16 min/week saved\n\n` +
+      `Tap *Open App* to set up in ~2 minutes 👇`,
     { parse_mode: "Markdown", reply_markup: kb }
   );
 }
@@ -138,7 +134,6 @@ export async function handleText(ctx: GramityContext) {
   if (step === "waiting_wallet") {
     await handleWalletInput(ctx, text);
   } else if (step === "waiting_deposit_confirm") {
-    // User typed something while waiting — re-check balance
     await handleDepositConfirm(ctx);
   } else if (step === "waiting_custom_amount") {
     await handleCustomAmount(ctx, text);
@@ -152,9 +147,9 @@ async function handleWalletInput(ctx: GramityContext, text: string) {
 
   if (!normalized) {
     await ctx.reply(
-      "❌ Неверный формат адреса.\n\n" +
-        "Открой Tonkeeper → Получить → скопируй адрес кошелька.\n" +
-        "Принимаю форматы: `EQ…`, `UQ…`, `0:abc123…`",
+      "❌ Invalid address format.\n\n" +
+        "Open Tonkeeper → Receive → copy your wallet address.\n" +
+        "Accepted formats: `EQ…`, `UQ…`, `0:abc123…`",
       { parse_mode: "Markdown" }
     );
     return;
@@ -178,24 +173,22 @@ export async function continueToDepositStep(
   ctx.session.tonAddress = normalizedAddress;
   ctx.session.step = "waiting_deposit_confirm";
 
-  const depositAddress = await createUserWallet(telegramId).catch(
-    () => "недоступен"
-  );
+  const depositAddress = await createUserWallet(telegramId).catch(() => "unavailable");
   ctx.session.depositAddress = depositAddress;
 
   startDepositPoller(telegramId, depositAddress);
 
   await ctx.reply(
-    `✅ Кошелёк сохранён\n` +
+    `✅ Wallet saved\n` +
       `\`${normalizedAddress.slice(0, 6)}…${normalizedAddress.slice(-4)}\`\n\n` +
-      `*Пополни депозитный адрес Gramity в USDT (TON):*\n` +
+      `*Fund your Gramity deposit address with USDT (on TON):*\n` +
       `\`${depositAddress}\`\n\n` +
-      `Минимум: $25 USDT\n\n` +
-      `📡 Я слежу за поступлением и уведомлю тебя автоматически.\n` +
-      `Можешь нажать кнопку сразу после отправки 👇`,
+      `Minimum: $25 USDT\n\n` +
+      `📡 I'm watching for your deposit and will notify you automatically.\n` +
+      `You can tap the button right after sending 👇`,
     {
       parse_mode: "Markdown",
-      reply_markup: new InlineKeyboard().text("✅ Уже пополнил", "deposit_done"),
+      reply_markup: new InlineKeyboard().text("✅ Already sent", "deposit_done"),
     }
   );
 }
@@ -211,15 +204,13 @@ async function handleDepositConfirm(ctx: GramityContext) {
 
   if (balance < 1) {
     await ctx.reply(
-      `⏳ Пока вижу: $${balance.toFixed(2)} USDT на депозите.\n\n` +
-        `Транзакция занимает 1–2 мин. Подожди немного 🙏`
+      `⏳ Currently seeing: $${balance.toFixed(2)} USDT on deposit.\n\n` +
+        `Transactions take 1–2 min. Please wait a moment 🙏`
     );
     return;
   }
 
-  // Deposit arrived — stop the background poller (if still running)
   stopDepositPoller(telegramId);
-
   ctx.session.usdtBalance = balance;
   ctx.session.step = "waiting_amount";
   await showAmountKeyboard(ctx, balance);
@@ -232,30 +223,27 @@ function buildAmountKeyboard(balance: number): InlineKeyboard {
 
   for (const amt of available) {
     const yearly = estimateYearlyUsd(amt);
-    kb.text(`$${amt}  (~$${yearly}/год)`, `amount_${amt}`);
+    kb.text(`$${amt}  (~$${yearly}/yr)`, `amount_${amt}`);
   }
 
-  // Start a new row for Custom
-  kb.row().text("✏️ Своя сумма", "amount_custom");
+  kb.row().text("✏️ Custom amount", "amount_custom");
   return kb;
 }
 
 async function showAmountKeyboard(ctx: GramityContext, balance: number) {
   await ctx.reply(
-    `💰 *Получено: ${balance.toFixed(2)} USDT* ✅\n\n` +
-      `*Сколько вкладывать за один цикл?*\n` +
-      `Оценка дохода при ~8% APY (еженедельно, 1 год):`,
+    `💰 *Received: ${balance.toFixed(2)} USDT* ✅\n\n` +
+      `*How much to invest per cycle?*\n` +
+      `Estimated return at ~5.4% APY (weekly, 1 year):`,
     { parse_mode: "Markdown", reply_markup: buildAmountKeyboard(balance) }
   );
 }
-
-// ─── Step: custom amount input ────────────────────────────────────────────────
 
 async function handleCustomAmount(ctx: GramityContext, text: string) {
   const amount = parseFloat(text.replace(",", ".").replace(/[^0-9.]/g, ""));
 
   if (isNaN(amount) || amount < 1) {
-    await ctx.reply("❌ Введи сумму в долларах, например: `30`", {
+    await ctx.reply("❌ Enter an amount in USD, e.g.: `30`", {
       parse_mode: "Markdown",
     });
     return;
@@ -272,30 +260,20 @@ export async function handleCallbackQuery(ctx: GramityContext) {
   const data = ctx.callbackQuery?.data ?? "";
   await ctx.answerCallbackQuery();
 
-  // ── Welcome → start onboarding
   if (data === "onboard_start") {
-    ctx.session.step = "waiting_wallet";
-
-    const miniAppUrl = `${RAILWAY_PUBLIC_URL}/app?mode=connect`;
-
-    const kb = new InlineKeyboard()
-      .webApp("🔗 Подключить кошелёк", miniAppUrl);
-
+    // Legacy: redirect to Mini App instead of bot-based onboarding
+    const appUrl = `${RAILWAY_PUBLIC_URL}/app/onboarding.html`;
+    const kb = new InlineKeyboard().webApp("🚀 Open App", appUrl);
     await ctx.reply(
-      `*Шаг 1/3 — Кошелёк для вывода*\n\n` +
-        `На какой TON-адрес выводить средства при /withdraw?\n\n` +
-        `Нажми кнопку ниже или введи адрес вручную (UQ... или EQ...):`,
-      { parse_mode: "Markdown", reply_markup: kb }
+      `Set up your DCA strategy in the Mini App 👇`,
+      { reply_markup: kb }
     );
     return;
   }
 
-  // ── Deposit confirmed (button or auto-poller button)
   if (data === "deposit_done") {
     if (!ctx.session.tonAddress) {
-      await ctx.reply(
-        "⚠️ Сессия устарела.\n\nНажми /start чтобы начать заново."
-      );
+      await ctx.reply("⚠️ Session expired.\n\nTap /start to begin again.");
       return;
     }
     ctx.session.step = "waiting_deposit_confirm";
@@ -303,12 +281,11 @@ export async function handleCallbackQuery(ctx: GramityContext) {
     return;
   }
 
-  // ── Amount selection
   if (data.startsWith("amount_")) {
     const raw = data.slice(7);
     if (raw === "custom") {
       ctx.session.step = "waiting_custom_amount";
-      await ctx.reply("Введи сумму в USDT (минимум $1):");
+      await ctx.reply("Enter amount in USDT (minimum $1):");
     } else {
       ctx.session.amount = Number(raw);
       ctx.session.step = "waiting_frequency";
@@ -317,18 +294,18 @@ export async function handleCallbackQuery(ctx: GramityContext) {
     return;
   }
 
-  // ── Frequency selection
   if (data.startsWith("freq_")) {
     const freq = data.slice(5) as
       | "weekly"
       | "biweekly"
       | "monthly"
+      | "daily"
       | "minutely"
       | "hourly";
 
     if (!ctx.session.amount || !ctx.session.tonAddress) {
       await ctx.reply(
-        "⚠️ Сессия устарела (бот перезапустился).\n\nНажми /start — займёт 30 секунд."
+        "⚠️ Session expired (bot restarted).\n\nTap /start — takes 30 seconds."
       );
       ctx.session.step = "idle";
       return;
@@ -340,13 +317,11 @@ export async function handleCallbackQuery(ctx: GramityContext) {
     return;
   }
 
-  // ── Activate
   if (data === "activate") {
     await handleActivate(ctx);
     return;
   }
 
-  // ── Edit plan
   if (data === "edit_plan") {
     ctx.session.step = "waiting_amount";
     const balance = ctx.session.usdtBalance ?? 0;
@@ -355,58 +330,53 @@ export async function handleCallbackQuery(ctx: GramityContext) {
   }
 }
 
-// ─── Frequency keyboard ───────────────────────────────────────────────────────
-
 async function showFrequencyKeyboard(ctx: GramityContext) {
   const kb = new InlineKeyboard()
-    .text("📅 Еженедельно", "freq_weekly")
-    .text("🗓 Раз в 2 нед.", "freq_biweekly")
+    .text("📅 Weekly",        "freq_weekly")
+    .text("🗓 Every 2 weeks", "freq_biweekly")
     .row()
-    .text("📆 Раз в месяц", "freq_monthly");
+    .text("📆 Monthly",       "freq_monthly");
 
-  // Test frequencies: only if dev mode is ON in session, or non-prod environment
   if (ctx.session.devMode || process.env.NODE_ENV !== "production") {
     kb.row()
-      .text("⚡ 1 мин (тест)", "freq_minutely")
-      .text("🕐 1 час (тест)", "freq_hourly");
+      .text("⚡ 1 min (test)", "freq_minutely")
+      .text("🕐 1 hour (test)", "freq_hourly");
   }
 
   await ctx.reply(
-    `*Шаг 3/3 — Частота*\n\n` +
-      `Как часто запускать стратегию?`,
+    `*Step 3/3 — Frequency*\n\n` +
+      `How often should the strategy run?`,
     { parse_mode: "Markdown", reply_markup: kb }
   );
 }
-
-// ─── Confirmation + risk disclosure ──────────────────────────────────────────
 
 async function showConfirmation(ctx: GramityContext) {
   const { amount, frequency, tonAddress } = ctx.session;
   if (!amount || !frequency || !tonAddress) return;
 
-  const isTest = TEST_FREQS.includes(frequency);
+  const isTest    = TEST_FREQS.includes(frequency);
   const freqLabel = FREQ_LABELS[frequency] ?? frequency;
   const firstRunLine = isTest
-    ? `⏰ Первый запуск: сразу после активации ⚡`
-    : `⏰ Первый запуск: ${formatDate(getFirstFriday())}`;
+    ? `⏰ First run: immediately after activation ⚡`
+    : `⏰ First run: within 24 hours`;
 
   const yearly = estimateYearlyUsd(amount);
 
   const kb = new InlineKeyboard()
-    .text("✅ Активировать", "activate")
+    .text("✅ Activate", "activate")
     .row()
-    .text("✏️ Изменить сумму", "edit_plan");
+    .text("✏️ Change amount", "edit_plan");
 
   await ctx.reply(
-    `📋 *Твоя стратегия Gramity*\n\n` +
+    `📋 *Your Gramity Strategy*\n\n` +
       `💵 $${amount} USDT ${freqLabel}\n` +
       `├─ Omniston: USDT → TON\n` +
-      `├─ Tonstakers: TON → tsTON (~5%)\n` +
-      `└─ STON.fi LP: tsTON + TON (~8%)\n\n` +
-      `📈 Ожидаемый доход: ~$${yearly}/год\n` +
+      `├─ Tonstakers: TON → tsTON (~5% APY)\n` +
+      `└─ STON.fi LP: tsTON + TON (~5.4% APY)\n\n` +
+      `📈 Estimated return: ~$${yearly}/year\n` +
       firstRunLine +
       `\n\n` +
-      `⚠️ _Средства хранятся на горячем кошельке Gramity. LP несёт риск непостоянных потерь. Не вкладывай больше, чем готов потерять._`,
+      `⚠️ _Funds are held in a Gramity hot wallet. LP carries impermanent loss risk. Only invest what you can afford to lose._`,
     {
       parse_mode: "Markdown",
       reply_markup: kb,
@@ -414,19 +384,17 @@ async function showConfirmation(ctx: GramityContext) {
   );
 }
 
-// ─── Activation ───────────────────────────────────────────────────────────────
-
 async function handleActivate(ctx: GramityContext) {
   const telegramId = ctx.from?.id;
   const { amount, frequency, tonAddress } = ctx.session;
 
   if (!telegramId || !amount || !frequency || !tonAddress) {
-    await ctx.reply("❌ Что-то пошло не так. Начни заново: /start");
+    await ctx.reply("❌ Something went wrong. Start over: /start");
     return;
   }
 
-  const isTest = TEST_FREQS.includes(frequency);
-  const firstDate = isTest ? new Date() : getFirstFriday();
+  const isTest    = TEST_FREQS.includes(frequency);
+  const firstDate = isTest ? new Date() : getNextCycleDate(frequency);
 
   try {
     await upsertPlan({
@@ -440,21 +408,19 @@ async function handleActivate(ctx: GramityContext) {
       next_execution_at: firstDate.toISOString(),
     });
 
-    // Ensure isolated wallet exists (idempotent — safe to call again)
     await createUserWallet(telegramId);
-
     ctx.session.step = "idle";
 
     await ctx.reply(
-      `🚀 *Gramity запущен!*\n\n` +
-        `Буду писать после каждого цикла.\n\n` +
-        `/status — позиция в реальном времени\n` +
-        `/pause — поставить на паузу`,
+      `🚀 *Gramity activated!*\n\n` +
+        `I'll notify you after each cycle.\n\n` +
+        `/status — real-time position\n` +
+        `/pause — pause strategy`,
       { parse_mode: "Markdown" }
     );
   } catch (err) {
     await ctx.reply(
-      `❌ Ошибка: ${err instanceof Error ? err.message : "unknown"}\n\nПопробуй ещё раз.`
+      `❌ Error: ${err instanceof Error ? err.message : "unknown"}\n\nPlease try again.`
     );
   }
 }

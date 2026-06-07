@@ -1,0 +1,2733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Gramity — Onboarding</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #07070e;
+      --accent: #4a8aff;
+      --accent2: #2d6dcc;
+      --green: #4aff8c;
+      --text-primary: #ffffff;
+      --text-secondary: #4a5568;
+      --border: rgba(255, 255, 255, 0.06);
+      --radius: 16px;
+      --font: -apple-system, BlinkMacSystemFont, sans-serif;
+      --slide-count: 11;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font);
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 390px;
+      height: 100%;
+      height: 100dvh;
+      margin: 0 auto;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ── Track ── */
+    .track {
+      display: flex;
+      width: calc(100% * var(--slide-count));
+      height: 100%;
+      will-change: transform;
+    }
+
+    .slide {
+      width: calc(100% / var(--slide-count));
+      flex-shrink: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 20px;
+      padding-top: max(24px, env(safe-area-inset-top));
+      padding-bottom: max(24px, env(safe-area-inset-bottom));
+      overflow: hidden;
+      position: relative;
+    }
+
+    .slide-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* ── Nav arrows ── */
+    .nav-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 10;
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 50%;
+      color: var(--text-secondary);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, color 0.2s;
+    }
+    .nav-arrow:hover { background: rgba(255, 255, 255, 0.08); color: var(--text-primary); }
+    .nav-arrow.prev { left: 4px; }
+    .nav-arrow.next { right: 4px; }
+    .nav-arrow.hidden { opacity: 0; pointer-events: none; }
+
+    /* ── Footer ── */
+    .slide-footer {
+      flex-shrink: 0;
+      padding-top: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .dots {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.15);
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      transition: background 0.3s, transform 0.3s;
+    }
+    .dot.active {
+      background: var(--accent);
+      transform: scale(1.25);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      padding: 14px 28px;
+      width: 100%;
+      max-width: 320px;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-primary);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 14px 28px;
+      width: 100%;
+      max-width: 320px;
+    }
+
+    .btn-link {
+      background: transparent;
+      color: var(--accent);
+      padding: 12px 24px;
+      font-size: 15px;
+    }
+
+    /* ── Typography ── */
+    .title {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .slide-heading {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    /* ── Hero ── */
+    .hero-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 12px;
+    }
+
+    .logo-wrap {
+      width: 140px;
+      padding: 38px;
+      overflow: visible;
+    }
+
+    .logo-wrap svg {
+      width: 100%;
+      display: block;
+      overflow: visible;
+    }
+
+    @keyframes gg-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }
+    @keyframes gg-glow  { 0%, 100% { opacity: 0.08; } 50% { opacity: 0.18; } }
+    @keyframes gg-star  { 0%, 100% { opacity: 0.88; } 50% { opacity: 1; } }
+
+    .gg-ho { animation: gg-pulse 4s ease-in-out infinite; }
+    .gg-au { animation: gg-glow 5s ease-in-out infinite; }
+    .gg-sp { animation: gg-star 2.5s ease-in-out infinite; }
+
+    .hero-title    { font-size: 32px; font-weight: 700; letter-spacing: -0.03em; }
+    .hero-subtitle { font-size: 16px; color: var(--text-secondary); }
+    .hero-tagline  { font-size: 13px; color: rgba(74,138,255,0.7); margin-top: -4px; }
+
+    /* ── Cards ── */
+    .cards { display: flex; flex-direction: column; gap: 10px; }
+
+    .card {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 13px 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(74, 138, 255, 0.15);
+      border-radius: var(--radius);
+    }
+
+    .card-icon {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(74, 138, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card-body h3 { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+    .card-body p  { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+
+    /* ── Protocol logos (inline SVG) ── */
+    .logo-svg { display: block; }
+
+    .logo-node {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-node-lg {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      overflow: hidden;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Wallet connect strip (slide 1) ── */
+    .wallet-strip {
+      margin-top: 14px;
+      padding: 12px 14px;
+      background: rgba(74,138,255,0.05);
+      border: 1px solid rgba(74,138,255,0.18);
+      border-radius: var(--radius);
+    }
+
+    .wallet-strip-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-bottom: 10px;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .wallet-strip-btns {
+      display: flex;
+      gap: 8px;
+    }
+
+    .wstrip-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 9px 10px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      color: var(--text-primary);
+      font-family: var(--font);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .wstrip-btn:hover { background: rgba(255,255,255,0.08); }
+    .wstrip-btn.ton { border-color: rgba(0,152,234,0.4); }
+    .wstrip-btn.mm  { border-color: rgba(230,119,30,0.4); }
+    .wstrip-btn.coming { opacity: 0.4; cursor: default; pointer-events: none; }
+
+    .wstrip-connected {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .wstrip-addr { color: var(--accent); font-weight: 500; }
+    .wstrip-total { font-size: 14px; font-weight: 700; color: var(--green); }
+
+    /* ── Flow (slide 2) ── */
+    .flow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .flow-node {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 290px;
+    }
+
+    .flow-node-text { display: flex; flex-direction: column; gap: 1px; }
+    .flow-node-text strong { font-size: 14px; font-weight: 600; }
+    .flow-node-text span   { font-size: 11px; color: var(--text-secondary); }
+
+    .flow-connector {
+      width: 2px;
+      height: 26px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .flow-connector svg { width: 2px; height: 100%; }
+    .flow-line { stroke: rgba(74, 138, 255, 0.3); stroke-width: 2; stroke-dasharray: 4 6; }
+    .flow-dot  { fill: var(--accent); }
+
+    /* ── Bridge flow (slide 3) ── */
+    .bridge-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      margin-bottom: 20px;
+      padding: 0 4px;
+    }
+
+    .bridge-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .bridge-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .bridge-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-align: center;
+      max-width: 72px;
+    }
+
+    .bridge-arrow {
+      flex: 1;
+      height: 2px;
+      min-width: 32px;
+      max-width: 64px;
+      background: rgba(74, 138, 255, 0.2);
+      margin: 0 4px;
+      margin-bottom: 22px;
+      overflow: hidden;
+      border-radius: 1px;
+      position: relative;
+    }
+
+    .bridge-arrow::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 60%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      animation: shimmer 2s ease-in-out infinite;
+    }
+
+    @keyframes shimmer { 0% { left: -60%; } 100% { left: 100%; } }
+
+    .network-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .network-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .bridge-caption { text-align: center; font-size: 13px; color: var(--text-secondary); }
+
+    /* ── Fund from anywhere — animated flow diagram ── */
+    .fund-diagram { width: 100%; margin: 8px auto 4px; }
+    .fund-svg { width: 100%; height: auto; overflow: visible; }
+
+    /* Animated flow lines */
+    .fp {
+      animation: flowDash 2.6s ease-in-out infinite;
+    }
+    .fp1  { animation-delay: 0s; }
+    .fp2  { animation-delay: 0.6s; }
+    .fp3  { animation-delay: 1.2s; }
+    .fp4  { animation-delay: 1.8s; }
+    .fp-out { animation-delay: 0.25s; animation-duration: 1.8s; }
+
+    @keyframes flowDash {
+      0%   { stroke-dashoffset: var(--da, 115); opacity: 0; }
+      6%   { opacity: 1; }
+      82%  { opacity: 1; }
+      100% { stroke-dashoffset: 0; opacity: 0; }
+    }
+
+    /* Pulse glow on Omniston hub when lines arrive */
+    @keyframes omniPulse {
+      0%,100% { opacity: 1; }
+      50%     { opacity: 0.6; }
+    }
+
+    /* ── Stats (slide 4) ── */
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .stat {
+      flex: 1;
+      text-align: center;
+      padding: 14px 6px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 4px;
+      white-space: nowrap;
+    }
+
+    .stat-label { font-size: 10px; color: var(--text-secondary); line-height: 1.35; }
+
+    .stat-footnote {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 18px;
+      opacity: 0.7;
+      line-height: 1.4;
+    }
+
+    /* ── Partner logo badges ── */
+    .partners {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .partner-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.7);
+    }
+
+    /* ── CTA slide ── */
+    .cta-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 12px;
+    }
+
+    .cta-logo {
+      width: 64px;
+      padding: 14px;
+      margin-bottom: 8px;
+    }
+
+    .cta-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+      max-width: 320px;
+      margin-top: 20px;
+    }
+
+    .cta-meta {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: -4px;
+    }
+    .cta-meta span { color: var(--green); font-weight: 600; }
+
+    /* ── CTA pulse animation ── */
+    @keyframes cta-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(74,138,255,0.4); }
+      50%       { box-shadow: 0 0 0 14px rgba(74,138,255,0); }
+    }
+
+    .btn-cta-hero {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      padding: 16px 28px;
+      width: 100%;
+      max-width: 320px;
+      animation: cta-pulse 2.5s ease-in-out infinite;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-cta-hero::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 60%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+      animation: shimmer-btn 3.5s ease-in-out infinite;
+    }
+
+    @keyframes shimmer-btn { 0% { left: -60%; } 100% { left: 120%; } }
+
+    /* ── Animatable ── */
+    .anim-item {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+
+    .slide-final .slide-footer { display: none; }
+    .slide-final .nav-arrow    { display: none; }
+
+    /* ── Wizard ── */
+    .slide-wizard .slide-content { justify-content: flex-start; }
+    .slide-wizard .nav-arrow     { display: none !important; }
+
+    .wizard-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px; flex-shrink: 0;
+    }
+    .wizard-back {
+      background: none; border: none; color: var(--text-secondary);
+      font-size: 20px; cursor: pointer; padding: 4px 8px; line-height: 1;
+      transition: color 0.2s;
+    }
+    .wizard-back:hover { color: var(--text-primary); }
+    .wizard-step { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+    .wizard-step-bar {
+      height: 2px; background: var(--border); border-radius: 1px;
+      margin-bottom: 20px; flex-shrink: 0; overflow: hidden;
+    }
+    .wizard-step-fill {
+      height: 100%; background: var(--accent); border-radius: 1px;
+      transition: width 0.4s ease;
+    }
+
+    /* ── Wizard Step 1: Connect ── */
+    .connect-section { display: flex; flex-direction: column; gap: 10px; }
+
+    .connect-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius);
+      color: var(--text-primary);
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+      position: relative;
+    }
+    .connect-btn:hover { background: rgba(255,255,255,0.07); }
+    .connect-btn.primary-ton {
+      background: rgba(0,152,234,0.12);
+      border-color: rgba(0,152,234,0.4);
+      font-size: 15px;
+      padding: 16px;
+    }
+    .connect-btn.primary-ton:hover { background: rgba(0,152,234,0.2); }
+    .connect-btn.disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+
+    .connect-btn-badge {
+      margin-left: auto;
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .badge-soon { background: rgba(255,255,255,0.08); color: var(--text-secondary); }
+
+    .connect-divider {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-secondary);
+      position: relative;
+      padding: 2px 0;
+    }
+
+    .scan-results {
+      background: rgba(74,138,255,0.05);
+      border: 1px solid rgba(74,138,255,0.2);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .scan-total-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .scan-total-label { font-size: 12px; color: var(--text-secondary); }
+    .scan-total-value { font-size: 20px; font-weight: 700; color: var(--green); }
+
+    .scan-assets-list { max-height: 140px; overflow-y: auto; }
+
+    /* ── Wizard Step 2: DCA Params ── */
+    .freq-tabs {
+      display: flex;
+      background: rgba(255,255,255,0.04);
+      border-radius: 12px;
+      padding: 3px;
+      margin-bottom: 18px;
+      gap: 2px;
+    }
+
+    .freq-tab {
+      flex: 1;
+      padding: 8px 6px;
+      background: transparent;
+      border: none;
+      border-radius: 10px;
+      color: var(--text-secondary);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .freq-tab.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .amount-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      margin-bottom: 12px;
+    }
+    .amount-prefix { font-size: 18px; font-weight: 700; color: var(--text-secondary); }
+    .amount-input {
+      flex: 1; min-width: 0;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-family: var(--font);
+      font-size: 24px;
+      font-weight: 700;
+      outline: none;
+    }
+    .amount-suffix { font-size: 13px; color: var(--text-secondary); }
+    .amount-row:focus-within { border-color: var(--accent); }
+
+    .preset-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .preset-tag {
+      padding: 5px 10px;
+      background: rgba(74,138,255,0.1);
+      border: 1px solid rgba(74,138,255,0.2);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .preset-tag:hover { background: rgba(74,138,255,0.2); }
+
+    .amount-hint {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.45;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 14px;
+    }
+    .amount-hint strong { color: var(--accent); }
+
+    /* ── DCA Slider (Step 2) ─────────────────────────── */
+    .balance-chip {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px; padding: 6px 12px;
+      font-size: 12px; color: var(--text-secondary);
+      margin-bottom: 14px;
+    }
+    .chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .chip-dot-demo { background: #666; }
+    .chip-dot-ton  { background: #0098EA; box-shadow: 0 0 5px #0098EA80; }
+    .chip-dot-evm  { background: #F0B90B; box-shadow: 0 0 5px #F0B90B80; }
+
+    .param-label {
+      font-size: 11px; color: var(--text-secondary); font-weight: 700;
+      text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px;
+    }
+    .slider-val-row  { display: flex; align-items: baseline; gap: 6px; margin-bottom: 2px; }
+    .slider-big-val  { font-size: 38px; font-weight: 800; color: #fff; line-height: 1; }
+    .slider-usdt-label { font-size: 14px; color: var(--text-secondary); }
+
+    .slider-wrap { margin-bottom: 2px; }
+    .dca-slider {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 6px; border-radius: 3px;
+      outline: none; cursor: pointer;
+      background: rgba(255,255,255,0.12);
+      transition: background 0.15s;
+    }
+    .dca-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: #fff; cursor: pointer;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.45);
+    }
+    .dca-slider::-moz-range-thumb {
+      width: 22px; height: 22px; border-radius: 50%; border: none;
+      background: #fff; cursor: pointer;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.45);
+    }
+    .slider-ticks {
+      display: flex; justify-content: space-between;
+      font-size: 10px; color: var(--text-secondary); margin-top: 3px;
+    }
+    .slider-pcts {
+      display: grid; grid-template-columns: repeat(4,1fr);
+      gap: 6px; margin: 10px 0 6px;
+    }
+    .pct-btn {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+      color: var(--text-secondary); padding: 7px 0; font-size: 12px; cursor: pointer;
+    }
+    .pct-btn.pct-active {
+      background: rgba(74,138,255,0.18); border-color: var(--accent);
+      color: var(--accent); font-weight: 700;
+    }
+    .zone-label {
+      font-size: 12px; text-align: center; min-height: 18px; margin-bottom: 10px;
+    }
+    .proj-big-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px; padding: 14px 16px; margin-bottom: 10px;
+    }
+    .proj-big-inner { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+    .proj-big-num   { font-size: 30px; font-weight: 800; color: #fff; line-height: 1; }
+    .proj-big-sub   { font-size: 13px; color: var(--text-secondary); }
+    .proj-breakdown { font-size: 11px; color: var(--text-secondary); }
+    .connect-hint-card {
+      background: rgba(74,138,255,0.07);
+      border: 1px solid rgba(74,138,255,0.2); border-radius: 12px;
+      padding: 10px 14px; font-size: 12px; color: var(--text-secondary);
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .connect-hint-btns { display: flex; gap: 8px; }
+    .hint-connect-btn {
+      flex: 1; background: rgba(74,138,255,0.15);
+      border: 1px solid rgba(74,138,255,0.3); border-radius: 8px;
+      color: var(--accent); padding: 6px; font-size: 11px; cursor: pointer;
+    }
+
+    /* ── Wizard Step 3: Accumulate ── */
+    .token-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .token-card {
+      position: relative;
+      padding: 14px 10px 10px;
+      background: rgba(255,255,255,0.03);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      text-align: center;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .token-card.selected { border-color: var(--accent); background: rgba(74,138,255,0.08); }
+    .token-card.locked   { opacity: 0.45; cursor: default; pointer-events: none; }
+
+    .token-logo { margin: 0 auto 6px; width: 32px; height: 32px; }
+    .token-name { font-size: 13px; font-weight: 600; }
+    .token-apy  { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+    .recommended-badge {
+      position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
+      background: var(--accent); color: #fff; font-size: 10px; font-weight: 700;
+      padding: 2px 8px; border-radius: 8px; white-space: nowrap; letter-spacing: 0.02em;
+    }
+    .coming-soon-badge {
+      position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
+      background: rgba(255,255,255,0.08); color: var(--text-secondary); font-size: 10px;
+      font-weight: 700; padding: 2px 8px; border-radius: 8px; white-space: nowrap;
+    }
+    .token-check {
+      position: absolute; top: 7px; right: 7px; width: 16px; height: 16px;
+      border-radius: 50%; background: var(--accent); color: #fff;
+      font-size: 10px; display: none; align-items: center; justify-content: center;
+    }
+    .token-card.selected .token-check { display: flex; }
+
+    .projection-hero {
+      padding: 14px 16px;
+      background: rgba(74,255,140,0.05);
+      border: 1px solid rgba(74,255,140,0.2);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+    }
+    .proj-header {
+      font-size: 11px; font-weight: 700; color: var(--text-secondary);
+      letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px;
+    }
+    .proj-total {
+      font-size: 28px; font-weight: 700; color: var(--green); margin-bottom: 4px;
+    }
+    .proj-rows { display: flex; flex-direction: column; gap: 4px; }
+    .proj-row {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12px;
+    }
+    .proj-row .label { color: var(--text-secondary); }
+    .proj-row .value { font-weight: 600; }
+    .proj-divider {
+      border: none; border-top: 1px solid rgba(74,255,140,0.15); margin: 6px 0;
+    }
+    .proj-footnote {
+      font-size: 11px; color: var(--text-secondary); margin-top: 6px; opacity: 0.7;
+    }
+
+    /* ── Wizard Step 4: Withdrawal ── */
+    .check-row {
+      display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+      border-radius: var(--radius); cursor: pointer; margin-bottom: 16px;
+      user-select: none;
+    }
+    .check-box {
+      width: 22px; min-width: 22px; height: 22px; border-radius: 6px;
+      border: 2px solid rgba(255,255,255,0.2); background: transparent;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; transition: background 0.2s, border-color 0.2s;
+    }
+    .check-box.checked { background: var(--accent); border-color: var(--accent); }
+    .check-box.checked::after { content: '✓'; color: #fff; }
+    .check-label    { font-size: 14px; font-weight: 500; }
+    .check-sublabel { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+    .input-group {
+      display: flex; gap: 8px; margin-bottom: 16px;
+      overflow: hidden; max-height: 0; opacity: 0;
+      transition: max-height 0.3s ease, opacity 0.3s ease;
+    }
+    .input-group.visible { max-height: 60px; opacity: 1; }
+
+    .addr-input {
+      flex: 1; min-width: 0;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius); color: var(--text-primary);
+      font-family: var(--font); font-size: 13px; padding: 12px 14px;
+      outline: none; transition: border-color 0.2s;
+    }
+    .addr-input::placeholder { color: var(--text-secondary); }
+    .addr-input:focus { border-color: var(--accent); }
+    .addr-input.error { border-color: #ff4a6e; }
+
+    .paste-btn {
+      flex-shrink: 0; padding: 12px 14px;
+      background: rgba(74,138,255,0.12); border: 1px solid rgba(74,138,255,0.25);
+      border-radius: var(--radius); color: var(--accent); font-family: var(--font);
+      font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .paste-btn:hover { background: rgba(74,138,255,0.2); }
+
+    .security-badge {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px; margin-bottom: 14px;
+      background: rgba(74,255,140,0.05);
+      border: 1px solid rgba(74,255,140,0.2);
+      border-radius: 12px; font-size: 12px; color: var(--green); font-weight: 600;
+    }
+
+    .benefit-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .benefit-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 13px; color: var(--text-secondary); line-height: 1.45;
+    }
+    .benefit-icon {
+      width: 20px; min-width: 20px; height: 20px; border-radius: 50%;
+      background: rgba(74,255,140,0.12); color: var(--green); font-size: 11px;
+      display: flex; align-items: center; justify-content: center; margin-top: 1px;
+    }
+
+    /* ── Wizard Step 5: Summary ── */
+    .summary-card {
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden; margin-bottom: 12px;
+    }
+    .summary-row {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+    }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-label { font-size: 12px; color: var(--text-secondary); flex-shrink: 0; margin-right: 12px; }
+    .summary-value { font-size: 13px; font-weight: 600; text-align: right; word-break: break-all; }
+    .summary-value.hi { color: var(--accent); }
+
+    .time-saved-card {
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+    }
+    .ts-header {
+      font-size: 11px; font-weight: 700; color: var(--text-secondary);
+      letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px;
+    }
+    .ts-rows { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+    .ts-row {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12px;
+    }
+    .ts-row .step-name { color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+    .ts-row .step-time { font-weight: 600; }
+    .ts-divider { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+    .ts-total { display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+    .ts-total .label { font-weight: 600; }
+    .ts-total .value { color: var(--accent); font-weight: 700; }
+    .ts-gramity {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 8px; padding-top: 8px;
+      border-top: 1px solid rgba(74,255,140,0.15);
+      font-size: 13px; font-weight: 600;
+    }
+    .ts-gramity .label { color: var(--green); }
+    .ts-gramity .value { color: var(--green); }
+
+    /* ── CTA create button (wizard) ── */
+    .btn-create-dca {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      padding: 16px 28px;
+      width: 100%;
+      max-width: 320px;
+      font-size: 16px;
+      font-weight: 700;
+      position: relative;
+      overflow: hidden;
+      animation: cta-pulse 2.5s ease-in-out infinite;
+    }
+    .btn-create-dca::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 60%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+      animation: shimmer-btn 3.5s ease-in-out infinite;
+    }
+
+    /* ── Balance rows (shared) ── */
+    .balance-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 12px; border-bottom: 1px solid var(--border);
+    }
+    .balance-row:last-child { border-bottom: none; }
+    .bal-left { display: flex; align-items: center; gap: 9px; }
+    .bal-icon {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: rgba(255,255,255,0.06);
+      display: flex; align-items: center; justify-content: center; font-size: 13px;
+      flex-shrink: 0; overflow: hidden;
+    }
+    .bal-name  { font-size: 13px; font-weight: 600; }
+    .bal-chain { font-size: 11px; color: var(--text-secondary); }
+    .bal-right { text-align: right; }
+    .bal-amount { font-size: 12px; font-weight: 600; }
+    .bal-usd    { font-size: 11px; color: var(--text-secondary); }
+
+    @keyframes skel { 0%,100%{opacity:.4} 50%{opacity:.75} }
+    .skeleton-row {
+      height: 44px; border-radius: 12px; background: rgba(255,255,255,0.05);
+      margin-bottom: 4px; animation: skel 1.5s ease-in-out infinite;
+    }
+    .bal-empty { text-align: center; color: var(--text-secondary); font-size: 13px; padding: 12px 0; }
+
+    .skip-link {
+      text-align: center; font-size: 13px; color: var(--text-secondary);
+      cursor: pointer; padding: 8px; margin-top: 4px;
+      transition: color 0.2s;
+    }
+    .skip-link:hover { color: var(--text-primary); }
+  </style>
+</head>
+<body>
+
+  <!-- ── Inline SVG symbols (logos) ── -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <defs>
+      <!-- Real logos served from /app/logos/ -->
+      <symbol id="logo-ton" viewBox="0 0 40 40">
+        <image href="/app/logos/ton.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+      </symbol>
+
+      <symbol id="logo-ston" viewBox="0 0 40 40">
+        <image href="/app/logos/ston.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+      </symbol>
+
+      <!-- tsTON liquid staking token (Tonstakers) -->
+      <symbol id="logo-tston" viewBox="0 0 40 40">
+        <image href="/app/logos/tston.svg" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+      </symbol>
+
+      <symbol id="logo-omniston" viewBox="0 0 40 40">
+        <image href="/app/logos/ston.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+      </symbol>
+
+      <symbol id="logo-tonstakers" viewBox="0 0 40 40">
+        <image href="/app/logos/tston.svg" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+      </symbol>
+
+      <symbol id="logo-metamask" viewBox="0 0 40 40">
+        <image href="/app/logos/metamask.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+      </symbol>
+
+      <symbol id="logo-phantom" viewBox="0 0 40 40">
+        <image href="/app/logos/phantom.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+      </symbol>
+
+      <symbol id="logo-eth" viewBox="0 0 40 40">
+        <image href="/app/logos/eth.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+      </symbol>
+
+      <symbol id="logo-base" viewBox="0 0 40 40">
+        <image href="/app/logos/base.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+      </symbol>
+
+      <symbol id="logo-bnb" viewBox="0 0 40 40">
+        <image href="/app/logos/bnb.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+      </symbol>
+
+      <symbol id="logo-polygon" viewBox="0 0 40 40">
+        <image href="/app/logos/polygon.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+      </symbol>
+
+      <symbol id="logo-usdt" viewBox="0 0 40 40">
+        <image href="/app/logos/usdt.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+      </symbol>
+
+      <!-- Wallet: generic icon (no official logo needed) -->
+      <symbol id="logo-wallet" viewBox="0 0 40 40">
+        <circle cx="20" cy="20" r="20" fill="#1a2030"/>
+        <rect x="8" y="14" width="24" height="16" rx="3" fill="none" stroke="white" stroke-width="2" opacity="0.8"/>
+        <rect x="8" y="18" width="24" height="2" fill="white" opacity="0.4"/>
+        <circle cx="28" cy="23" r="2" fill="white" opacity="0.9"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <div class="app" id="app">
+    <button class="nav-arrow prev hidden" id="btnPrev" aria-label="Previous">←</button>
+    <button class="nav-arrow next" id="btnNext" aria-label="Next">→</button>
+
+    <div class="track" id="track">
+
+      <!-- ═══════════════════════════════════════════
+           SLIDE 0 — Hero
+      ═══════════════════════════════════════════ -->
+      <section class="slide" data-slide="0">
+        <div class="slide-content">
+          <div class="hero-center">
+            <div class="logo-wrap anim-item" id="heroLogo">
+              <svg viewBox="0 0 200 200" overflow="visible" aria-hidden="true">
+                <defs>
+                  <radialGradient id="ggr" cx="100" cy="107" r="82" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#2d2d3c"/>
+                    <stop offset="40%" stop-color="#161622"/>
+                    <stop offset="72%" stop-color="#080810"/>
+                    <stop offset="100%" stop-color="#000000"/>
+                  </radialGradient>
+                  <filter id="gga" x="-55%" y="-55%" width="210%" height="210%">
+                    <feGaussianBlur stdDeviation="22"/>
+                  </filter>
+                  <filter id="ggh" x="-40%" y="-40%" width="180%" height="180%">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="w"/>
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="n"/>
+                    <feMerge><feMergeNode in="w"/><feMergeNode in="n"/><feMergeNode in="SourceGraphic"/></feMerge>
+                  </filter>
+                  <filter id="ggs" x="-90%" y="-90%" width="280%" height="280%">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="og"/>
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="ig"/>
+                    <feMerge><feMergeNode in="og"/><feMergeNode in="ig"/><feMergeNode in="SourceGraphic"/></feMerge>
+                  </filter>
+                </defs>
+                <path class="gg-au" d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1 L 169.5,73.9 Q 176,84 172.8,95.6 L 159.2,144.4 Q 156,156 145.3,161.4 L 110.7,178.6 Q 100,184 89.3,178.6 L 54.7,161.4 Q 44,156 40.8,144.4 L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z" fill="white" filter="url(#gga)" opacity="0.12"/>
+                <path class="gg-ho" d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1 L 169.5,73.9 Q 176,84 172.8,95.6 L 159.2,144.4 Q 156,156 145.3,161.4 L 110.7,178.6 Q 100,184 89.3,178.6 L 54.7,161.4 Q 44,156 40.8,144.4 L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z" fill="none" stroke="white" stroke-width="2.5" filter="url(#ggh)" opacity="0.6"/>
+                <path d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1 L 169.5,73.9 Q 176,84 172.8,95.6 L 159.2,144.4 Q 156,156 145.3,161.4 L 110.7,178.6 Q 100,184 89.3,178.6 L 54.7,161.4 Q 44,156 40.8,144.4 L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z" fill="url(#ggr)" stroke="white" stroke-width="1.5"/>
+                <path class="gg-sp" d="M 115,67 C 120,88 120,88 141,93 C 120,98 120,98 115,119 C 110,98 110,98 89,93 C 110,88 110,88 115,67 Z" fill="white" filter="url(#ggs)" opacity="0.9"/>
+              </svg>
+            </div>
+            <h1 class="hero-title anim-item">Gramity</h1>
+            <p class="hero-subtitle anim-item">Your money works while you sleep</p>
+            <p class="hero-tagline anim-item">~16 min/week saved · non-custodial · 0% platform fee</p>
+          </div>
+        </div>
+        <div class="slide-footer">
+          <div class="dots" id="dots"></div>
+          <button class="btn btn-link anim-item" id="btnGetStarted">Get started →</button>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════
+           SLIDE 1 — DCA + Wallet Connect Preview
+      ═══════════════════════════════════════════ -->
+      <section class="slide" data-slide="1">
+        <div class="slide-content">
+          <h2 class="slide-heading anim-item">DCA on autopilot</h2>
+          <div class="cards">
+            <div class="card anim-item">
+              <div class="card-icon">
+                <svg width="26" height="26"><use href="#logo-usdt"/></svg>
+              </div>
+              <div class="card-body">
+                <h3>Deposit once</h3>
+                <p>Fund from Ethereum, Base, BNB, Polygon or TON — any chain</p>
+              </div>
+            </div>
+            <div class="card anim-item">
+              <div class="card-icon" style="font-size:18px">⚙️</div>
+              <div class="card-body">
+                <h3>Set your schedule</h3>
+                <p>Daily, weekly, monthly — Gramity handles the rest automatically</p>
+              </div>
+            </div>
+            <div class="card anim-item">
+              <div class="card-icon">
+                <svg width="26" height="26"><use href="#logo-ston"/></svg>
+              </div>
+              <div class="card-body">
+                <h3>Earn LP yield</h3>
+                <p>Your USDT becomes a working LP position on STON.fi (~5.4% APY)</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Wallet connect preview -->
+          <div class="wallet-strip anim-item" id="walletStripSlide1">
+            <div class="wallet-strip-label">Connect to preview your balance</div>
+            <div class="wallet-strip-btns">
+              <button class="wstrip-btn ton" id="btnConnectTonStrip">
+                <svg width="18" height="18"><use href="#logo-ton"/></svg>
+                TON Connect
+              </button>
+              <button class="wstrip-btn mm" id="btnConnectMMStrip">
+                <svg width="18" height="18"><use href="#logo-metamask"/></svg>
+                MetaMask
+              </button>
+              <button class="wstrip-btn coming" title="Coming soon">
+                <svg width="18" height="18"><use href="#logo-phantom"/></svg>
+                Phantom
+              </button>
+            </div>
+          </div>
+          <!-- Balance preview result -->
+          <div id="stripBalanceResult" style="margin-top:10px;display:none">
+            <div class="wstrip-connected">
+              <span class="wstrip-addr" id="stripAddr"></span>
+              <span class="wstrip-total" id="stripTotal"></span>
+            </div>
+          </div>
+        </div>
+        <div class="slide-footer">
+          <div class="dots dots-clone"></div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════
+           SLIDE 2 — How it works
+      ═══════════════════════════════════════════ -->
+      <section class="slide" data-slide="2">
+        <div class="slide-content">
+          <h2 class="slide-heading anim-item">How it works</h2>
+          <div class="flow" id="flowDiagram">
+
+            <div class="flow-node anim-item">
+              <div class="logo-node"><svg width="36" height="36"><use href="#logo-usdt"/></svg></div>
+              <div class="flow-node-text">
+                <strong>Your USDT</strong>
+                <span>Any chain deposit</span>
+              </div>
+            </div>
+            <div class="flow-connector anim-item"><svg viewBox="0 0 2 26"><line class="flow-line" x1="1" y1="0" x2="1" y2="26"/><circle class="flow-dot flow-dot-1" cx="1" cy="0" r="2"/></svg></div>
+
+            <div class="flow-node anim-item">
+              <div class="logo-node"><svg width="36" height="36"><use href="#logo-omniston"/></svg></div>
+              <div class="flow-node-text">
+                <strong>Omniston</strong>
+                <span>Best-rate DEX swap</span>
+              </div>
+            </div>
+            <div class="flow-connector anim-item"><svg viewBox="0 0 2 26"><line class="flow-line" x1="1" y1="0" x2="1" y2="26"/><circle class="flow-dot flow-dot-2" cx="1" cy="0" r="2"/></svg></div>
+
+            <div class="flow-node anim-item">
+              <div class="logo-node"><svg width="36" height="36"><use href="#logo-tonstakers"/></svg></div>
+              <div class="flow-node-text">
+                <strong>Tonstakers</strong>
+                <span>Liquid staking → tsTON</span>
+              </div>
+            </div>
+            <div class="flow-connector anim-item"><svg viewBox="0 0 2 26"><line class="flow-line" x1="1" y1="0" x2="1" y2="26"/><circle class="flow-dot flow-dot-3" cx="1" cy="0" r="2"/></svg></div>
+
+            <div class="flow-node anim-item">
+              <div class="logo-node"><svg width="36" height="36"><use href="#logo-ston"/></svg></div>
+              <div class="flow-node-text">
+                <strong>STON.fi</strong>
+                <span>DEX v2 LP position</span>
+              </div>
+            </div>
+            <div class="flow-connector anim-item"><svg viewBox="0 0 2 26"><line class="flow-line" x1="1" y1="0" x2="1" y2="26"/><circle class="flow-dot flow-dot-4" cx="1" cy="0" r="2"/></svg></div>
+
+            <div class="flow-node anim-item">
+              <div class="logo-node"><svg width="36" height="36"><use href="#logo-wallet"/></svg></div>
+              <div class="flow-node-text">
+                <strong>LP tokens in your wallet</strong>
+                <span>Non-custodial · direct delivery</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        <div class="slide-footer">
+          <div class="dots dots-clone"></div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════
+           SLIDE 3 — Fund from anywhere
+      ═══════════════════════════════════════════ -->
+      <section class="slide" data-slide="3">
+        <div class="slide-content">
+          <h2 class="slide-heading anim-item">Fund from anywhere</h2>
+
+          <div class="fund-diagram anim-item">
+            <svg viewBox="0 0 310 232" class="fund-svg" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <clipPath id="cp-eth">  <circle cx="40" cy="40"  r="22"/></clipPath>
+                <clipPath id="cp-base"> <circle cx="40" cy="90"  r="22"/></clipPath>
+                <clipPath id="cp-bnb">  <circle cx="40" cy="140" r="22"/></clipPath>
+                <clipPath id="cp-poly"> <circle cx="40" cy="190" r="22"/></clipPath>
+                <clipPath id="cp-omni"> <circle cx="168" cy="115" r="27"/></clipPath>
+                <clipPath id="cp-ton">  <circle cx="278" cy="115" r="23"/></clipPath>
+                <!-- Glow filters -->
+                <filter id="glow-blue" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="3" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+
+              <!-- ── Animated flow paths ──────────────────────── -->
+              <!-- ETH → Omniston -->
+              <path class="fp fp1"
+                    d="M62,40 C120,40 138,115 143,115"
+                    stroke="#627EEA" stroke-width="1.5" fill="none"
+                    stroke-dasharray="115" stroke-dashoffset="115"/>
+              <!-- Base → Omniston -->
+              <path class="fp fp2"
+                    d="M62,90 C108,90 132,115 143,115"
+                    stroke="#0052FF" stroke-width="1.5" fill="none"
+                    stroke-dasharray="90" stroke-dashoffset="90"/>
+              <!-- BNB → Omniston -->
+              <path class="fp fp3"
+                    d="M62,140 C108,140 132,115 143,115"
+                    stroke="#F0B90B" stroke-width="1.5" fill="none"
+                    stroke-dasharray="90" stroke-dashoffset="90"/>
+              <!-- Polygon → Omniston -->
+              <path class="fp fp4"
+                    d="M62,190 C120,190 138,115 143,115"
+                    stroke="#8247E5" stroke-width="1.5" fill="none"
+                    stroke-dasharray="115" stroke-dashoffset="115"/>
+              <!-- Omniston → Your DCA wallet -->
+              <path class="fp fp-out"
+                    d="M195,115 L255,115"
+                    stroke="#0098EA" stroke-width="2.2" fill="none"
+                    stroke-dasharray="63" stroke-dashoffset="63"
+                    filter="url(#glow-blue)"/>
+
+              <!-- ── Static base lines (dim) ──────────────────── -->
+              <path d="M62,40 C120,40 138,115 143,115"   stroke="#627EEA" stroke-width="0.4" fill="none" opacity="0.18"/>
+              <path d="M62,90 C108,90 132,115 143,115"   stroke="#0052FF" stroke-width="0.4" fill="none" opacity="0.18"/>
+              <path d="M62,140 C108,140 132,115 143,115" stroke="#F0B90B" stroke-width="0.4" fill="none" opacity="0.18"/>
+              <path d="M62,190 C120,190 138,115 143,115" stroke="#8247E5" stroke-width="0.4" fill="none" opacity="0.18"/>
+              <path d="M195,115 L255,115"                stroke="#0098EA" stroke-width="0.6" fill="none" opacity="0.25"/>
+
+              <!-- ── Chain circles ─────────────────────────────── -->
+              <!-- Ethereum -->
+              <circle cx="40" cy="40" r="22" fill="#12122a" stroke="#627EEA" stroke-width="1.2" stroke-opacity="0.7"/>
+              <image href="/app/logos/eth.png"     x="18" y="18"  width="44" height="44" clip-path="url(#cp-eth)"  preserveAspectRatio="xMidYMid slice"/>
+              <text x="40" y="75"  text-anchor="middle" font-size="9.5" fill="#999" font-family="system-ui,sans-serif">ETH</text>
+
+              <!-- Base -->
+              <circle cx="40" cy="90" r="22" fill="#001233" stroke="#0052FF" stroke-width="1.2" stroke-opacity="0.7"/>
+              <image href="/app/logos/base.png"    x="18" y="68"  width="44" height="44" clip-path="url(#cp-base)" preserveAspectRatio="xMidYMid slice"/>
+              <text x="40" y="125" text-anchor="middle" font-size="9.5" fill="#999" font-family="system-ui,sans-serif">Base</text>
+
+              <!-- BNB -->
+              <circle cx="40" cy="140" r="22" fill="#161000" stroke="#F0B90B" stroke-width="1.2" stroke-opacity="0.7"/>
+              <image href="/app/logos/bnb.png"     x="18" y="118" width="44" height="44" clip-path="url(#cp-bnb)"  preserveAspectRatio="xMidYMid slice"/>
+              <text x="40" y="175" text-anchor="middle" font-size="9.5" fill="#999" font-family="system-ui,sans-serif">BNB</text>
+
+              <!-- Polygon -->
+              <circle cx="40" cy="190" r="22" fill="#0e061e" stroke="#8247E5" stroke-width="1.2" stroke-opacity="0.7"/>
+              <image href="/app/logos/polygon.png" x="18" y="168" width="44" height="44" clip-path="url(#cp-poly)" preserveAspectRatio="xMidYMid slice"/>
+              <text x="40" y="225" text-anchor="middle" font-size="9.5" fill="#999" font-family="system-ui,sans-serif">Polygon</text>
+
+              <!-- ── Omniston hub ────────────────────────────── -->
+              <circle cx="168" cy="115" r="27" fill="#0d1320" stroke="#4A8AFF" stroke-width="1.8"/>
+              <image href="/app/logos/ston.png" x="141" y="88" width="54" height="54" clip-path="url(#cp-omni)" preserveAspectRatio="xMidYMid slice"/>
+              <text x="168" y="156" text-anchor="middle" font-size="9.5" fill="#4A8AFF" font-family="system-ui,sans-serif" font-weight="600">Omniston</text>
+
+              <!-- ── Your DCA Agentic wallet ─────────────────── -->
+              <circle cx="278" cy="115" r="23" fill="#051520" stroke="#0098EA" stroke-width="1.8"/>
+              <image href="/app/logos/ton.png" x="255" y="92" width="46" height="46" clip-path="url(#cp-ton)" preserveAspectRatio="xMidYMid slice"/>
+              <text x="278" y="151" text-anchor="middle" font-size="8.5" fill="#0098EA" font-family="system-ui,sans-serif" font-weight="700">Your DCA</text>
+              <text x="278" y="163" text-anchor="middle" font-size="8"   fill="#6aabcc" font-family="system-ui,sans-serif">agentic wallet</text>
+            </svg>
+          </div>
+
+          <p class="bridge-caption anim-item">USDT on any chain · bridged via Omniston · auto-invested</p>
+        </div>
+        <div class="slide-footer">
+          <div class="dots dots-clone"></div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════
+           SLIDE 4 — Built on TON
+      ═══════════════════════════════════════════ -->
+      <section class="slide" data-slide="4">
+        <div class="slide-content">
+          <h2 class="slide-heading anim-item">Built on TON</h2>
+          <div class="stats-row">
+            <div class="stat anim-item">
+              <div class="stat-value">0%</div>
+              <div class="stat-label">Gramity platform fee*</div>
+            </div>
+            <div class="stat anim-item">
+              <div class="stat-value" data-count="5" data-suffix=" steps" data-target="5">0</div>
+              <div class="stat-label">Fully automated</div>
+            </div>
+            <div class="stat anim-item">
+              <div class="stat-value" data-count="1" data-suffix=" tx" data-target="1">0</div>
+              <div class="stat-label">One deposit, endless DCA</div>
+            </div>
+          </div>
+          <p class="stat-footnote anim-item">*Gas only + ~0.1% DEX routing fee via Omniston<br>LP tokens go <strong style="color:#fff">directly to your wallet</strong> — Gramity never holds them</p>
+
+          <div class="partners">
+            <div class="partner-badge anim-item">
+              <svg width="20" height="20"><use href="#logo-ton"/></svg>
+              TON
+            </div>
+            <div class="partner-badge anim-item">
+              <svg width="20" height="20"><use href="#logo-omniston"/></svg>
+              Omniston
+            </div>
+            <div class="partner-badge anim-item">
+              <svg width="20" height="20"><use href="#logo-tonstakers"/></svg>
+              Tonstakers
+            </div>
+            <div class="partner-badge anim-item">
+              <svg width="20" height="20"><use href="#logo-ston"/></svg>
+              STON.fi
+            </div>
+          </div>
+        </div>
+        <div class="slide-footer">
+          <div class="dots dots-clone"></div>
+          <button class="btn btn-link anim-item" id="btnToFinal">Get started →</button>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════
+           SLIDE 5 — CTA
+      ═══════════════════════════════════════════ -->
+      <section class="slide slide-final" data-slide="5">
+        <div class="slide-content">
+          <div class="cta-center">
+            <div class="cta-logo anim-item">
+              <svg viewBox="0 0 200 200" overflow="visible" aria-hidden="true">
+                <defs>
+                  <radialGradient id="ggr2" cx="100" cy="107" r="82" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#2d2d3c"/>
+                    <stop offset="40%" stop-color="#161622"/>
+                    <stop offset="72%" stop-color="#080810"/>
+                    <stop offset="100%" stop-color="#000000"/>
+                  </radialGradient>
+                  <filter id="ggh2" x="-40%" y="-40%" width="180%" height="180%">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="w"/>
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="n"/>
+                    <feMerge><feMergeNode in="w"/><feMergeNode in="n"/><feMergeNode in="SourceGraphic"/></feMerge>
+                  </filter>
+                </defs>
+                <path d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1 L 169.5,73.9 Q 176,84 172.8,95.6 L 159.2,144.4 Q 156,156 145.3,161.4 L 110.7,178.6 Q 100,184 89.3,178.6 L 54.7,161.4 Q 44,156 40.8,144.4 L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z" fill="none" stroke="white" stroke-width="2.5" filter="url(#ggh2)" opacity="0.6"/>
+                <path d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1 L 169.5,73.9 Q 176,84 172.8,95.6 L 159.2,144.4 Q 156,156 145.3,161.4 L 110.7,178.6 Q 100,184 89.3,178.6 L 54.7,161.4 Q 44,156 40.8,144.4 L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z" fill="url(#ggr2)" stroke="white" stroke-width="1.5"/>
+                <path d="M 115,67 C 120,88 120,88 141,93 C 120,98 120,98 115,119 C 110,98 110,98 89,93 C 110,88 110,88 115,67 Z" fill="white" opacity="0.9"/>
+              </svg>
+            </div>
+            <h2 class="title anim-item">Ready to start?</h2>
+            <p class="subtitle anim-item">Set up your first DCA in ~2 minutes</p>
+            <div class="cta-buttons">
+              <button class="btn btn-cta-hero anim-item" id="btnStartDCA">
+                ✦ Create DCA Strategy
+              </button>
+              <p class="cta-meta anim-item">~2 min setup · non-custodial · <span>0% platform fee</span></p>
+              <button class="btn btn-ghost anim-item" id="btnLearnMore">Learn more</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════
+           WIZARD SLIDE 6 — Step 1: Connect & Scan
+      ═══════════════════════════════════════════ -->
+      <section class="slide slide-wizard" data-slide="6">
+        <div class="wizard-header anim-item">
+          <button class="wizard-back" id="btnWizardBack6">←</button>
+          <span class="wizard-step">Step 1 of 5</span>
+          <div style="width:28px"></div>
+        </div>
+        <div class="wizard-step-bar anim-item">
+          <div class="wizard-step-fill" style="width:20%"></div>
+        </div>
+        <div class="slide-content">
+          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:6px">Connect your wallet</h2>
+          <p class="subtitle anim-item" style="font-size:13px;margin-bottom:18px">See your current holdings, get smart DCA suggestions</p>
+
+          <div class="connect-section anim-item">
+            <!-- TonConnect primary -->
+            <button class="connect-btn primary-ton" id="btnConnectTon">
+              <svg width="28" height="28"><use href="#logo-ton"/></svg>
+              <div style="flex:1;text-align:left">
+                <div>Connect TON Wallet</div>
+                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">TonConnect · Tonkeeper · TON Space</div>
+              </div>
+              <div style="font-size:11px;color:rgba(0,152,234,0.8);font-weight:700">PRIMARY</div>
+            </button>
+
+            <!-- MetaMask secondary -->
+            <button class="connect-btn" id="btnConnectMM">
+              <svg width="28" height="28"><use href="#logo-metamask"/></svg>
+              <div style="flex:1;text-align:left">
+                <div>Connect MetaMask</div>
+                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">ETH · Base · BNB · Polygon</div>
+              </div>
+            </button>
+
+            <!-- Phantom coming soon -->
+            <button class="connect-btn disabled">
+              <svg width="28" height="28"><use href="#logo-phantom"/></svg>
+              <div style="flex:1;text-align:left">
+                <div>Phantom</div>
+                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Solana deposits</div>
+              </div>
+              <span class="connect-btn-badge badge-soon">Coming soon</span>
+            </button>
+          </div>
+
+          <!-- TON address input (shown after clicking TON connect) -->
+          <div id="tonConnectInput" style="display:none;margin-top:14px">
+            <div class="input-group visible" style="max-height:60px;opacity:1;margin-bottom:0">
+              <input class="addr-input" id="tonAddrForScan" type="text"
+                     placeholder="UQ... or EQ... TON address" autocomplete="off" spellcheck="false"/>
+              <button class="paste-btn" id="btnScanTon">Scan</button>
+            </div>
+          </div>
+
+          <!-- Scan results -->
+          <div id="scanResults" style="margin-top:14px;display:none">
+            <div class="scan-results">
+              <div class="scan-total-row">
+                <span class="scan-total-label">Total balance</span>
+                <span class="scan-total-value" id="scanTotalValue">$0</span>
+              </div>
+              <div class="scan-assets-list" id="scanAssetsList"></div>
+            </div>
+          </div>
+
+          <div class="skip-link anim-item" id="btnSkipConnect">Skip for now →</div>
+        </div>
+        <div class="slide-footer" style="padding-bottom:0">
+          <button class="btn btn-primary anim-item" id="btnWizardNext6">Continue →</button>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════
+           WIZARD SLIDE 7 — Step 2: DCA Parameters
+      ═══════════════════════════════════════════ -->
+      <section class="slide slide-wizard" data-slide="7">
+        <div class="wizard-header anim-item">
+          <button class="wizard-back" id="btnWizardBack7">←</button>
+          <span class="wizard-step">Step 2 of 5</span>
+          <div style="width:28px"></div>
+        </div>
+        <div class="wizard-step-bar anim-item">
+          <div class="wizard-step-fill" style="width:40%"></div>
+        </div>
+        <div class="slide-content">
+          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:10px">Invest into DCA</h2>
+
+          <!-- Wallet balance chip -->
+          <div class="balance-chip anim-item" id="dcaBalanceChip">
+            <span class="chip-dot chip-dot-demo" id="dcaChipDot"></span>
+            <span id="dcaBalanceLabel">Demo mode · $2,000 limit</span>
+          </div>
+
+          <!-- Frequency -->
+          <p class="param-label anim-item">Frequency</p>
+          <div class="freq-tabs anim-item" id="freqTabs">
+            <button class="freq-tab" data-freq="daily">Daily</button>
+            <button class="freq-tab active" data-freq="weekly">Weekly</button>
+            <button class="freq-tab" data-freq="monthly">Monthly</button>
+          </div>
+
+          <!-- Amount per cycle -->
+          <p class="param-label anim-item" style="margin-top:16px">Amount per cycle</p>
+          <div class="slider-val-row anim-item">
+            <span class="slider-big-val" id="sliderBigVal">$500</span>
+            <span class="slider-usdt-label">USDT</span>
+          </div>
+
+          <!-- Range slider -->
+          <div class="slider-wrap anim-item">
+            <input type="range" class="dca-slider" id="amountSlider"
+                   min="50" max="2000" step="50" value="500"/>
+            <div class="slider-ticks">
+              <span>$50</span>
+              <span id="sliderMaxLabel">$2,000</span>
+            </div>
+          </div>
+
+          <!-- % preset buttons -->
+          <div class="slider-pcts anim-item" id="sliderPcts">
+            <button class="pct-btn" data-pct="25">25%</button>
+            <button class="pct-btn pct-active" data-pct="50">50%</button>
+            <button class="pct-btn" data-pct="75">75%</button>
+            <button class="pct-btn" data-pct="100">Max</button>
+          </div>
+
+          <!-- Zone label -->
+          <div class="zone-label anim-item" id="zoneLabel">✅ Weekly viable</div>
+
+          <!-- 1-year projection card -->
+          <div class="proj-big-card anim-item" id="projBigCard">
+            <div class="proj-big-inner">
+              <div class="proj-big-num" id="projBigNum">$27,817</div>
+              <div class="proj-big-sub">after 1 year</div>
+            </div>
+            <div class="proj-breakdown" id="projBreakdown">
+              $26,000 invested · +$1,944 yield · -$127 gas
+            </div>
+          </div>
+
+          <!-- Connect-wallet hint (non-blocking, visible in demo mode) -->
+          <div class="connect-hint-card anim-item" id="connectHintCard">
+            <span>💡 Connect wallet to see your real balance</span>
+            <div class="connect-hint-btns">
+              <button class="hint-connect-btn" id="hintConnectTon">TON Wallet</button>
+              <button class="hint-connect-btn" id="hintConnectMM">MetaMask</button>
+            </div>
+          </div>
+        </div>
+        <div class="slide-footer">
+          <button class="btn btn-primary anim-item" id="btnWizardNext7">Continue →</button>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════
+           WIZARD SLIDE 8 — Step 3: What to Accumulate
+      ═══════════════════════════════════════════ -->
+      <section class="slide slide-wizard" data-slide="8">
+        <div class="wizard-header anim-item">
+          <button class="wizard-back" id="btnWizardBack8">←</button>
+          <span class="wizard-step">Step 3 of 5</span>
+          <div style="width:28px"></div>
+        </div>
+        <div class="wizard-step-bar anim-item">
+          <div class="wizard-step-fill" style="width:60%"></div>
+        </div>
+        <div class="slide-content">
+          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:6px">What to accumulate</h2>
+          <p class="subtitle anim-item" style="font-size:13px;margin-bottom:14px">Choose your DCA target</p>
+
+          <div class="token-grid">
+            <!-- TON + LP (selected, unlocked) -->
+            <div class="token-card anim-item selected" data-token="ton" id="tokenTON">
+              <div class="recommended-badge">⭐ Recommended</div>
+              <div class="token-check">✓</div>
+              <div class="token-logo">
+                <svg width="32" height="32"><use href="#logo-ton"/></svg>
+              </div>
+              <div class="token-name">TON + LP</div>
+              <div class="token-apy">~5.4% APY</div>
+            </div>
+
+            <!-- STON (coming soon) -->
+            <div class="token-card anim-item locked" data-token="ston">
+              <div class="coming-soon-badge">Coming soon</div>
+              <div class="token-logo">
+                <svg width="32" height="32"><use href="#logo-ston"/></svg>
+              </div>
+              <div class="token-name">STON</div>
+              <div class="token-apy">DEX token</div>
+            </div>
+
+            <!-- Multi-token (coming soon) -->
+            <div class="token-card anim-item locked" data-token="multi">
+              <div class="coming-soon-badge">Coming soon</div>
+              <div class="token-logo" style="font-size:22px;line-height:32px">🔀</div>
+              <div class="token-name">Multi-token</div>
+              <div class="token-apy">50/50 split</div>
+            </div>
+
+            <!-- More (coming soon) -->
+            <div class="token-card anim-item locked" data-token="more">
+              <div class="coming-soon-badge">Coming soon</div>
+              <div class="token-logo" style="font-size:22px;line-height:32px">＋</div>
+              <div class="token-name">More...</div>
+              <div class="token-apy">DOGS, NOT...</div>
+            </div>
+          </div>
+
+          <!-- 1-year projection -->
+          <div class="projection-hero anim-item" id="projectionBox">
+            <div class="proj-header">📊 1 Year Projection (TON + LP)</div>
+            <div class="proj-total" id="projTotal">~$534</div>
+            <div class="proj-rows">
+              <div class="proj-row">
+                <span class="label">Invested</span>
+                <span class="value" id="projInvested">$520</span>
+              </div>
+              <div class="proj-row">
+                <span class="label">Staking + LP yield (~5.4% APY)</span>
+                <span class="value" style="color:var(--green)" id="projYield">+$14</span>
+              </div>
+            </div>
+            <hr class="proj-divider"/>
+            <div class="proj-rows">
+              <div class="proj-row">
+                <span class="label" style="font-weight:600;color:var(--text-primary)">Total value</span>
+                <span class="value" style="color:var(--green)" id="projTotalInline">~$534</span>
+              </div>
+            </div>
+            <p class="proj-footnote">*Without TON price appreciation</p>
+          </div>
+        </div>
+        <div class="slide-footer">
+          <button class="btn btn-primary anim-item" id="btnWizardNext8">Continue →</button>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════
+           WIZARD SLIDE 9 — Step 4: Withdrawal Wallet
+      ═══════════════════════════════════════════ -->
+      <section class="slide slide-wizard" data-slide="9">
+        <div class="wizard-header anim-item">
+          <button class="wizard-back" id="btnWizardBack9">←</button>
+          <span class="wizard-step">Step 4 of 5</span>
+          <div style="width:28px"></div>
+        </div>
+        <div class="wizard-step-bar anim-item">
+          <div class="wizard-step-fill" style="width:80%"></div>
+        </div>
+        <div class="slide-content">
+          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:6px">Withdrawal wallet</h2>
+          <p class="subtitle anim-item" style="margin-bottom:14px;font-size:13px">LP tokens are sent here after every DCA cycle</p>
+
+          <div class="security-badge anim-item">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2 L20 6 L20 14 Q20 20 12 23 Q4 20 4 14 L4 6 Z"/></svg>
+            Locked at setup — address fixed, no redirect possible
+          </div>
+
+          <div class="check-row anim-item" id="checkRowSame">
+            <div class="check-box checked" id="sameWalletCheck"></div>
+            <div>
+              <div class="check-label">Use connected wallet for withdrawal</div>
+              <div class="check-sublabel">Same TON address as your deposit source</div>
+            </div>
+          </div>
+          <div class="input-group" id="withdrawInputGroup">
+            <input class="addr-input" id="withdrawAddrInput" type="text"
+                   placeholder="UQ... or EQ... TON address" autocomplete="off" spellcheck="false"/>
+            <button class="paste-btn" id="pasteAddrBtn">Paste</button>
+          </div>
+
+          <div class="benefit-list">
+            <div class="benefit-item anim-item">
+              <div class="benefit-icon">✓</div>
+              <span><strong style="color:#fff">Non-custodial</strong> — LP tokens go directly to your wallet, Gramity never holds them</span>
+            </div>
+            <div class="benefit-item anim-item">
+              <div class="benefit-icon">✓</div>
+              <span><strong style="color:#fff">Locked at setup</strong> — withdrawal address is fixed, no agent can redirect your funds</span>
+            </div>
+            <div class="benefit-item anim-item">
+              <div class="benefit-icon">✓</div>
+              <span><strong style="color:#fff">Minimal hot wallet</strong> — agent holds only the next cycle amount, not your savings</span>
+            </div>
+          </div>
+        </div>
+        <div class="slide-footer" style="padding-bottom:0">
+          <button class="btn btn-primary anim-item" id="btnWizardNext9">Continue →</button>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════
+           WIZARD SLIDE 10 — Step 5: Summary + CTA
+      ═══════════════════════════════════════════ -->
+      <section class="slide slide-wizard" data-slide="10">
+        <div class="wizard-header anim-item">
+          <button class="wizard-back" id="btnWizardBack10">←</button>
+          <span class="wizard-step">Step 5 of 5</span>
+          <div style="width:28px"></div>
+        </div>
+        <div class="wizard-step-bar anim-item">
+          <div class="wizard-step-fill" style="width:100%"></div>
+        </div>
+        <div class="slide-content">
+          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:14px">Your DCA strategy</h2>
+
+          <!-- Strategy summary -->
+          <div class="summary-card anim-item">
+            <div class="summary-row">
+              <span class="summary-label">Strategy</span>
+              <span class="summary-value hi" id="summaryStrategy">TON + Stake + LP</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Amount</span>
+              <span class="summary-value" id="summaryAmount">$10 USDT / week</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Est. APY</span>
+              <span class="summary-value hi" id="summaryApy">~5.4%</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">1-year return</span>
+              <span class="summary-value hi" id="summaryProjection">~$534</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Withdrawal to</span>
+              <span class="summary-value" id="summaryWithdraw">Connected wallet</span>
+            </div>
+          </div>
+
+          <!-- Time saved -->
+          <div class="time-saved-card anim-item">
+            <div class="ts-header">⏱ Time saved vs manual DCA</div>
+            <div class="ts-rows">
+              <div class="ts-row">
+                <span class="step-name">
+                  <svg width="14" height="14"><use href="#logo-omniston"/></svg>
+                  Bridge EVM → TON
+                </span>
+                <span class="step-time">5 min</span>
+              </div>
+              <div class="ts-row">
+                <span class="step-name">
+                  <svg width="14" height="14"><use href="#logo-omniston"/></svg>
+                  Omniston swap
+                </span>
+                <span class="step-time">3 min</span>
+              </div>
+              <div class="ts-row">
+                <span class="step-name">
+                  <svg width="14" height="14"><use href="#logo-tonstakers"/></svg>
+                  Tonstakers stake
+                </span>
+                <span class="step-time">3 min</span>
+              </div>
+              <div class="ts-row">
+                <span class="step-name">
+                  <svg width="14" height="14"><use href="#logo-ston"/></svg>
+                  STON.fi LP add
+                </span>
+                <span class="step-time">5 min</span>
+              </div>
+            </div>
+            <hr class="ts-divider"/>
+            <div class="ts-total">
+              <span class="label">Per cycle (manually)</span>
+              <span class="value">~16 min</span>
+            </div>
+            <div class="ts-total" style="margin-top:4px">
+              <span class="label" style="color:var(--text-secondary)">Per year</span>
+              <span class="value" id="timeSavedYear" style="color:var(--accent)">~14 hours</span>
+            </div>
+            <div class="ts-gramity">
+              <span class="label">With Gramity</span>
+              <span class="value">0 min 🎉</span>
+            </div>
+          </div>
+
+          <p class="subtitle anim-item" style="font-size:11px;text-align:center">
+            Amount and frequency adjustable in the app after setup
+          </p>
+        </div>
+        <div class="slide-footer">
+          <button class="btn btn-create-dca anim-item" id="btnCreateDCA">
+            ✦ Create DCA Strategy
+          </button>
+          <p class="cta-meta anim-item">~2 min setup · non-custodial · 0% platform fee</p>
+        </div>
+      </section>
+
+    </div><!-- /track -->
+  </div><!-- /app -->
+
+  <script>
+    (function () {
+      'use strict';
+
+      /* ── Telegram WebApp ── */
+      var tg = window.Telegram && window.Telegram.WebApp;
+      if (tg) {
+        tg.ready();
+        tg.expand();
+        if (tg.setHeaderColor)     tg.setHeaderColor('#07070e');
+        if (tg.setBackgroundColor) tg.setBackgroundColor('#07070e');
+      }
+
+      /* ── Constants ── */
+      var TOTAL     = 11;
+      var DOT_COUNT = 5;
+      var APY       = 0.054;
+
+      /* ── State ── */
+      var current        = 0;
+      var animating      = false;
+      var countUpDone    = false;
+      var flowAnimStarted = false;
+
+      /* ── DOM refs ── */
+      var track        = document.getElementById('track');
+      var btnPrev      = document.getElementById('btnPrev');
+      var btnNext      = document.getElementById('btnNext');
+      var dotsContainer = document.getElementById('dots');
+      var slides       = document.querySelectorAll('.slide');
+
+      /* ── Build dots ── */
+      var dots = [];
+      for (var i = 0; i < DOT_COUNT; i++) {
+        var dot = document.createElement('button');
+        dot.className = 'dot' + (i === 0 ? ' active' : '');
+        dot.setAttribute('aria-label', 'Slide ' + (i + 1));
+        dot.dataset.index = i;
+        dot.addEventListener('click', function () {
+          goTo(parseInt(this.dataset.index, 10));
+        });
+        dotsContainer.appendChild(dot);
+        dots.push(dot);
+      }
+
+      document.querySelectorAll('.dots-clone').forEach(function (clone) {
+        dots.forEach(function (d) { clone.appendChild(d.cloneNode(true)); });
+        clone.querySelectorAll('.dot').forEach(function (d, idx) {
+          d.addEventListener('click', function () { goTo(idx); });
+        });
+      });
+
+      function updateDots() {
+        var activeDot = current < DOT_COUNT ? current : DOT_COUNT - 1;
+        document.querySelectorAll('.dots').forEach(function (container) {
+          container.querySelectorAll('.dot').forEach(function (d, i) {
+            d.classList.toggle('active', i === activeDot);
+          });
+        });
+      }
+
+      function updateArrows() {
+        var inWizard = current >= 6;
+        btnPrev.classList.toggle('hidden', current === 0 || inWizard);
+        btnNext.classList.toggle('hidden', current >= TOTAL - 1 || inWizard);
+      }
+
+      function getOffset() { return -(current * (100 / TOTAL)); }
+
+      function goTo(index) {
+        if (animating || index === current || index < 0 || index >= TOTAL) return;
+        animating = true;
+        var prev = current;
+        current = index;
+
+        if (typeof gsap !== 'undefined') {
+          gsap.to(track, {
+            xPercent: getOffset(), duration: 0.4, ease: 'power2.out',
+            onComplete: function () { animating = false; }
+          });
+        } else {
+          track.style.transform = 'translateX(' + getOffset() + '%)';
+          track.style.transition = 'transform 0.4s ease-out';
+          setTimeout(function () { animating = false; }, 400);
+        }
+
+        updateDots();
+        updateArrows();
+        animateSlide(current);
+        resetSlide(prev);
+      }
+
+      function next() { goTo(current + 1); }
+      function prev() { goTo(current - 1); }
+
+      btnNext.addEventListener('click', next);
+      btnPrev.addEventListener('click', prev);
+
+      document.getElementById('btnGetStarted').addEventListener('click', next);
+      document.getElementById('btnToFinal').addEventListener('click', function () { goTo(5); });
+      document.getElementById('btnStartDCA').addEventListener('click', function () { goTo(6); });
+      document.getElementById('btnLearnMore').addEventListener('click', function () {
+        var url = 'https://t.me/GramityBot';
+        if (tg && tg.openLink) tg.openLink(url);
+        else window.open(url, '_blank');
+      });
+
+      /* ── Keyboard ── */
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowRight') next();
+        else if (e.key === 'ArrowLeft') prev();
+      });
+
+      /* ── Touch swipe ── */
+      var touchStartX = 0, touchStartY = 0, touchTime = 0;
+
+      track.addEventListener('touchstart', function (e) {
+        touchStartX = e.changedTouches[0].clientX;
+        touchStartY = e.changedTouches[0].clientY;
+        touchTime   = Date.now();
+      }, { passive: true });
+
+      track.addEventListener('touchend', function (e) {
+        var dx = e.changedTouches[0].clientX - touchStartX;
+        var dy = e.changedTouches[0].clientY - touchStartY;
+        var dt = Date.now() - touchTime;
+        if (Math.abs(dx) < 40 || Math.abs(dy) > Math.abs(dx) || dt > 600) return;
+        if (dx < 0) next(); else prev();
+      }, { passive: true });
+
+      /* ── Slide animations ── */
+      var animateSlide = function (index) {
+        var slide = slides[index];
+        if (!slide) return;
+        var items = slide.querySelectorAll('.anim-item');
+
+        if (typeof gsap !== 'undefined') {
+          gsap.set(items, { opacity: 0, y: 16 });
+
+          if (index === 0) {
+            var logo = slide.querySelector('#heroLogo');
+            var rest = slide.querySelectorAll('.anim-item:not(#heroLogo)');
+            gsap.fromTo(logo, { opacity: 0, scale: 0.8 }, {
+              opacity: 1, scale: 1, duration: 0.6, ease: 'power2.out',
+              onComplete: function () {
+                gsap.to(rest, { opacity: 1, y: 0, duration: 0.45, stagger: 0.12, ease: 'power2.out', delay: 0.1 });
+              }
+            });
+          } else {
+            gsap.to(items, {
+              opacity: 1, y: 0, duration: 0.45,
+              stagger: index === 1 ? 0.12 : 0.1,
+              ease: 'power2.out', delay: 0.05
+            });
+          }
+        } else {
+          items.forEach(function (el, i) {
+            setTimeout(function () {
+              el.style.opacity = '1';
+              el.style.transform = 'translateY(0)';
+              el.style.transition = 'opacity 0.45s ease, transform 0.45s ease';
+            }, i * 100);
+          });
+        }
+
+        if (index === 2) startFlowDots();
+        if (index === 4) startCountUp();
+      };
+
+      function resetSlide(index) {
+        if (index === 2) stopFlowDots();
+        if (index === 4) {
+          countUpDone = false;
+          slides[4].querySelectorAll('.stat-value[data-target]').forEach(function (el) {
+            el.textContent = (el.dataset.prefix || '') + '0' + (el.dataset.suffix || '');
+          });
+        }
+        var slide = slides[index];
+        if (!slide) return;
+        slide.querySelectorAll('.anim-item').forEach(function (el) {
+          if (typeof gsap !== 'undefined') gsap.set(el, { opacity: 0, y: 16 });
+          else { el.style.opacity = '0'; el.style.transform = 'translateY(16px)'; }
+        });
+      }
+
+      /* ── Flow dots ── */
+      var flowIntervals = [];
+
+      function startFlowDots() {
+        if (flowAnimStarted) return;
+        flowAnimStarted = true;
+        document.querySelectorAll('.flow-dot').forEach(function (dot, i) {
+          if (typeof gsap !== 'undefined') {
+            gsap.fromTo(dot, { attr: { cy: 0 } }, { attr: { cy: 26 }, duration: 1.4, ease: 'none', repeat: -1, delay: i * 0.35 });
+          } else {
+            var phase = 0;
+            var id = setInterval(function () {
+              phase = (phase + 2) % 28;
+              dot.setAttribute('cy', phase);
+            }, 40);
+            flowIntervals.push(id);
+          }
+        });
+      }
+
+      function stopFlowDots() {
+        flowIntervals.forEach(clearInterval);
+        flowIntervals = [];
+        if (typeof gsap !== 'undefined') gsap.killTweensOf('.flow-dot');
+        document.querySelectorAll('.flow-dot').forEach(function (d) { d.setAttribute('cy', '0'); });
+        flowAnimStarted = false;
+      }
+
+      /* ── Count-up (slide 4) ── */
+      function startCountUp() {
+        if (countUpDone) return;
+        countUpDone = true;
+        slides[4].querySelectorAll('.stat-value[data-target]').forEach(function (el) {
+          var target = parseInt(el.dataset.target, 10);
+          var suffix = el.dataset.suffix || '';
+          var obj = { val: 0 };
+          if (typeof gsap !== 'undefined') {
+            gsap.to(obj, {
+              val: target, duration: 1.2, ease: 'power1.out',
+              onUpdate: function () { el.textContent = Math.round(obj.val) + suffix; }
+            });
+          } else {
+            var step = 0;
+            var iv = setInterval(function () {
+              step++;
+              el.textContent = Math.round(target * step / 20) + suffix;
+              if (step >= 20) clearInterval(iv);
+            }, 60);
+          }
+        });
+      }
+
+      /* ── Init ── */
+      if (typeof gsap !== 'undefined') gsap.set(track, { xPercent: 0 });
+      updateArrows();
+      animateSlide(0);
+
+      /* ══════════════════════════════════════════════════════
+         SHARED WALLET STATE
+      ══════════════════════════════════════════════════════ */
+
+      var wiz = {
+        tonAddress:     '',
+        tonConnected:   false,
+        evmAddress:     null,
+        evmConnected:   false,
+        totalUsdBalance: 0,
+        frequency:      'weekly',
+        amountPerCycle: 500,
+        selectedToken:  'ton',
+        sameWallet:     true,
+        withdrawAddress: '',
+      };
+
+      /* ── EVM chain definitions ── */
+      var EVM_CHAINS = [
+        { name: 'Ethereum', rpc: 'https://rpc.ankr.com/eth',     icon: 'logo-eth',     sym: 'ETH', dec: 18, stableAddr: '0xdac17f958d2ee523a2206206994597c13d831ec7', stableSym: 'USDT', stableDec: 6 },
+        { name: 'Base',     rpc: 'https://rpc.ankr.com/base',    icon: 'logo-base',    sym: 'ETH', dec: 18, stableAddr: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913', stableSym: 'USDC', stableDec: 6 },
+        { name: 'BNB Chain',rpc: 'https://rpc.ankr.com/bsc',     icon: 'logo-bnb',     sym: 'BNB', dec: 18, stableAddr: '0x55d398326f99059ff775485246999027b3197955', stableSym: 'USDT', stableDec: 18 },
+        { name: 'Polygon',  rpc: 'https://rpc.ankr.com/polygon', icon: 'logo-polygon', sym: 'POL', dec: 18, stableAddr: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f', stableSym: 'USDT', stableDec: 6 },
+      ];
+
+      /* ── tonapi balance ── */
+      function fetchTonBal(address) {
+        return Promise.all([
+          fetch('https://tonapi.io/v2/accounts/' + encodeURIComponent(address), { signal: AbortSignal.timeout(8000) }),
+          fetch('https://tonapi.io/v2/accounts/' + encodeURIComponent(address) + '/jettons?currencies=usd', { signal: AbortSignal.timeout(8000) }),
+        ]).then(function (rs) {
+          return Promise.all(rs.map(function (r) { return r.ok ? r.json() : null; }));
+        }).then(function (data) {
+          var items = [];
+          var acct = data[0], jData = data[1];
+          if (acct) {
+            var ton = Number(acct.balance || 0) / 1e9;
+            if (ton >= 0.001) items.push({ logoId: 'logo-ton', name: 'TON', chain: 'TON', amount: ton.toFixed(3), usd: null });
+          }
+          if (jData && jData.balances) {
+            jData.balances.forEach(function (b) {
+              if (b.jetton.verification !== 'whitelist') return;
+              var bal = Number(b.balance) / Math.pow(10, b.jetton.decimals);
+              if (bal < 0.001) return;
+              var usdPrice = b.price && b.price.prices && b.price.prices.USD;
+              items.push({
+                logoId: 'logo-usdt', name: b.jetton.symbol, chain: 'TON',
+                amount: bal >= 1000 ? (bal / 1000).toFixed(1) + 'K' : bal.toFixed(2),
+                usd: usdPrice ? (bal * usdPrice).toFixed(2) : null,
+              });
+            });
+          }
+          return items;
+        }).catch(function () { return null; });
+      }
+
+      /* ── EVM RPC helper ── */
+      function rpcPost(url, method, params) {
+        return fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: method, params: params }),
+          signal: AbortSignal.timeout(7000),
+        }).then(function (r) { return r.json(); }).catch(function () { return null; });
+      }
+
+      function fetchEvmChain(chain, address) {
+        var padded = address.toLowerCase().slice(2).padStart(64, '0');
+        return Promise.all([
+          rpcPost(chain.rpc, 'eth_getBalance', [address, 'latest']),
+          rpcPost(chain.rpc, 'eth_call', [{ to: chain.stableAddr, data: '0x70a08231' + padded }, 'latest']),
+        ]).then(function (results) {
+          var items = [];
+          var nativeHex = results[0] && results[0].result;
+          var stableHex = results[1] && results[1].result;
+          if (nativeHex && nativeHex !== '0x0' && nativeHex !== '0x') {
+            var n = parseInt(nativeHex, 16) / Math.pow(10, chain.dec);
+            if (n >= 0.0001) items.push({ logoId: chain.icon, name: chain.sym, chain: chain.name, amount: n.toFixed(4), usd: null });
+          }
+          if (stableHex && stableHex !== '0x' && stableHex.length > 2) {
+            var s = parseInt(stableHex, 16) / Math.pow(10, chain.stableDec);
+            if (s >= 0.01) items.push({ logoId: 'logo-usdt', name: chain.stableSym, chain: chain.name, amount: s.toFixed(2), usd: s.toFixed(2) });
+          }
+          return items;
+        }).catch(function () { return []; });
+      }
+
+      /* ── Render helpers ── */
+      function renderBalRow(item) {
+        return '<div class="balance-row">' +
+          '<div class="bal-left">' +
+          '<div class="bal-icon"><svg width="22" height="22"><use href="#' + item.logoId + '"/></svg></div>' +
+          '<div><div class="bal-name">' + item.name + '</div><div class="bal-chain">' + item.chain + '</div></div>' +
+          '</div>' +
+          '<div class="bal-right">' +
+          '<div class="bal-amount">' + item.amount + ' ' + item.name + '</div>' +
+          (item.usd ? '<div class="bal-usd">≈ $' + item.usd + '</div>' : '') +
+          '</div></div>';
+      }
+      function renderEmpty(msg) { return '<div class="bal-empty">' + msg + '</div>'; }
+      function renderSkeletons() { return '<div class="skeleton-row"></div><div class="skeleton-row"></div>'; }
+
+      /* ── TON address validation ── */
+      function isValidTonAddr(a) {
+        if (!a) return false;
+        if (/^[EUk]Q[A-Za-z0-9_\-]{46}$/.test(a)) return true;
+        if (/^(-1|0):[A-Fa-f0-9]{64}$/.test(a)) return true;
+        return false;
+      }
+
+      /* ── Shared: show scan results on step 1 ── */
+      function showScanResults(items, totalUsd) {
+        var box = document.getElementById('scanResults');
+        var listEl = document.getElementById('scanAssetsList');
+        var totalEl = document.getElementById('scanTotalValue');
+        box.style.display = 'block';
+        totalEl.textContent = '$' + totalUsd.toFixed(2);
+        if (!items || !items.length) {
+          listEl.innerHTML = renderEmpty('No assets found');
+        } else {
+          listEl.innerHTML = items.slice(0, 6).map(renderBalRow).join('');
+        }
+        // refresh slider in step 2 with the new balance
+        if (totalUsd > 0) {
+          wiz.totalUsdBalance = totalUsd;
+          if (typeof initSlider7 === 'function') initSlider7();
+        }
+      }
+
+      /* ══════════════════════════════════════════════════════
+         SLIDE 1 — Wallet strip (connect preview)
+      ══════════════════════════════════════════════════════ */
+
+      document.getElementById('btnConnectTonStrip').addEventListener('click', function () {
+        document.getElementById('btnConnectTon').click(); // delegate to step1 handler
+        goTo(6);
+      });
+
+      document.getElementById('btnConnectMMStrip').addEventListener('click', function () {
+        document.getElementById('btnConnectMM').click();
+        goTo(6);
+      });
+
+      /* ══════════════════════════════════════════════════════
+         WIZARD STEP 1 — Connect & Scan
+      ══════════════════════════════════════════════════════ */
+
+      document.getElementById('btnWizardBack6').addEventListener('click', function () { goTo(5); });
+      document.getElementById('btnSkipConnect').addEventListener('click', function ()  { goTo(7); });
+      document.getElementById('btnWizardNext6').addEventListener('click', function ()  { goTo(7); });
+
+      /* TonConnect button → show address input */
+      document.getElementById('btnConnectTon').addEventListener('click', function () {
+        var inputBox = document.getElementById('tonConnectInput');
+        inputBox.style.display = 'block';
+        setTimeout(function () { document.getElementById('tonAddrForScan').focus(); }, 100);
+      });
+
+      /* Scan TON balance */
+      document.getElementById('btnScanTon').addEventListener('click', function () {
+        var addr = document.getElementById('tonAddrForScan').value.trim();
+        if (!isValidTonAddr(addr)) {
+          document.getElementById('tonAddrForScan').style.borderColor = '#ff4a6e';
+          return;
+        }
+        document.getElementById('tonAddrForScan').style.borderColor = '';
+        wiz.tonAddress   = addr;
+        wiz.tonConnected = true;
+
+        var scanBox = document.getElementById('scanResults');
+        var listEl  = document.getElementById('scanAssetsList');
+        scanBox.style.display = 'block';
+        document.getElementById('scanTotalValue').textContent = '…';
+        listEl.innerHTML = renderSkeletons();
+
+        fetchTonBal(addr).then(function (items) {
+          var totalUsd = 0;
+          if (items) {
+            items.forEach(function (it) { if (it.usd) totalUsd += parseFloat(it.usd); });
+          }
+          showScanResults(items || [], totalUsd);
+
+          // update strip on slide 1
+          var stripResult = document.getElementById('stripBalanceResult');
+          document.getElementById('stripAddr').textContent = addr.slice(0, 6) + '…' + addr.slice(-4);
+          document.getElementById('stripTotal').textContent = '$' + totalUsd.toFixed(0);
+          stripResult.style.display = 'block';
+        });
+      });
+
+      document.getElementById('tonAddrForScan').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') document.getElementById('btnScanTon').click();
+      });
+
+      /* MetaMask connect */
+      document.getElementById('btnConnectMM').addEventListener('click', function () {
+        var btn = this;
+        if (!window.ethereum) {
+          btn.style.borderColor = '#ff4a6e';
+          btn.querySelector('div').children[0].textContent = 'MetaMask not found';
+          return;
+        }
+        btn.querySelector('div').children[0].textContent = 'Connecting…';
+        window.ethereum.request({ method: 'eth_requestAccounts' }).then(function (accounts) {
+          if (!accounts || !accounts.length) return;
+          wiz.evmAddress   = accounts[0];
+          wiz.evmConnected = true;
+
+          var scanBox = document.getElementById('scanResults');
+          var listEl  = document.getElementById('scanAssetsList');
+          scanBox.style.display = 'block';
+          document.getElementById('scanTotalValue').textContent = '…';
+          listEl.innerHTML = renderSkeletons();
+
+          var short = accounts[0].slice(0, 6) + '…' + accounts[0].slice(-4);
+          btn.querySelector('div').children[0].textContent = 'Connected: ' + short;
+
+          Promise.all(EVM_CHAINS.map(function (ch) { return fetchEvmChain(ch, accounts[0]); }))
+            .then(function (results) {
+              var all  = [].concat.apply([], results);
+              var totalUsd = 0;
+              all.forEach(function (it) { if (it.usd) totalUsd += parseFloat(it.usd); });
+              showScanResults(all, totalUsd);
+            });
+        }).catch(function () {
+          btn.querySelector('div').children[0].textContent = 'Connect MetaMask';
+        });
+      });
+
+      /* ══════════════════════════════════════════════════════
+         WIZARD STEP 2 — DCA Slider
+      ══════════════════════════════════════════════════════ */
+
+      var FALLBACK_MAX     = 2000;
+      var FALLBACK_DEFAULT = 500;
+      var GAS_PER_CYCLE    = 2.45;
+
+      function cyclesPerYear(freq) {
+        return { daily: 365, weekly: 52, monthly: 12 }[freq] || 52;
+      }
+
+      var sliderEl  = document.getElementById('amountSlider');
+      var sliderMax = FALLBACK_MAX;
+
+      function getSliderMax() {
+        var bal = wiz.totalUsdBalance || 0;
+        if (bal >= 50) return Math.floor(bal / 50) * 50;
+        return FALLBACK_MAX;
+      }
+
+      function getZone(amount) {
+        if (amount < 300)  return { color: '#ef4444', label: '⚠️ Gas overhead ~8%+ · consider Monthly' };
+        if (amount < 600)  return { color: '#f59e0b', label: '💡 Monthly DCA recommended' };
+        if (amount < 2000) return { color: '#4a8aff', label: '✅ Weekly viable' };
+        return              { color: '#10b981', label: '🚀 Optimal range' };
+      }
+
+      function refreshSliderTrack() {
+        var val  = parseInt(sliderEl.value, 10) || 500;
+        var min  = parseInt(sliderEl.min, 10);
+        var max  = parseInt(sliderEl.max, 10);
+        var zone = getZone(val);
+        var pct  = ((val - min) / (max - min) * 100).toFixed(1);
+        sliderEl.style.background =
+          'linear-gradient(to right,' + zone.color + ' 0%,' + zone.color + ' ' + pct + '%,rgba(255,255,255,0.12) ' + pct + '%)';
+        var zl = document.getElementById('zoneLabel');
+        zl.textContent = zone.label;
+        zl.style.color  = zone.color;
+      }
+
+      function refreshProjectionCard() {
+        var val   = parseInt(sliderEl.value, 10) || 500;
+        var freq  = wiz.frequency;
+        var n     = cyclesPerYear(freq);
+        var invested  = val * n;
+        var yieldAmt  = invested * APY * 0.87;
+        var gasAnnual = GAS_PER_CYCLE * n;
+        var afterYear = invested + yieldAmt;
+        document.getElementById('projBigNum').textContent = '$' + Math.round(afterYear).toLocaleString();
+        document.getElementById('projBreakdown').textContent =
+          '$' + Math.round(invested).toLocaleString() + ' invested · +$' + Math.round(yieldAmt).toLocaleString() + ' yield · −$' + Math.round(gasAnnual).toLocaleString() + ' gas';
+        // slippage warning
+        var zl = document.getElementById('zoneLabel');
+        if (val < 200) {
+          zl.textContent = '⚠️ Amount < $200 — high slippage risk';
+          zl.style.color  = '#ef4444';
+        }
+      }
+
+      function refreshPctButtons() {
+        var val = parseInt(sliderEl.value, 10) || 500;
+        document.querySelectorAll('.pct-btn').forEach(function (btn) {
+          var target = Math.round((parseInt(btn.dataset.pct, 10) / 100 * sliderMax) / 50) * 50;
+          target = Math.max(50, Math.min(target, sliderMax));
+          btn.classList.toggle('pct-active', Math.abs(val - target) < 26);
+        });
+      }
+
+      function updateSliderUI() {
+        var val = parseInt(sliderEl.value, 10) || 500;
+        wiz.amountPerCycle = val;
+        document.getElementById('sliderBigVal').textContent = '$' + val.toLocaleString();
+        refreshSliderTrack();
+        refreshProjectionCard();
+        refreshPctButtons();
+      }
+
+      function initSlider7() {
+        sliderMax = getSliderMax();
+        sliderEl.max = sliderMax;
+        document.getElementById('sliderMaxLabel').textContent = '$' + sliderMax.toLocaleString();
+
+        var bal = wiz.totalUsdBalance || 0;
+        var isConnected = bal >= 50;
+        var chip  = document.getElementById('dcaBalanceChip');
+        var dot   = document.getElementById('dcaChipDot');
+        var label = document.getElementById('dcaBalanceLabel');
+        var hint  = document.getElementById('connectHintCard');
+
+        if (isConnected) {
+          dot.className = 'chip-dot ' + (wiz.tonConnected ? 'chip-dot-ton' : 'chip-dot-evm');
+          var chainName = wiz.tonConnected ? 'TON' : 'EVM chains';
+          label.textContent = chainName + '  $' + bal.toFixed(0) + ' USDT  ● connected';
+          hint.style.display = 'none';
+          // set default to 50% of balance, snapped to step
+          var def = Math.round(Math.min(bal * 0.5, 5000) / 50) * 50;
+          sliderEl.value = Math.max(50, def);
+        } else {
+          dot.className = 'chip-dot chip-dot-demo';
+          label.textContent = 'Demo mode · $2,000 limit';
+          hint.style.display = 'flex';
+          sliderEl.value = FALLBACK_DEFAULT;
+        }
+
+        updateSliderUI();
+      }
+
+      document.getElementById('btnWizardBack7').addEventListener('click', function () { goTo(6); });
+      document.getElementById('btnWizardNext7').addEventListener('click', function () {
+        wiz.amountPerCycle = parseInt(sliderEl.value, 10) || FALLBACK_DEFAULT;
+        updateProjectionBox();
+        goTo(8);
+      });
+
+      /* Frequency tabs */
+      document.querySelectorAll('.freq-tab').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          document.querySelectorAll('.freq-tab').forEach(function (t) { t.classList.remove('active'); });
+          tab.classList.add('active');
+          wiz.frequency = tab.dataset.freq;
+          updateSliderUI();
+        });
+      });
+
+      sliderEl.addEventListener('input', updateSliderUI);
+
+      /* % preset buttons */
+      document.querySelectorAll('.pct-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var target = Math.round((parseInt(btn.dataset.pct, 10) / 100 * sliderMax) / 50) * 50;
+          target = Math.max(50, Math.min(target, sliderMax));
+          sliderEl.value = target;
+          updateSliderUI();
+        });
+      });
+
+      /* Hint connect buttons → wallet step */
+      document.getElementById('hintConnectTon').addEventListener('click', function () { goTo(6); });
+      document.getElementById('hintConnectMM').addEventListener('click', function () { goTo(6); });
+
+      /* ══════════════════════════════════════════════════════
+         WIZARD STEP 3 — Accumulate
+      ══════════════════════════════════════════════════════ */
+
+      document.getElementById('btnWizardBack8').addEventListener('click', function () { goTo(7); });
+      document.getElementById('btnWizardNext8').addEventListener('click', function () { goTo(9); });
+
+      function calcProjection(amount, freq, apy) {
+        var n = cyclesPerYear(freq);
+        var r = Math.pow(1 + apy, 1 / n) - 1;
+        var FV = r > 0 ? amount * ((Math.pow(1 + r, n) - 1) / r) : amount * n;
+        var invested = amount * n;
+        return { invested: invested, yieldVal: FV - invested, total: FV };
+      }
+
+      function updateProjectionBox() {
+        var p = calcProjection(wiz.amountPerCycle, wiz.frequency, APY);
+        document.getElementById('projTotal').textContent        = '~$' + p.total.toFixed(0);
+        document.getElementById('projTotalInline').textContent  = '~$' + p.total.toFixed(0);
+        document.getElementById('projInvested').textContent     = '$' + p.invested.toFixed(0);
+        document.getElementById('projYield').textContent        = '+$' + p.yieldVal.toFixed(0);
+        // update freq label in header
+        var freqLabel = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' }[wiz.frequency] || 'Weekly';
+        var header = document.querySelector('#projectionBox .proj-header');
+        if (header) header.textContent = '📊 1 Year Projection · ' + freqLabel + ' $' + wiz.amountPerCycle + ' (TON + LP)';
+      }
+
+      /* ══════════════════════════════════════════════════════
+         WIZARD STEP 4 — Withdrawal
+      ══════════════════════════════════════════════════════ */
+
+      document.getElementById('btnWizardBack9').addEventListener('click', function () { goTo(8); });
+      document.getElementById('btnWizardNext9').addEventListener('click', function () {
+        if (!wiz.sameWallet) {
+          var addr = document.getElementById('withdrawAddrInput').value.trim();
+          if (!isValidTonAddr(addr)) {
+            document.getElementById('withdrawAddrInput').classList.add('error');
+            return;
+          }
+          wiz.withdrawAddress = addr;
+        }
+        buildSummary();
+        goTo(10);
+      });
+
+      document.getElementById('checkRowSame').addEventListener('click', function () {
+        wiz.sameWallet = !wiz.sameWallet;
+        document.getElementById('sameWalletCheck').classList.toggle('checked', wiz.sameWallet);
+        document.getElementById('withdrawInputGroup').classList.toggle('visible', !wiz.sameWallet);
+        if (!wiz.sameWallet) {
+          setTimeout(function () { document.getElementById('withdrawAddrInput').focus(); }, 310);
+        }
+      });
+
+      document.getElementById('pasteAddrBtn').addEventListener('click', function () {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          navigator.clipboard.readText().then(function (text) {
+            var inp = document.getElementById('withdrawAddrInput');
+            inp.value = text.trim();
+            inp.classList.remove('error');
+            wiz.withdrawAddress = inp.value;
+          }).catch(function () {});
+        }
+      });
+
+      document.getElementById('withdrawAddrInput').addEventListener('input', function () {
+        this.classList.remove('error');
+        wiz.withdrawAddress = this.value.trim();
+      });
+
+      /* ══════════════════════════════════════════════════════
+         WIZARD STEP 5 — Summary
+      ══════════════════════════════════════════════════════ */
+
+      document.getElementById('btnWizardBack10').addEventListener('click', function () { goTo(9); });
+
+      document.getElementById('btnCreateDCA').addEventListener('click', async function () {
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = '⏳ Creating strategy…';
+
+        var tg = window.Telegram && window.Telegram.WebApp;
+
+        var tonAddr = wiz.sameWallet
+          ? wiz.tonAddress
+          : (wiz.withdrawAddress || wiz.tonAddress);
+
+        if (!tonAddr) {
+          if (tg && tg.showAlert) {
+            tg.showAlert('Please connect your TON wallet or enter a withdrawal address first.');
+          } else {
+            alert('Please connect your TON wallet or enter a withdrawal address first.');
+          }
+          btn.disabled = false;
+          btn.textContent = '✦ Create DCA Strategy';
+          return;
+        }
+
+        try {
+          var res = await fetch('/api/plans', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Telegram-Init-Data': (tg && tg.initData) || '',
+            },
+            body: JSON.stringify({
+              ton_address:  tonAddr,
+              amount_usdt:  wiz.amountPerCycle,
+              frequency:    wiz.frequency,
+              strategy:     wiz.selectedToken,
+            }),
+          });
+
+          if (res.ok) {
+            if (tg && tg.showAlert) {
+              tg.showAlert('🚀 Strategy created! First cycle starts within 24 hours. Check the bot for updates.', function () {
+                if (tg.close) tg.close();
+              });
+            } else {
+              alert('Strategy created!');
+            }
+          } else {
+            var errData = await res.json().catch(function () { return {}; });
+            var errMsg  = errData.error || 'Failed to create strategy. Please try again.';
+            if (tg && tg.showAlert) {
+              tg.showAlert('❌ ' + errMsg);
+            } else {
+              alert('Error: ' + errMsg);
+            }
+            btn.disabled = false;
+            btn.textContent = '✦ Create DCA Strategy';
+          }
+        } catch (e) {
+          console.error('[btnCreateDCA]', e);
+          var netMsg = 'Network error. Please try again.';
+          if (tg && tg.showAlert) {
+            tg.showAlert('❌ ' + netMsg);
+          } else {
+            alert(netMsg);
+          }
+          btn.disabled = false;
+          btn.textContent = '✦ Create DCA Strategy';
+        }
+      });
+
+      function calcTimeSaved(freq) {
+        var perCycle = 16;
+        var cycles   = cyclesPerYear(freq);
+        var totalMin = perCycle * cycles;
+        if (totalMin < 60) return totalMin + ' min/year';
+        var h = (totalMin / 60).toFixed(0);
+        return '~' + h + ' hours/year';
+      }
+
+      function buildSummary() {
+        var stratLabels = { ton: 'TON + Stake + LP', ston: 'STON swap' };
+        var apyLabels   = { ton: '~5.4%', ston: 'market' };
+        var freqLabels  = { daily: 'daily', weekly: 'weekly', monthly: 'monthly' };
+
+        document.getElementById('summaryStrategy').textContent =
+          stratLabels[wiz.selectedToken] || 'TON + Stake + LP';
+        document.getElementById('summaryApy').textContent =
+          apyLabels[wiz.selectedToken] || '~5.4%';
+        document.getElementById('summaryAmount').textContent =
+          '$' + wiz.amountPerCycle + ' USDT / ' + (freqLabels[wiz.frequency] || 'weekly');
+        document.getElementById('summaryWithdraw').textContent =
+          wiz.sameWallet ? 'Connected wallet'
+          : (wiz.withdrawAddress.slice(0, 8) + '…' + wiz.withdrawAddress.slice(-6));
+
+        var p = calcProjection(wiz.amountPerCycle, wiz.frequency, wiz.selectedToken === 'ton' ? APY : 0);
+        document.getElementById('summaryProjection').textContent = '~$' + p.total.toFixed(0);
+        document.getElementById('timeSavedYear').textContent = calcTimeSaved(wiz.frequency);
+      }
+
+      /* ── Hook animateSlide for wizard ── */
+      var _origAnimateSlide = animateSlide;
+      animateSlide = function (index) {
+        _origAnimateSlide(index);
+        if (index === 7) {
+          initSlider7();
+        }
+        if (index === 8) {
+          updateProjectionBox();
+        }
+        if (index === 9) {
+          document.getElementById('sameWalletCheck').classList.toggle('checked', wiz.sameWallet);
+          document.getElementById('withdrawInputGroup').classList.toggle('visible', !wiz.sameWallet);
+          // pre-fill withdraw address from scan if available
+          if (wiz.tonAddress && wiz.sameWallet) {
+            // nothing to do, checkbox handles it
+          }
+        }
+        if (index === 10) {
+          buildSummary();
+        }
+      };
+
+    })();
+  </script>
+</body>
+</html>

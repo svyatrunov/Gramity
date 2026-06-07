@@ -97,7 +97,7 @@ export interface Plan {
   ton_address: string;
   agent_wallet: string | null;
   usdt_amount: number;
-  frequency: "weekly" | "biweekly" | "monthly" | "minutely" | "hourly";
+  frequency: "weekly" | "biweekly" | "monthly" | "daily" | "minutely" | "hourly";
   strategy_mode: "full" | "stake_only" | "accumulate";
   active: boolean;
   next_execution_at: string;

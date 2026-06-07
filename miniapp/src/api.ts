@@ -57,6 +57,12 @@ export interface PopularToken {
   decimals: number;
 }
 
+export interface DepositConfig {
+  botWalletAddress: string;
+  omnistonWsUrl: string;
+  tonUsdtAddress: string;
+}
+
 export const api = {
   portfolio: () => apiFetch<Portfolio>("/portfolio"),
   wallets: () => apiFetch<WalletInfo[]>("/wallets"),
@@ -80,4 +86,15 @@ export const api = {
     }),
   gasEstimate: (action: string) =>
     apiFetch<{ ton: number; usd: number | null }>(`/gas/${action}`),
+  depositConfig: () => apiFetch<DepositConfig>("/deposit/config"),
+  depositInitiated: (body: {
+    txHash: string;
+    amount: number;
+    sourceChain: string;
+    sourceToken: string;
+  }) =>
+    apiFetch<{ ok: boolean }>("/deposit-initiated", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };

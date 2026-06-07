@@ -9,16 +9,16 @@ export async function handlePause(ctx: GramityContext) {
 
   if (!plan) {
     await ctx.reply(
-      "У тебя нет активной стратегии. Используй /start для настройки."
+      "No active strategy. Use /start to set one up."
     );
     return;
   }
 
   if (!plan.active) {
     await ctx.reply(
-      "⏸ Стратегия уже на паузе.\n\n" +
-        "Средства в пуле продолжают работать.\n" +
-        "/resume — возобновить"
+      "⏸ Strategy is already paused.\n\n" +
+        "Your funds in the pool keep working.\n" +
+        "/resume — resume strategy"
     );
     return;
   }
@@ -26,9 +26,9 @@ export async function handlePause(ctx: GramityContext) {
   await updatePlan(telegramId, { active: false });
 
   await ctx.reply(
-    "⏸ Стратегия на паузе.\n\n" +
-      "Средства в пуле продолжают работать.\n" +
-      "/resume — возобновить"
+    "⏸ Strategy paused.\n\n" +
+      "Your funds in the pool keep working.\n" +
+      "/resume — resume strategy"
   );
 }
 
@@ -40,23 +40,23 @@ export async function handleResume(ctx: GramityContext) {
 
   if (!plan) {
     await ctx.reply(
-      "У тебя нет стратегии. Используй /start для настройки."
+      "No strategy found. Use /start to set one up."
     );
     return;
   }
 
   if (plan.active) {
     await ctx.reply(
-      "✅ Стратегия уже активна.\n\n" + "/status — посмотреть позицию"
+      "✅ Strategy is already active.\n\n" + "/status — view position"
     );
     return;
   }
 
-  // Schedule next execution from now
   const next = new Date();
-  if (plan.frequency === "weekly") next.setDate(next.getDate() + 7);
+  if (plan.frequency === "weekly")        next.setDate(next.getDate() + 7);
   else if (plan.frequency === "biweekly") next.setDate(next.getDate() + 14);
-  else next.setMonth(next.getMonth() + 1);
+  else if (plan.frequency === "daily")    next.setDate(next.getDate() + 1);
+  else                                    next.setMonth(next.getMonth() + 1);
 
   await updatePlan(telegramId, {
     active: true,
@@ -64,6 +64,6 @@ export async function handleResume(ctx: GramityContext) {
   });
 
   await ctx.reply(
-    "▶️ Стратегия возобновлена!\n\n" + "/status — посмотреть позицию"
+    "▶️ Strategy resumed!\n\n" + "/status — view position"
   );
 }

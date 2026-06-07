@@ -1,6 +1,5 @@
 /**
  * /withdraw — menu, USDT withdrawal, "withdraw all" trigger.
- * Full-exit (LP remove + unstake) is in src/execution/exit.ts.
  */
 
 import { InlineKeyboard } from "grammy";
@@ -11,26 +10,24 @@ import { getUserWalletContext } from "../../services/userWallet.js";
 import { sendJettonTransfer } from "../../services/jetton.js";
 import { USDT_ADDRESS, USDT_DECIMALS } from "../../config.js";
 
-// ─── /withdraw menu ───────────────────────────────────────────────────────────
-
 export async function handleWithdrawMenu(ctx: GramityContext) {
   const telegramId = ctx.from?.id;
   if (!telegramId) return;
 
   const plan = await getPlanByTelegramId(telegramId).catch(() => null);
   if (!plan) {
-    await ctx.reply("У тебя нет активной стратегии. Используй /start.");
+    await ctx.reply("No active strategy. Use /start.");
     return;
   }
 
   let depositAddress = "";
-  let usdtBalance = 0;
+  let usdtBalance    = 0;
   try {
     const walletCtx = await getUserWalletContext(telegramId);
-    depositAddress = walletCtx.address;
-    usdtBalance = await getUsdtBalance(depositAddress);
+    depositAddress  = walletCtx.address;
+    usdtBalance     = await getUsdtBalance(depositAddress);
   } catch {
-    await ctx.reply("⚠️ Не удалось загрузить кошелёк. Попробуй позже.");
+    await ctx.reply("⚠️ Could not load wallet. Please try again later.");
     return;
   }
 
@@ -38,25 +35,23 @@ export async function handleWithdrawMenu(ctx: GramityContext) {
 
   if (usdtBalance >= 0.01) {
     kb.text(
-      `💵 Вывести USDT ($${usdtBalance.toFixed(2)})`,
+      `💵 Withdraw USDT ($${usdtBalance.toFixed(2)})`,
       "withdraw_usdt_confirm"
     ).row();
   }
 
-  kb.text("📤 Вывести всё (USDT + LP + tsTON)", "withdraw_all_confirm").row();
-  kb.text("❌ Отмена", "withdraw_cancel");
+  kb.text("📤 Withdraw everything (USDT + LP + tsTON)", "withdraw_all_confirm").row();
+  kb.text("❌ Cancel", "withdraw_cancel");
 
   await ctx.reply(
-    `💸 *Вывод средств*\n\n` +
-      `Депозитный кошелёк:\n\`${depositAddress}\`\n\n` +
-      `Свободный USDT: *$${usdtBalance.toFixed(2)}*\n\n` +
-      `Куда: \`${plan.ton_address}\`\n\n` +
-      `⚠️ _"Вывести всё" выходит из LP и анстейкает tsTON — займёт несколько минут._`,
+    `💸 *Withdraw Funds*\n\n` +
+      `Deposit wallet:\n\`${depositAddress}\`\n\n` +
+      `Available USDT: *$${usdtBalance.toFixed(2)}*\n\n` +
+      `Destination: \`${plan.ton_address}\`\n\n` +
+      `⚠️ _"Withdraw everything" exits LP and unstakes tsTON — takes a few minutes._`,
     { parse_mode: "Markdown", reply_markup: kb }
   );
 }
-
-// ─── Withdraw USDT only ───────────────────────────────────────────────────────
 
 export async function handleWithdrawUsdtConfirm(ctx: GramityContext) {
   const telegramId = ctx.from?.id;
@@ -64,18 +59,18 @@ export async function handleWithdrawUsdtConfirm(ctx: GramityContext) {
 
   const plan = await getPlanByTelegramId(telegramId).catch(() => null);
   if (!plan) {
-    await ctx.reply("⚠️ Стратегия не найдена.");
+    await ctx.reply("⚠️ Strategy not found.");
     return;
   }
 
-  await ctx.reply("⏳ Отправляю USDT на твой кошелёк...");
+  await ctx.reply("⏳ Sending USDT to your wallet...");
 
   try {
-    const walletCtx = await getUserWalletContext(telegramId);
+    const walletCtx  = await getUserWalletContext(telegramId);
     const usdtBalance = await getUsdtBalance(walletCtx.address);
 
     if (usdtBalance < 0.01) {
-      await ctx.reply("⚠️ На кошельке нет USDT для вывода.");
+      await ctx.reply("⚠️ No USDT available to withdraw.");
       return;
     }
 
@@ -83,28 +78,21 @@ export async function handleWithdrawUsdtConfirm(ctx: GramityContext) {
       Math.floor(usdtBalance * Math.pow(10, USDT_DECIMALS))
     );
 
-    await sendJettonTransfer(
-      walletCtx,
-      USDT_ADDRESS,
-      amountRaw,
-      plan.ton_address
-    );
+    await sendJettonTransfer(walletCtx, USDT_ADDRESS, amountRaw, plan.ton_address);
 
     await ctx.reply(
-      `✅ *$${usdtBalance.toFixed(2)} USDT отправлено*\n\n` +
-        `На адрес: \`${plan.ton_address}\`\n\n` +
-        `Транзакция появится в эксплорере через 1–2 мин.`,
+      `✅ *$${usdtBalance.toFixed(2)} USDT sent*\n\n` +
+        `To: \`${plan.ton_address}\`\n\n` +
+        `Transaction will appear in the explorer in 1–2 min.`,
       { parse_mode: "Markdown" }
     );
   } catch (err) {
     console.error("[WITHDRAW] USDT error:", err);
     await ctx.reply(
-      `❌ Ошибка вывода: ${err instanceof Error ? err.message : "unknown"}`
+      `❌ Withdrawal error: ${err instanceof Error ? err.message : "unknown"}`
     );
   }
 }
-
-// ─── Withdraw ALL — full exit trigger ─────────────────────────────────────────
 
 export async function handleWithdrawAllConfirm(ctx: GramityContext) {
   const telegramId = ctx.from?.id;
@@ -112,21 +100,20 @@ export async function handleWithdrawAllConfirm(ctx: GramityContext) {
 
   const plan = await getPlanByTelegramId(telegramId).catch(() => null);
   if (!plan) {
-    await ctx.reply("⚠️ Стратегия не найдена.");
+    await ctx.reply("⚠️ Strategy not found.");
     return;
   }
 
-  // Pause plan so no new cycles start during exit
   const { updatePlan } = await import("../../db/index.js");
   await updatePlan(telegramId, { active: false });
 
   await ctx.reply(
-    `⏳ *Запускаю полный выход из позиции...*\n\n` +
-      `1. Убираю ликвидность из пула\n` +
-      `2. Анстейкаю tsTON\n` +
-      `3. Свапаю всё в USDT\n` +
-      `4. Отправляю на твой адрес\n\n` +
-      `_Стратегия поставлена на паузу. Это может занять 2–5 минут._`,
+    `⏳ *Starting full exit from position...*\n\n` +
+      `1. Removing liquidity from pool\n` +
+      `2. Unstaking tsTON\n` +
+      `3. Swapping everything to USDT\n` +
+      `4. Sending to your address\n\n` +
+      `_Strategy paused. This may take 2–5 minutes._`,
     { parse_mode: "Markdown" }
   );
 
@@ -135,18 +122,18 @@ export async function handleWithdrawAllConfirm(ctx: GramityContext) {
     const result = await executeFullExit(plan);
 
     await ctx.reply(
-      `✅ *Выход завершён*\n\n` +
-        `Отправлено: *$${result.usdtSent.toFixed(2)} USDT*\n` +
-        `На адрес: \`${plan.ton_address}\`\n\n` +
-        `_Средства придут через 1–2 мин._`,
+      `✅ *Exit complete*\n\n` +
+        `Sent: *$${result.usdtSent.toFixed(2)} USDT*\n` +
+        `To: \`${plan.ton_address}\`\n\n` +
+        `_Funds will arrive in 1–2 min._`,
       { parse_mode: "Markdown" }
     );
   } catch (err) {
     console.error("[WITHDRAW] Full exit error:", err);
     await ctx.reply(
-      `⚠️ *Частичная ошибка при выходе*\n\n` +
+      `⚠️ *Partial error during exit*\n\n` +
         `${err instanceof Error ? err.message : "unknown"}\n\n` +
-        `Проверь баланс через /status и попробуй ещё раз.`,
+        `Check your balance via /status and try again.`,
       { parse_mode: "Markdown" }
     );
   }
