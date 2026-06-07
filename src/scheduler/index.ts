@@ -83,7 +83,10 @@ async function checkAndExecute() {
 }
 
 export function startScheduler() {
-  // Every 5 minutes
-  cron.schedule("*/5 * * * *", checkAndExecute);
-  console.log("[SCHEDULER] Started — checking every 5 minutes");
+  const isProd = process.env.NODE_ENV === "production";
+  const cronExpr = isProd ? "*/5 * * * *" : "* * * * *";
+  const label = isProd ? "every 5 minutes" : "every minute (dev mode)";
+
+  cron.schedule(cronExpr, checkAndExecute);
+  console.log(`[SCHEDULER] Started — checking ${label}`);
 }

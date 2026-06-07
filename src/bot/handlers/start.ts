@@ -310,12 +310,17 @@ async function showFrequencyKeyboard(ctx: GramityContext) {
   await ctx.reply("Как часто?", { reply_markup: kb });
 }
 
+const TEST_FREQUENCIES = ["minutely", "hourly"];
+
 async function showConfirmation(ctx: GramityContext) {
   const { amount, frequency, tonAddress } = ctx.session;
   if (!amount || !frequency || !tonAddress) return;
 
-  const firstDate = getFirstExecutionDate();
+  const isTest = TEST_FREQUENCIES.includes(frequency);
   const freqLabel = FREQ_LABELS[frequency] ?? frequency;
+  const firstRunLine = isTest
+    ? `⏰ Первый запуск: сразу после активации ⚡`
+    : `⏰ Первый запуск: ${formatDate(getFirstExecutionDate())}`;
 
   const kb = new InlineKeyboard()
     .text("✅ Активировать", "activate")
@@ -328,7 +333,7 @@ async function showConfirmation(ctx: GramityContext) {
       `├─ Tonstakers: 50%+ → tsTON\n` +
       `└─ STON.fi: tsTON/TON LP + фарминг\n\n` +
       `📈 Ожидаемый APY: ~8%\n` +
-      `⏰ Первый запуск: ${formatDate(firstDate)}`,
+      firstRunLine,
     {
       parse_mode: "Markdown",
       reply_markup: kb,
@@ -347,7 +352,8 @@ async function handleActivate(ctx: GramityContext) {
     return;
   }
 
-  const firstDate = getFirstExecutionDate();
+  const isTest = TEST_FREQUENCIES.includes(frequency);
+  const firstDate = isTest ? new Date() : getFirstExecutionDate();
 
   try {
     await upsertPlan({
