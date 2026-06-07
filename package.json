@@ -2,7 +2,6 @@
   "name": "gramity",
   "version": "0.1.0",
   "description": "Gramity — TON DCA liquidity bot",
-  "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -12,7 +11,7 @@
     "dev:engine": "ts-node src/main.ts",
     "gen-wallet": "node -e \"require('./dist/scripts/gen-wallet.js').default?.() ?? require('./dist/scripts/gen-wallet.js')\"",
     "step1": "node -e \"const {createWallet}=require('./dist/wallet.js');const {step1Swap}=require('./dist/step1-swap.js');createWallet().then(ctx=>step1Swap(ctx)).then(r=>{ console.log('[DONE] TON received:',r.toString()); process.exit(0); }).catch(e=>{ console.error('[ERROR]',e.message); process.exit(1); })\"",
-    "migrate": "ts-node --esm src/scripts/migrate-wallets.ts"
+    "migrate": "ts-node src/scripts/migrate-wallets.ts"
   },
   "dependencies": {
     "@ston-fi/api": "0.32.0",
