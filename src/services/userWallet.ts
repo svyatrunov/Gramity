@@ -7,7 +7,7 @@ import type { WalletContext } from "../wallet.js";
 
 const MASTER_KEY = Buffer.from(process.env.MASTER_ENCRYPTION_KEY!, "hex"); // 32 bytes
 
-function encrypt(text: string): string {
+export function encrypt(text: string): string {
   const iv = randomBytes(16);
   const cipher = createCipheriv("aes-256-gcm", MASTER_KEY, iv);
   const encrypted = Buffer.concat([cipher.update(text, "utf8"), cipher.final()]);
