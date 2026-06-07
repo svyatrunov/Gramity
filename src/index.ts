@@ -8,6 +8,7 @@ dotenv.config();
 
 import express from "express";
 import { createHmac } from "crypto";
+import path from "path";
 import { startBot } from "./bot/index.js";
 import { startScheduler } from "./scheduler/index.js";
 import { initDb, getUserWallets } from "./db/index.js";
@@ -21,6 +22,13 @@ import { sendJettonTransfer } from "./services/jetton.js";
 
 const app = express();
 app.use(express.json());
+
+// Serve Mini App static files at /app
+const miniappDist = path.resolve(__dirname, "../dist-miniapp");
+app.use("/app", express.static(miniappDist));
+app.get("/app/*", (_req, res) => {
+  res.sendFile(path.join(miniappDist, "index.html"));
+});
 
 // Health check (required by Railway)
 app.get(["/", "/health"], (_req, res) => {

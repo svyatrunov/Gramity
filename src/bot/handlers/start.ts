@@ -261,11 +261,20 @@ export async function handleCallbackQuery(ctx: GramityContext) {
   // ── Welcome → start onboarding
   if (data === "onboard_start") {
     ctx.session.step = "waiting_wallet";
+
+    const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+      : (process.env.RAILWAY_STATIC_URL ?? "https://gramity.up.railway.app");
+    const miniAppUrl = `${railwayUrl}/app?mode=connect`;
+
+    const kb = new InlineKeyboard()
+      .webApp("🔗 Подключить кошелёк", miniAppUrl);
+
     await ctx.reply(
       `*Шаг 1/3 — Кошелёк для вывода*\n\n` +
         `На какой TON-адрес выводить средства при /withdraw?\n\n` +
-        `Открой Tonkeeper → Получить → скопируй адрес и отправь сюда 👇`,
-      { parse_mode: "Markdown" }
+        `Нажми кнопку ниже или введи адрес вручную (UQ... или EQ...):`,
+      { parse_mode: "Markdown", reply_markup: kb }
     );
     return;
   }

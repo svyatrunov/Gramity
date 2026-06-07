@@ -143,6 +143,75 @@ bot.on("callback_query:data", async (ctx) => {
   await handleCallbackQuery(ctx);
 });
 
+// ─── Web App Data (TonConnect wallet connection result) ───────────────────────
+
+bot.on("message:web_app_data", async (ctx) => {
+  try {
+    const raw = ctx.message.web_app_data.data;
+    const data = JSON.parse(raw) as {
+      type?: string;
+      address?: string;
+      walletName?: string;
+    };
+
+    if (data.type === "wallet_connected" && data.address) {
+      const telegramId = ctx.from?.id;
+      if (!telegramId) return;
+
+      const { updatePlan } = await import("../db/index.js");
+      const { Address } = await import("@ton/ton");
+
+      let friendlyAddress = data.address;
+      try {
+        friendlyAddress = Address.parseRaw(data.address).toString({
+          bounceable: false,
+          urlSafe: true,
+        });
+      } catch {
+        // already in friendly format — keep as is
+      }
+
+      await updatePlan(telegramId, { ton_address: friendlyAddress });
+
+      // Advance the onboarding session to deposit step
+      ctx.session.tonAddress = friendlyAddress;
+      if (ctx.session.step === "waiting_wallet") {
+        const { createUserWallet } = await import("../services/userWallet.js");
+        const { startDepositPoller } = await import("./depositPoller.js");
+        const depositAddress = await createUserWallet(telegramId).catch(() => "недоступен");
+        ctx.session.depositAddress = depositAddress;
+        ctx.session.step = "waiting_deposit_confirm";
+        startDepositPoller(telegramId, depositAddress);
+
+        await ctx.reply(
+          `✅ *Кошелёк подключён*\n\n` +
+            `Адрес для вывода: \`${friendlyAddress}\`\n` +
+            (data.walletName ? `Кошелёк: ${data.walletName}\n\n` : "\n") +
+            `*Пополни депозитный адрес Gramity в USDT (TON):*\n` +
+            `\`${depositAddress}\`\n\n` +
+            `Минимум: $25 USDT\n\n` +
+            `📡 Я слежу за поступлением и уведомлю тебя автоматически.\n` +
+            `Можешь нажать кнопку сразу после отправки 👇`,
+          {
+            parse_mode: "Markdown",
+            reply_markup: new InlineKeyboard().text("✅ Уже пополнил", "deposit_done"),
+          }
+        );
+      } else {
+        await ctx.reply(
+          `✅ *Кошелёк подключён*\n\n` +
+            `Адрес для вывода:\n\`${friendlyAddress}\`\n\n` +
+            (data.walletName ? `Кошелёк: ${data.walletName}\n\n` : "") +
+            `Средства будут поступать на этот адрес при выводе.`,
+          { parse_mode: "Markdown" }
+        );
+      }
+    }
+  } catch (err) {
+    console.error("[WebApp] Failed to process web_app_data:", err);
+  }
+});
+
 // ─── Text messages ─────────────────────────────────────────────────────────────
 
 bot.on("message:text", handleText);

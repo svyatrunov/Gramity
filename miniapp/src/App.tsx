@@ -1,8 +1,12 @@
 import React, { useState } from "react";
+import { TonConnectUIProvider } from "@tonconnect/ui-react";
+import { ConnectWallet } from "./ConnectWallet";
 import { PortfolioScreen } from "./screens/PortfolioScreen";
 import { WalletsScreen } from "./screens/WalletsScreen";
 import { WithdrawScreen } from "./screens/WithdrawScreen";
 import { BuyScreen } from "./screens/BuyScreen";
+
+const MANIFEST_URL = `${window.location.origin}/tonconnect-manifest.json`;
 
 type Screen = "portfolio" | "wallets" | "withdraw" | "buy";
 
@@ -31,6 +35,17 @@ const TAB_BTN: React.CSSProperties = {
 };
 
 export function App() {
+  const params = new URLSearchParams(window.location.search);
+  const mode = params.get("mode");
+
+  if (mode === "connect") {
+    return (
+      <TonConnectUIProvider manifestUrl={MANIFEST_URL}>
+        <ConnectWallet />
+      </TonConnectUIProvider>
+    );
+  }
+
   const [screen, setScreen] = useState<Screen>("portfolio");
 
   const tabs: Array<{ id: Screen; label: string; emoji: string }> = [

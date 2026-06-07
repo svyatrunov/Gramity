@@ -164,7 +164,7 @@ export async function upsertPlan(
 
 export async function updatePlan(
   telegramId: number,
-  updates: Partial<Pick<Plan, "active" | "next_execution_at" | "usdt_amount" | "frequency" | "strategy_mode">>
+  updates: Partial<Pick<Plan, "active" | "next_execution_at" | "usdt_amount" | "frequency" | "strategy_mode" | "ton_address">>
 ): Promise<void> {
   const fields: string[] = [];
   const values: unknown[] = [];
