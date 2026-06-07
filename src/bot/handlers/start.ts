@@ -160,18 +160,34 @@ async function handleWalletInput(ctx: GramityContext, text: string) {
     return;
   }
 
-  ctx.session.tonAddress = normalized;
+  await continueToDepositStep(ctx, normalized);
+}
+
+/**
+ * Shared logic executed right after a TON address is confirmed — whether via
+ * manual text input or the TonConnect mini-app.  Sets the session to
+ * `waiting_deposit_confirm`, allocates the deposit wallet, starts the poller,
+ * and prompts the user to fund it.
+ */
+export async function continueToDepositStep(
+  ctx: GramityContext,
+  normalizedAddress: string
+): Promise<void> {
+  const telegramId = ctx.from!.id;
+
+  ctx.session.tonAddress = normalizedAddress;
   ctx.session.step = "waiting_deposit_confirm";
 
-  const telegramId = ctx.from!.id;
-  const depositAddress = await createUserWallet(telegramId).catch(() => "недоступен");
+  const depositAddress = await createUserWallet(telegramId).catch(
+    () => "недоступен"
+  );
   ctx.session.depositAddress = depositAddress;
 
   startDepositPoller(telegramId, depositAddress);
 
   await ctx.reply(
     `✅ Кошелёк сохранён\n` +
-      `\`${normalized.slice(0, 6)}…${normalized.slice(-4)}\`\n\n` +
+      `\`${normalizedAddress.slice(0, 6)}…${normalizedAddress.slice(-4)}\`\n\n` +
       `*Пополни депозитный адрес Gramity в USDT (TON):*\n` +
       `\`${depositAddress}\`\n\n` +
       `Минимум: $25 USDT\n\n` +
@@ -179,10 +195,7 @@ async function handleWalletInput(ctx: GramityContext, text: string) {
       `Можешь нажать кнопку сразу после отправки 👇`,
     {
       parse_mode: "Markdown",
-      reply_markup: new InlineKeyboard().text(
-        "✅ Уже пополнил",
-        "deposit_done"
-      ),
+      reply_markup: new InlineKeyboard().text("✅ Уже пополнил", "deposit_done"),
     }
   );
 }

@@ -5,6 +5,7 @@ import {
   handleStart,
   handleText,
   handleCallbackQuery,
+  continueToDepositStep,
 } from "./handlers/start.js";
 import { handleStatus } from "./handlers/status.js";
 import { handlePause, handleResume } from "./handlers/pause.js";
@@ -158,7 +159,6 @@ bot.on("message:web_app_data", async (ctx) => {
       const telegramId = ctx.from?.id;
       if (!telegramId) return;
 
-      const { updatePlan } = await import("../db/index.js");
       const { Address } = await import("@ton/ton");
 
       let friendlyAddress = data.address;
@@ -171,33 +171,15 @@ bot.on("message:web_app_data", async (ctx) => {
         // already in friendly format — keep as is
       }
 
-      await updatePlan(telegramId, { ton_address: friendlyAddress });
-
-      // Advance the onboarding session to deposit step
-      ctx.session.tonAddress = friendlyAddress;
       if (ctx.session.step === "waiting_wallet") {
-        const { createUserWallet } = await import("../services/userWallet.js");
-        const { startDepositPoller } = await import("./depositPoller.js");
-        const depositAddress = await createUserWallet(telegramId).catch(() => "недоступен");
-        ctx.session.depositAddress = depositAddress;
-        ctx.session.step = "waiting_deposit_confirm";
-        startDepositPoller(telegramId, depositAddress);
-
-        await ctx.reply(
-          `✅ *Кошелёк подключён*\n\n` +
-            `Адрес для вывода: \`${friendlyAddress}\`\n` +
-            (data.walletName ? `Кошелёк: ${data.walletName}\n\n` : "\n") +
-            `*Пополни депозитный адрес Gramity в USDT (TON):*\n` +
-            `\`${depositAddress}\`\n\n` +
-            `Минимум: $25 USDT\n\n` +
-            `📡 Я слежу за поступлением и уведомлю тебя автоматически.\n` +
-            `Можешь нажать кнопку сразу после отправки 👇`,
-          {
-            parse_mode: "Markdown",
-            reply_markup: new InlineKeyboard().text("✅ Уже пополнил", "deposit_done"),
-          }
-        );
+        // Onboarding flow: behave exactly like manual address input
+        await continueToDepositStep(ctx, friendlyAddress);
       } else {
+        // Outside onboarding: persist the new address and acknowledge
+        const { updatePlan } = await import("../db/index.js");
+        await updatePlan(telegramId, { ton_address: friendlyAddress });
+        ctx.session.tonAddress = friendlyAddress;
+
         await ctx.reply(
           `✅ *Кошелёк подключён*\n\n` +
             `Адрес для вывода:\n\`${friendlyAddress}\`\n\n` +
