@@ -415,6 +415,7 @@ async function handleActivate(ctx: GramityContext) {
       agent_wallet: null,
       usdt_amount: amount,
       frequency,
+      strategy_mode: "full",
       active: true,
       next_execution_at: firstDate.toISOString(),
     });

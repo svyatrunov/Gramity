@@ -58,6 +58,30 @@ CREATE TABLE IF NOT EXISTS executions (
   tx_lp             TEXT,
   status            TEXT        DEFAULT 'success'
 );
+
+-- Idempotent migrations
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN strategy_mode TEXT NOT NULL DEFAULT 'full';
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+-- Multi-wallet migration (idempotent)
+DO $$ BEGIN
+  ALTER TABLE user_wallets ADD COLUMN id UUID DEFAULT gen_random_uuid();
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE user_wallets ADD COLUMN alias TEXT NOT NULL DEFAULT 'Main';
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN wallet_id UUID;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+CREATE INDEX IF NOT EXISTS user_wallets_telegram_id_idx ON user_wallets(telegram_id);
 `;
 
 export async function initDb(): Promise<void> {
@@ -74,6 +98,7 @@ export interface Plan {
   agent_wallet: string | null;
   usdt_amount: number;
   frequency: "weekly" | "biweekly" | "monthly" | "minutely" | "hourly";
+  strategy_mode: "full" | "stake_only" | "accumulate";
   active: boolean;
   next_execution_at: string;
   created_at: string;
@@ -112,15 +137,16 @@ export async function upsertPlan(
 ): Promise<Plan> {
   const { rows } = await getPool().query<Plan>(
     `INSERT INTO plans
-       (telegram_id, ton_address, agent_wallet, usdt_amount, frequency, active, next_execution_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+       (telegram_id, ton_address, agent_wallet, usdt_amount, frequency, active, next_execution_at, strategy_mode)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT (telegram_id) DO UPDATE SET
        ton_address       = EXCLUDED.ton_address,
        agent_wallet      = EXCLUDED.agent_wallet,
        usdt_amount       = EXCLUDED.usdt_amount,
        frequency         = EXCLUDED.frequency,
        active            = EXCLUDED.active,
-       next_execution_at = EXCLUDED.next_execution_at
+       next_execution_at = EXCLUDED.next_execution_at,
+       strategy_mode     = EXCLUDED.strategy_mode
      RETURNING *`,
     [
       plan.telegram_id,
@@ -130,6 +156,7 @@ export async function upsertPlan(
       plan.frequency,
       plan.active,
       plan.next_execution_at,
+      plan.strategy_mode,
     ]
   );
   return rows[0];
@@ -137,7 +164,7 @@ export async function upsertPlan(
 
 export async function updatePlan(
   telegramId: number,
-  updates: Partial<Pick<Plan, "active" | "next_execution_at" | "usdt_amount" | "frequency">>
+  updates: Partial<Pick<Plan, "active" | "next_execution_at" | "usdt_amount" | "frequency" | "strategy_mode">>
 ): Promise<void> {
   const fields: string[] = [];
   const values: unknown[] = [];
@@ -210,4 +237,35 @@ export async function getTotalInvested(planId: string): Promise<number> {
     [planId]
   );
   return Number(rows[0]?.total ?? 0);
+}
+
+// ─── Multi-wallet queries ──────────────────────────────────────────────────────
+
+export interface UserWalletRecord {
+  telegram_id: number;
+  wallet_address: string;
+  encrypted_mnemonic: string;
+  alias: string;
+  created_at: string;
+}
+
+export async function getUserWallets(
+  telegramId: number
+): Promise<UserWalletRecord[]> {
+  const { rows } = await getPool().query<UserWalletRecord>(
+    "SELECT * FROM user_wallets WHERE telegram_id = $1 ORDER BY created_at ASC",
+    [telegramId]
+  );
+  return rows;
+}
+
+export async function renameUserWallet(
+  telegramId: number,
+  walletAddress: string,
+  alias: string
+): Promise<void> {
+  await getPool().query(
+    "UPDATE user_wallets SET alias = $1 WHERE telegram_id = $2 AND wallet_address = $3",
+    [alias, telegramId, walletAddress]
+  );
 }

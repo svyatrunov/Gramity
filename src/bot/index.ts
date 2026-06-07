@@ -7,8 +7,14 @@ import {
   handleCallbackQuery,
 } from "./handlers/start.js";
 import { handleStatus } from "./handlers/status.js";
-import { handlePause, handleResume, handleWithdrawInfo } from "./handlers/pause.js";
+import { handlePause, handleResume } from "./handlers/pause.js";
+import {
+  handleWithdrawMenu,
+  handleWithdrawUsdtConfirm,
+  handleWithdrawAllConfirm,
+} from "./handlers/withdraw.js";
 import { handleReset, handleResetCallback } from "./handlers/reset.js";
+import { handleSettings, handleSettingsCallback } from "./handlers/settings.js";
 import { setNotifyUser, setNotifyInsufficientFunds } from "../scheduler/index.js";
 import { setPollerSender, stopDepositPoller } from "./depositPoller.js";
 import { BOT_TOKEN } from "../config.js";
@@ -33,8 +39,9 @@ bot.command("start", handleStart);
 bot.command("status", handleStatus);
 bot.command("pause", handlePause);
 bot.command("resume", handleResume);
-bot.command("withdraw", handleWithdrawInfo);
+bot.command("withdraw", handleWithdrawMenu);
 bot.command("reset", handleReset);
+bot.command("settings", handleSettings);
 
 bot.command("cancel", async (ctx) => {
   const telegramId = ctx.from?.id;
@@ -90,7 +97,27 @@ bot.on("callback_query:data", async (ctx) => {
   }
   if (data === "withdraw") {
     await ctx.answerCallbackQuery();
-    await handleWithdrawInfo(ctx);
+    await handleWithdrawMenu(ctx);
+    return;
+  }
+  if (data === "withdraw_usdt_confirm") {
+    await ctx.answerCallbackQuery();
+    await handleWithdrawUsdtConfirm(ctx);
+    return;
+  }
+  if (data === "withdraw_all_confirm") {
+    await ctx.answerCallbackQuery();
+    await handleWithdrawAllConfirm(ctx);
+    return;
+  }
+  if (data === "withdraw_cancel") {
+    await ctx.answerCallbackQuery();
+    await ctx.reply("❌ Вывод отменён.");
+    return;
+  }
+  if (data.startsWith("settings_")) {
+    await ctx.answerCallbackQuery();
+    await handleSettingsCallback(ctx, data.replace("settings_", ""));
     return;
   }
   if (data === "status_check") {
@@ -225,7 +252,8 @@ export async function startBot() {
     { command: "status", description: "Текущая позиция" },
     { command: "pause", description: "Пауза стратегии" },
     { command: "resume", description: "Возобновить стратегию" },
-    { command: "withdraw", description: "Информация о выводе" },
+    { command: "settings", description: "Настройки стратегии" },
+    { command: "withdraw", description: "Вывод средств" },
     { command: "reset", description: "Удалить стратегию" },
     { command: "cancel", description: "Отменить текущее действие" },
     { command: "help", description: "Помощь" },

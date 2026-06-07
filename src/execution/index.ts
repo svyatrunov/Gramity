@@ -70,25 +70,34 @@ export async function executeStrategy(plan: Plan): Promise<ExecutionResult> {
     const splitInfo = await step2CalculateSplit(tonReceived);
     console.log(`[EXEC] Step 2 done: pool ${splitInfo.poolAddress}`);
 
-    // Step 3: TON → tsTON
-    const { tsTonReceived, tsTonAddress } = await step3Stake(
-      walletCtx,
-      splitInfo.stakeAmount
-    );
-    tstonReceived = tsTonReceived;
-    console.log(`[EXEC] Step 3 done: ${fromNano(tstonReceived)} tsTON`);
+    // Step 3: TON → tsTON (skip in accumulate mode)
+    let resolvedTstonAddress = TSTON_ADDRESS;
+    if (plan.strategy_mode !== "accumulate") {
+      const { tsTonReceived, tsTonAddress } = await step3Stake(
+        walletCtx,
+        splitInfo.stakeAmount
+      );
+      tstonReceived = tsTonReceived;
+      resolvedTstonAddress = tsTonAddress || TSTON_ADDRESS;
+      console.log(`[EXEC] Step 3 done: ${fromNano(tstonReceived)} tsTON`);
+    } else {
+      console.log(`[EXEC] Step 3 skipped (accumulate mode)`);
+    }
 
-    // Step 4: Provide liquidity
-    const resolvedTstonAddress = tsTonAddress || TSTON_ADDRESS;
-    const { lpTokensReceived } = await step4ProvideLiquidity(
-      walletCtx,
-      tsTonReceived,
-      splitInfo.keepAmount,
-      splitInfo,
-      resolvedTstonAddress
-    );
-    lpTokensAdded = lpTokensReceived;
-    console.log(`[EXEC] Step 4 done: ${fromNano(lpTokensAdded)} LP tokens`);
+    // Step 4: Provide liquidity (full mode only)
+    if (plan.strategy_mode === "full" && tstonReceived > 0n) {
+      const { lpTokensReceived } = await step4ProvideLiquidity(
+        walletCtx,
+        tstonReceived,
+        splitInfo.keepAmount,
+        splitInfo,
+        resolvedTstonAddress
+      );
+      lpTokensAdded = lpTokensReceived;
+      console.log(`[EXEC] Step 4 done: ${fromNano(lpTokensAdded)} LP tokens`);
+    } else if (plan.strategy_mode !== "full") {
+      console.log(`[EXEC] Step 4 skipped (mode: ${plan.strategy_mode})`);
+    }
 
     // Step 5: Verify
     const verifyResult = await step5Verify(walletCtx.address, splitInfo);

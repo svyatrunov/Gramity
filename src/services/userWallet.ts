@@ -77,3 +77,55 @@ export async function getUserWalletContext(telegramId: number): Promise<WalletCo
 
   return { key, wallet, client, contract, address };
 }
+
+/**
+ * Create a new named wallet for the user (multi-wallet support).
+ * Unlike createUserWallet, this always creates a fresh wallet even if one exists.
+ */
+export async function createNamedWallet(
+  telegramId: number,
+  alias: string
+): Promise<string> {
+  const mnemonic = await mnemonicNew(24);
+  const key = await mnemonicToWalletKey(mnemonic);
+  const wallet = WalletContractV4.create({ publicKey: key.publicKey, workchain: 0 });
+  const address = wallet.address.toString({ urlSafe: true, bounceable: false });
+
+  const encrypted = encrypt(mnemonic.join(" "));
+  await pool.query(
+    `INSERT INTO user_wallets (telegram_id, wallet_address, encrypted_mnemonic, alias)
+     VALUES ($1, $2, $3, $4)`,
+    [telegramId, address, encrypted, alias]
+  );
+
+  console.log(`[WALLET] Created named wallet "${alias}" for user ${telegramId}: ${address}`);
+  return address;
+}
+
+/**
+ * Get WalletContext for a specific wallet address (not just the primary one).
+ */
+export async function getWalletContextByAddress(
+  telegramId: number,
+  walletAddress: string
+): Promise<import("../wallet.js").WalletContext> {
+  const row = await pool.query(
+    "SELECT encrypted_mnemonic FROM user_wallets WHERE telegram_id = $1 AND wallet_address = $2",
+    [telegramId, walletAddress]
+  );
+  if (!row.rows[0]) throw new Error(`Wallet ${walletAddress} not found for user ${telegramId}`);
+
+  const mnemonic = decrypt(row.rows[0].encrypted_mnemonic as string).split(" ");
+  const key = await mnemonicToWalletKey(mnemonic);
+  const wallet = WalletContractV4.create({ publicKey: key.publicKey, workchain: 0 });
+
+  const client = new TonClient({
+    endpoint: TONCENTER_URL,
+    apiKey: TONCENTER_API_KEY || undefined,
+  });
+
+  const contract = client.open(wallet);
+  const address = wallet.address.toString({ urlSafe: true, bounceable: true });
+
+  return { key, wallet, client, contract, address };
+}

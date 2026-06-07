@@ -38,3 +38,76 @@ export async function getTonPriceUsd(): Promise<number> {
     return 0;
   }
 }
+
+// ─── Jetton balance list ───────────────────────────────────────────────────────
+
+export interface VerifiedJetton {
+  /** Jetton master contract address (raw) */
+  jettonAddress: string;
+  /** Human-readable symbol */
+  symbol: string;
+  /** Decimals */
+  decimals: number;
+  /** Raw balance string */
+  balanceRaw: bigint;
+  /** Balance in human units */
+  balance: number;
+}
+
+/**
+ * Returns all jettons on `address` that TON API marks as `whitelist`.
+ * Scam / unverified tokens are silently ignored.
+ */
+export async function getAllVerifiedJettons(
+  address: string
+): Promise<VerifiedJetton[]> {
+  try {
+    const url = `${TON_API_URL}/accounts/${encodeURIComponent(address)}/jettons?currencies=usd&supported_extensions=custom_payload`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+    if (!res.ok) return [];
+
+    const data = (await res.json()) as {
+      balances: Array<{
+        balance: string;
+        jetton: {
+          address: string;
+          symbol: string;
+          decimals: number;
+          verification: string;
+        };
+      }>;
+    };
+
+    return data.balances
+      .filter((b) => b.jetton.verification === "whitelist")
+      .map((b) => {
+        const raw = BigInt(b.balance);
+        const dec = b.jetton.decimals;
+        return {
+          jettonAddress: b.jetton.address,
+          symbol: b.jetton.symbol,
+          decimals: dec,
+          balanceRaw: raw,
+          balance: Number(raw) / Math.pow(10, dec),
+        };
+      })
+      .filter((j) => j.balance > 0);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Returns TON balance in nanotons for `address`.
+ */
+export async function getTonBalance(address: string): Promise<bigint> {
+  try {
+    const url = `${TON_API_URL}/accounts/${encodeURIComponent(address)}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) return 0n;
+    const data = (await res.json()) as { balance?: string };
+    return BigInt(data.balance ?? "0");
+  } catch {
+    return 0n;
+  }
+}

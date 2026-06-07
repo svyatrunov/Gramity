@@ -67,14 +67,3 @@ export async function handleResume(ctx: GramityContext) {
     "▶️ Стратегия возобновлена!\n\n" + "/status — посмотреть позицию"
   );
 }
-
-export async function handleWithdrawInfo(ctx: GramityContext) {
-  await ctx.reply(
-    "💸 *Вывод средств*\n\n" +
-      "Вывод из LP позиции занимает ~24 часа.\n" +
-      "Анстейк tsTON → Tonstakers: до 36 часов.\n\n" +
-      "_Функция вывода будет добавлена в следующей версии._\n\n" +
-      "Для экстренного вывода напиши @gramity\\_support",
-    { parse_mode: "Markdown" }
-  );
-}
