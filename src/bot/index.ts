@@ -149,6 +149,8 @@ bot.on("callback_query:data", async (ctx) => {
 bot.on("message:web_app_data", async (ctx) => {
   try {
     const raw = ctx.message.web_app_data.data;
+    console.log("[WebApp] Received data:", raw);
+
     const data = JSON.parse(raw) as {
       type?: string;
       address?: string;
@@ -159,8 +161,9 @@ bot.on("message:web_app_data", async (ctx) => {
       const telegramId = ctx.from?.id;
       if (!telegramId) return;
 
-      const { Address } = await import("@ton/ton");
+      console.log(`[WebApp] Wallet connected for user ${telegramId}, step=${ctx.session.step}`);
 
+      const { Address } = await import("@ton/ton");
       let friendlyAddress = data.address;
       try {
         friendlyAddress = Address.parseRaw(data.address).toString({
@@ -168,23 +171,38 @@ bot.on("message:web_app_data", async (ctx) => {
           urlSafe: true,
         });
       } catch {
-        // already in friendly format — keep as is
+        // already in friendly format
+        try {
+          friendlyAddress = Address.parse(data.address).toString({
+            bounceable: false,
+            urlSafe: true,
+          });
+        } catch {
+          // keep as is
+        }
       }
 
-      if (ctx.session.step === "waiting_wallet") {
-        // Onboarding flow: behave exactly like manual address input
+      console.log(`[WebApp] Friendly address: ${friendlyAddress}`);
+
+      // If in onboarding OR session was reset after deploy (step is idle/empty) → go to deposit step
+      const isOnboarding =
+        !ctx.session.step ||
+        ctx.session.step === "idle" ||
+        ctx.session.step === "waiting_wallet";
+
+      if (isOnboarding) {
         await continueToDepositStep(ctx, friendlyAddress);
       } else {
-        // Outside onboarding: persist the new address and acknowledge
+        // Already has plan — update withdrawal address
         const { updatePlan } = await import("../db/index.js");
         await updatePlan(telegramId, { ton_address: friendlyAddress });
         ctx.session.tonAddress = friendlyAddress;
 
         await ctx.reply(
-          `✅ *Кошелёк подключён*\n\n` +
+          `✅ *Кошелёк обновлён*\n\n` +
             `Адрес для вывода:\n\`${friendlyAddress}\`\n\n` +
             (data.walletName ? `Кошелёк: ${data.walletName}\n\n` : "") +
-            `Средства будут поступать на этот адрес при выводе.`,
+            `Средства будут поступать на этот адрес при /withdraw.`,
           { parse_mode: "Markdown" }
         );
       }
