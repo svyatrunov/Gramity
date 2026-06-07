@@ -9,6 +9,7 @@ dotenv.config();
 import * as http from "http";
 import { startBot } from "./bot/index.js";
 import { startScheduler } from "./scheduler/index.js";
+import { initDb } from "./db/index.js";
 import { PORT } from "./config.js";
 
 // ─── Health check server (required by Railway) ────────────────────────────────
@@ -37,8 +38,12 @@ console.log(`
 ╚══════════════════════════════════════════════════════════╝
 `);
 
-startScheduler();
-startBot().catch((err) => {
-  console.error("[FATAL] Bot failed to start:", err);
-  process.exit(1);
-});
+initDb()
+  .then(() => {
+    startScheduler();
+    return startBot();
+  })
+  .catch((err) => {
+    console.error("[FATAL] Startup failed:", err);
+    process.exit(1);
+  });

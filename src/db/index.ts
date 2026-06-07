@@ -1,7 +1,52 @@
-import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL, SUPABASE_SERVICE_KEY } from "../config.js";
+import { Pool } from "pg";
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) throw new Error("Missing env var: DATABASE_URL");
+
+export const pool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: { rejectUnauthorized: false }, // Railway / Supabase Postgres require SSL
+  max: 10,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 5_000,
+});
+
+// ─── Schema ───────────────────────────────────────────────────────────────────
+
+const SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS plans (
+  id                UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
+  telegram_id       BIGINT      NOT NULL UNIQUE,
+  ton_address       TEXT        NOT NULL,
+  agent_wallet      TEXT,
+  usdt_amount       NUMERIC     NOT NULL,
+  frequency         TEXT        NOT NULL,
+  active            BOOLEAN     DEFAULT true,
+  next_execution_at TIMESTAMPTZ NOT NULL,
+  created_at        TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS executions (
+  id                UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
+  plan_id           UUID        REFERENCES plans(id),
+  executed_at       TIMESTAMPTZ DEFAULT now(),
+  usdt_spent        NUMERIC,
+  ton_received      NUMERIC,
+  tston_received    NUMERIC,
+  lp_tokens_added   NUMERIC,
+  ton_price_usdt    NUMERIC,
+  lp_position_value NUMERIC,
+  tx_swap           TEXT,
+  tx_stake          TEXT,
+  tx_lp             TEXT,
+  status            TEXT        DEFAULT 'success'
+);
+`;
+
+export async function initDb(): Promise<void> {
+  await pool.query(SCHEMA_SQL);
+  console.log("[DB] Schema ready");
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,44 +83,67 @@ export interface Execution {
 export async function getPlanByTelegramId(
   telegramId: number
 ): Promise<Plan | null> {
-  const { data } = await supabase
-    .from("plans")
-    .select("*")
-    .eq("telegram_id", telegramId)
-    .maybeSingle();
-  return data ?? null;
+  const { rows } = await pool.query<Plan>(
+    "SELECT * FROM plans WHERE telegram_id = $1 LIMIT 1",
+    [telegramId]
+  );
+  return rows[0] ?? null;
 }
 
 export async function upsertPlan(
   plan: Omit<Plan, "id" | "created_at">
 ): Promise<Plan> {
-  const { data, error } = await supabase
-    .from("plans")
-    .upsert(plan, { onConflict: "telegram_id" })
-    .select()
-    .single();
-  if (error) throw new Error(`upsertPlan: ${error.message}`);
-  return data as Plan;
+  const { rows } = await pool.query<Plan>(
+    `INSERT INTO plans
+       (telegram_id, ton_address, agent_wallet, usdt_amount, frequency, active, next_execution_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (telegram_id) DO UPDATE SET
+       ton_address       = EXCLUDED.ton_address,
+       agent_wallet      = EXCLUDED.agent_wallet,
+       usdt_amount       = EXCLUDED.usdt_amount,
+       frequency         = EXCLUDED.frequency,
+       active            = EXCLUDED.active,
+       next_execution_at = EXCLUDED.next_execution_at
+     RETURNING *`,
+    [
+      plan.telegram_id,
+      plan.ton_address,
+      plan.agent_wallet,
+      plan.usdt_amount,
+      plan.frequency,
+      plan.active,
+      plan.next_execution_at,
+    ]
+  );
+  return rows[0];
 }
 
 export async function updatePlan(
   telegramId: number,
-  updates: Partial<Plan>
+  updates: Partial<Pick<Plan, "active" | "next_execution_at" | "usdt_amount" | "frequency">>
 ): Promise<void> {
-  const { error } = await supabase
-    .from("plans")
-    .update(updates)
-    .eq("telegram_id", telegramId);
-  if (error) throw new Error(`updatePlan: ${error.message}`);
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  let i = 1;
+
+  for (const [key, val] of Object.entries(updates)) {
+    fields.push(`${key} = $${i++}`);
+    values.push(val);
+  }
+  if (fields.length === 0) return;
+
+  values.push(telegramId);
+  await pool.query(
+    `UPDATE plans SET ${fields.join(", ")} WHERE telegram_id = $${i}`,
+    values
+  );
 }
 
 export async function getDuePlans(): Promise<Plan[]> {
-  const { data } = await supabase
-    .from("plans")
-    .select("*")
-    .eq("active", true)
-    .lte("next_execution_at", new Date().toISOString());
-  return data ?? [];
+  const { rows } = await pool.query<Plan>(
+    "SELECT * FROM plans WHERE active = true AND next_execution_at <= NOW()"
+  );
+  return rows;
 }
 
 // ─── Execution queries ────────────────────────────────────────────────────────
@@ -83,30 +151,42 @@ export async function getDuePlans(): Promise<Plan[]> {
 export async function logExecution(
   execution: Omit<Execution, "id" | "executed_at">
 ): Promise<void> {
-  const { error } = await supabase.from("executions").insert(execution);
-  if (error) throw new Error(`logExecution: ${error.message}`);
+  await pool.query(
+    `INSERT INTO executions
+       (plan_id, usdt_spent, ton_received, tston_received, lp_tokens_added,
+        ton_price_usdt, lp_position_value, tx_swap, tx_stake, tx_lp, status)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+    [
+      execution.plan_id,
+      execution.usdt_spent,
+      execution.ton_received,
+      execution.tston_received,
+      execution.lp_tokens_added,
+      execution.ton_price_usdt,
+      execution.lp_position_value,
+      execution.tx_swap,
+      execution.tx_stake,
+      execution.tx_lp,
+      execution.status,
+    ]
+  );
 }
 
 export async function getLastExecutions(
   planId: string,
   limit = 5
 ): Promise<Execution[]> {
-  const { data } = await supabase
-    .from("executions")
-    .select("*")
-    .eq("plan_id", planId)
-    .order("executed_at", { ascending: false })
-    .limit(limit);
-  return data ?? [];
+  const { rows } = await pool.query<Execution>(
+    "SELECT * FROM executions WHERE plan_id = $1 ORDER BY executed_at DESC LIMIT $2",
+    [planId, limit]
+  );
+  return rows;
 }
 
 export async function getTotalInvested(planId: string): Promise<number> {
-  const { data } = await supabase
-    .from("executions")
-    .select("usdt_spent")
-    .eq("plan_id", planId)
-    .eq("status", "success");
-
-  if (!data) return 0;
-  return data.reduce((sum, e) => sum + (e.usdt_spent ?? 0), 0);
+  const { rows } = await pool.query<{ total: string }>(
+    "SELECT COALESCE(SUM(usdt_spent), 0) AS total FROM executions WHERE plan_id = $1 AND status = 'success'",
+    [planId]
+  );
+  return Number(rows[0]?.total ?? 0);
 }

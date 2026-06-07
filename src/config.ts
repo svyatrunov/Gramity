@@ -61,10 +61,8 @@ export const INTEGRATOR_FEE_PIPS = 1000;
 export const INPUT_USDT = Number(process.env.INPUT_USDT ?? "5");
 export const USDT_DECIMALS = 6;
 
-// ─── Bot & Database ───────────────────────────────────────────────────────────
+// ─── Bot ──────────────────────────────────────────────────────────────────────
 export const BOT_TOKEN = process.env.BOT_TOKEN ?? "";
-export const SUPABASE_URL = process.env.SUPABASE_URL ?? "";
-export const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY ?? "";
 
 // ─── Server ───────────────────────────────────────────────────────────────────
 export const PORT = process.env.PORT ?? "3000";
