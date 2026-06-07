@@ -1,0 +1,45 @@
+.logo-wrap {
+  overflow: visible;
+}
+
+@keyframes gg-au {
+  0%,
+  100% {
+    opacity: 0.08;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+@keyframes gg-ho {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes gg-sp {
+  0%,
+  100% {
+    opacity: 0.88;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.gg-au {
+  animation: gg-au 5s ease-in-out infinite;
+}
+
+.gg-ho {
+  animation: gg-ho 4s ease-in-out infinite;
+}
+
+.gg-sp {
+  animation: gg-sp 2.5s ease-in-out infinite;
+}

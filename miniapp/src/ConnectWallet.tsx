@@ -1,5 +1,6 @@
 import { TonConnectButton, useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
 import { useEffect } from "react";
+import { GramGravityLogo } from "./GramGravityLogo";
 
 declare global {
   interface Window {
@@ -9,6 +10,7 @@ declare global {
         close: () => void;
         ready: () => void;
         initData: string;
+        colorScheme?: "light" | "dark";
       };
     };
   }
@@ -19,7 +21,22 @@ export function ConnectWallet() {
   const [tonConnectUI] = useTonConnectUI();
 
   useEffect(() => {
-    window.Telegram?.WebApp?.ready();
+    const tg = window.Telegram?.WebApp;
+    tg?.ready();
+
+    const scheme = tg?.colorScheme ?? "dark";
+    document.documentElement.style.setProperty(
+      "--bg",
+      scheme === "dark" ? "#0E0E12" : "#f0f0f5"
+    );
+    document.documentElement.style.setProperty(
+      "--text",
+      scheme === "dark" ? "#ffffff" : "#0E0E12"
+    );
+    document.documentElement.style.setProperty(
+      "--hint",
+      scheme === "dark" ? "#8B8B9B" : "#6B6B7B"
+    );
   }, []);
 
   useEffect(() => {
@@ -45,7 +62,7 @@ export function ConnectWallet() {
     <div
       style={{
         minHeight: "100vh",
-        background: "#0E0E12",
+        background: "var(--bg, #0E0E12)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -54,15 +71,20 @@ export function ConnectWallet() {
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       }}
     >
-      <div style={{ fontSize: 48, marginBottom: 16 }}>💎</div>
+      <GramGravityLogo size={120} />
       <h1
-        style={{ color: "#fff", fontSize: 24, fontWeight: 700, margin: "0 0 8px" }}
+        style={{
+          color: "var(--text, #fff)",
+          fontSize: 24,
+          fontWeight: 700,
+          margin: "0 0 8px",
+        }}
       >
         Gramity
       </h1>
       <p
         style={{
-          color: "#8B8B9B",
+          color: "var(--hint, #8B8B9B)",
           fontSize: 14,
           textAlign: "center",
           marginBottom: 40,
@@ -81,7 +103,13 @@ export function ConnectWallet() {
           }}
         >
           <TonConnectButton />
-          <p style={{ color: "#8B8B9B", fontSize: 12, textAlign: "center" }}>
+          <p
+            style={{
+              color: "var(--hint, #8B8B9B)",
+              fontSize: 12,
+              textAlign: "center",
+            }}
+          >
             Поддерживаются: Tonkeeper, MyTonWallet и другие
           </p>
         </div>
@@ -91,7 +119,13 @@ export function ConnectWallet() {
           <p style={{ color: "#4ADE80", fontSize: 18, fontWeight: 600 }}>
             Кошелёк подключён
           </p>
-          <p style={{ color: "#8B8B9B", fontSize: 12, marginTop: 8 }}>
+          <p
+            style={{
+              color: "var(--hint, #8B8B9B)",
+              fontSize: 12,
+              marginTop: 8,
+            }}
+          >
             Закрываю...
           </p>
         </div>
@@ -99,7 +133,7 @@ export function ConnectWallet() {
 
       <p
         style={{
-          color: "#8B8B9B",
+          color: "var(--hint, #8B8B9B)",
           fontSize: 11,
           marginTop: 48,
           textAlign: "center",
