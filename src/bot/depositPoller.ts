@@ -31,6 +31,7 @@ const timers = new Map<number, ReturnType<typeof setTimeout>>();
 const starts = new Map<number, number>();
 const reminded = new Set<number>();
 const depositAddresses = new Map<number, string>();
+const initialBalances = new Map<number, number>();
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ export function startDepositPoller(telegramId: number, depositAddress: string): 
   stopDepositPoller(telegramId);
   starts.set(telegramId, Date.now());
   depositAddresses.set(telegramId, depositAddress);
+  initialBalances.set(telegramId, 0);
   reminded.delete(telegramId);
   scheduleNext(telegramId);
   console.log(`[POLLER] Started for user ${telegramId} → ${depositAddress}`);
@@ -50,6 +52,7 @@ export function stopDepositPoller(telegramId: number): void {
     timers.delete(telegramId);
   }
   depositAddresses.delete(telegramId);
+  initialBalances.delete(telegramId);
 }
 
 // ── Internals ─────────────────────────────────────────────────────────────────
@@ -71,11 +74,19 @@ async function tick(telegramId: number): Promise<void> {
       stopDepositPoller(telegramId);
       console.log(`[POLLER] Deposit detected for ${telegramId}: $${balance.toFixed(2)}`);
 
+      const prevBalance = initialBalances.get(telegramId) ?? 0;
+      const depositAmount = (balance - prevBalance).toFixed(2);
+      await _send(
+        telegramId,
+        `✅ *Получено $${depositAmount} USDT*\n\nЗапускаю стратегию...\n_Покупаю TON → стейкаю → добавляю в пул_`,
+        { parse_mode: "Markdown" }
+      );
+
       const kb = new InlineKeyboard().text("→ Выбрать сумму", "deposit_done");
       await _send(
         telegramId,
-        `✅ *Получено ${balance.toFixed(2)} USDT!*\n\nДеньги на месте — продолжаем 👇`,
-        { parse_mode: "Markdown", reply_markup: kb }
+        `Деньги на месте — продолжаем 👇`,
+        { reply_markup: kb }
       );
       return;
     }

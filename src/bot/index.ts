@@ -17,6 +17,7 @@ import { handleReset, handleResetCallback } from "./handlers/reset.js";
 import { handleSettings, handleSettingsCallback } from "./handlers/settings.js";
 import { setNotifyUser, setNotifyInsufficientFunds } from "../scheduler/index.js";
 import { setPollerSender, stopDepositPoller } from "./depositPoller.js";
+import { setGasNotifier } from "../execution/index.js";
 import { BOT_TOKEN } from "../config.js";
 import type { ExecutionResult } from "../execution/index.js";
 import { InlineKeyboard } from "grammy";
@@ -242,6 +243,16 @@ setNotifyInsufficientFunds(async (telegramId, balance, required) => {
 
 setPollerSender(async (chatId, text, extra) => {
   await bot.api.sendMessage(chatId, text, extra as any);
+});
+
+// ─── Inject gas warning notifier ──────────────────────────────────────────────
+
+setGasNotifier(async (telegramId, msg) => {
+  try {
+    await bot.api.sendMessage(telegramId, msg, { parse_mode: "Markdown" });
+  } catch (err) {
+    console.error("[BOT] Failed to send gas warning:", err);
+  }
 });
 
 // ─── Bot startup ──────────────────────────────────────────────────────────────

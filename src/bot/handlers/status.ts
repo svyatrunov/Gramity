@@ -5,7 +5,13 @@ import {
   getLastExecutions,
   getTotalInvested,
 } from "../../db/index.js";
-import { getTonPriceUsd, getUsdtBalance, getPortfolioValueUsd, projectPortfolio } from "../../services/tonapi.js";
+import {
+  getTonPriceUsd,
+  getUsdtBalance,
+  getPortfolioValueUsd,
+  projectPortfolio,
+  getPoolApy,
+} from "../../services/tonapi.js";
 import { createUserWallet } from "../../services/userWallet.js";
 import { POOL_ADDRESS, STON_API_URL } from "../../config.js";
 import { InlineKeyboard } from "grammy";
@@ -40,12 +46,14 @@ export async function handleStatus(ctx: GramityContext) {
 
   await ctx.reply("⏳ Загружаю данные...");
 
-  const [allExecs, totalInvested, tonPrice, depositAddress] = await Promise.all([
-    getLastExecutions(plan.id, 50),
-    getTotalInvested(plan.id),
-    getTonPriceUsd(),
-    createUserWallet(telegramId).catch(() => ""),
-  ]);
+  const [allExecs, totalInvested, tonPrice, depositAddress, poolApy] =
+    await Promise.all([
+      getLastExecutions(plan.id, 50),
+      getTotalInvested(plan.id),
+      getTonPriceUsd(),
+      createUserWallet(telegramId).catch(() => ""),
+      getPoolApy().catch(() => ({ stakingApy: 5.0, lpApy: 0.4, totalApy: 5.4 })),
+    ]);
 
   // ── LP position from STON.fi API ───────────────────────────────────────────
   let lpValueNum: number | null = null;
@@ -108,7 +116,7 @@ export async function handleStatus(ctx: GramityContext) {
     const proj = projectPortfolio({
       currentValueUsd: totalPortfolioUsd,
       monthlyDcaUsd: monthlyDca,
-      annualApy: 0.054,
+      annualApy: poolApy.totalApy / 100,
       months: 12,
       tonPriceUsd: tonPrice > 0 ? tonPrice : 1,
     });
@@ -130,7 +138,7 @@ export async function handleStatus(ctx: GramityContext) {
     timeZone: "Europe/Moscow",
   });
 
-  const apyTotal = apy7d != null ? 5 + apy7d : null;
+  const apyTotal = apy7d != null ? 5 + apy7d : poolApy.totalApy;
 
   const portfolioLine = totalPortfolioUsd > 0 ? `💼 Портфель: $${fmt(totalPortfolioUsd)}\n` : "";
   const investedLine = `💰 Вложено: $${fmt(totalInvested)}\n`;
@@ -156,15 +164,24 @@ export async function handleStatus(ctx: GramityContext) {
     pnlLine +
     (tonPriceLines ? `\n${tonPriceLines}` : "") +
     `\nДоходность:\n` +
-    `  tsTON стейкинг: ~5.0%\n` +
-    `  LP + фарминг:   ~${apy7d != null ? fmt(apy7d, 1) : "3.5"}%\n` +
-    `  *Итого APY:*    ~${apyTotal != null ? fmt(apyTotal, 1) : "8.5"}%\n` +
+    `  tsTON стейкинг: ~${poolApy.stakingApy.toFixed(1)}%\n` +
+    `  LP + фарминг:   ~${apy7d != null ? fmt(apy7d, 1) : poolApy.lpApy.toFixed(1)}%\n` +
+    `  *Итого APY:*    ~${fmt(apyTotal, 1)}%\n` +
     projectionBlock +
     `\n⏰ Следующий: ${nextDate}`;
 
+  const pnlSign = pnlAbs != null && pnlAbs >= 0 ? "+" : "-";
+  const shareText = encodeURIComponent(
+    `Gramity заработал мне ${pnlSign}$${Math.abs(pnlAbs ?? 0).toFixed(2)} на автопилоте в TON DeFi.\n` +
+      `DCA + стейкинг + ликвидность. @gramity_bot`
+  );
+  const shareUrl = `https://t.me/share/url?url=https://t.me/gramity_bot&text=${shareText}`;
+
   const kb = new InlineKeyboard()
     .text(plan.active ? "⏸ Пауза" : "▶️ Возобновить", plan.active ? "pause" : "resume")
-    .text("💸 Вывести", "withdraw");
+    .text("💸 Вывести", "withdraw")
+    .row()
+    .url("📤 Поделиться результатом", shareUrl);
 
   await ctx.reply(text, { parse_mode: "Markdown", reply_markup: kb });
 }

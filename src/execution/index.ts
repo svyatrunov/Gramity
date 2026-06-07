@@ -12,7 +12,14 @@ import { step4ProvideLiquidity } from "../step4-liquidity.js";
 import { step5Verify } from "../step5-verify.js";
 import { TSTON_ADDRESS } from "../config.js";
 import { logExecution, updatePlan, type Plan } from "../db/index.js";
-import { getTonPriceUsd, getUsdtBalance } from "../services/tonapi.js";
+import { getTonPriceUsd, getUsdtBalance, getTonBalance } from "../services/tonapi.js";
+
+// ── Gas warning notifier injection (avoids circular dep with bot/index.ts) ────
+type GasNotifier = (telegramId: number, msg: string) => Promise<void>;
+let _gasNotify: GasNotifier | null = null;
+export function setGasNotifier(fn: GasNotifier): void {
+  _gasNotify = fn;
+}
 
 export interface ExecutionResult {
   usdtSpent: number;
@@ -39,6 +46,31 @@ export async function executeStrategy(plan: Plan): Promise<ExecutionResult> {
   );
 
   const walletCtx = await getUserWalletContext(plan.telegram_id);
+
+  // ── Pre-flight: check TON balance (gas guard) ──────────────────────────────
+  const MIN_GAS_TON = 0.5;
+  const tonNano = await getTonBalance(walletCtx.address);
+  const tonBal = Number(tonNano) / 1e9;
+  if (tonBal < MIN_GAS_TON) {
+    const msg =
+      `⚠️ *Мало TON для газа*\n\n` +
+      `На кошельке: ${tonBal.toFixed(3)} TON\n` +
+      `Нужно минимум: ${MIN_GAS_TON} TON\n\n` +
+      `Пополни агентский кошелёк:\n\`${walletCtx.address}\`\n\n` +
+      `Следующий цикл может не выполниться.`;
+    if (_gasNotify) await _gasNotify(plan.telegram_id, msg);
+    console.log(`[GAS] Skipping execution for user ${plan.telegram_id} — low TON balance: ${tonBal}`);
+    return {
+      usdtSpent: 0,
+      tonReceived: 0,
+      tstonReceived: 0,
+      lpTokensAdded: 0,
+      lpPositionValue: "N/A",
+      apy1d: "N/A",
+      apy7d: "N/A",
+      status: "failed",
+    };
+  }
 
   // ── Pre-flight: check USDT balance ─────────────────────────────────────────
   const usdtBalance = await getUsdtBalance(walletCtx.address);
