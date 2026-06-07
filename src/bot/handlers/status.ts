@@ -113,7 +113,9 @@ export async function handleStatus(ctx: GramityContext) {
   let projectionBlock = "";
   try {
     const intervalHours = FREQ_HOURS[plan.frequency] ?? 7 * 24;
-    const monthlyDca = plan.usdt_amount * ((30 * 24) / intervalHours);
+    // cap: даже при минутном интервале считаем не более 30 DCA-циклов в месяц
+    const cyclesPerMonth = Math.min(30 * 24 / Math.max(intervalHours, 1), 30);
+    const monthlyDca = plan.usdt_amount * cyclesPerMonth;
     const proj = projectPortfolio({
       currentValueUsd: totalPortfolioUsd,
       monthlyDcaUsd: monthlyDca,
@@ -171,7 +173,8 @@ export async function handleStatus(ctx: GramityContext) {
     const minutesPerCycle = 45;
     const hoursSaved = (cycleCount * minutesPerCycle) / 60;
     const intervalHoursVal = FREQ_HOURS[plan.frequency] ?? 7 * 24;
-    const cyclesPerYear = (365 * 24) / intervalHoursVal;
+    // cap: максимум 365 циклов в год (раз в день), чтобы не показывать ~394200 ч
+    const cyclesPerYear = Math.min((365 * 24) / Math.max(intervalHoursVal, 1), 365);
     const yearlyHours = Math.round(cyclesPerYear * minutesPerCycle / 60);
 
     if (cycleCount > 0) {
@@ -200,10 +203,14 @@ export async function handleStatus(ctx: GramityContext) {
 
   const portfolioLine = totalPortfolioUsd > 0 ? `💼 Портфель: $${fmt(totalPortfolioUsd)}\n` : "";
   const investedLine = `💰 Вложено: $${fmt(totalInvested)}\n`;
+  // Не показываем PnL если кошелёк пуст (средства выведены или ещё не зачислены)
+  const showPnl = totalPortfolioUsd > 0.5;
   const pnlLine =
-    pnlAbs != null && pnlPct != null
+    showPnl && pnlAbs != null && pnlPct != null
       ? `📈 PnL: ${pnlAbs >= 0 ? "+" : ""}$${fmt(pnlAbs)} (${pnlPct >= 0 ? "+" : ""}${fmt(pnlPct)}%)\n`
-      : "";
+      : !showPnl && totalInvested > 0
+        ? `_(Средства выведены или ещё не зачислены)_\n`
+        : "";
 
   // TON price block — only if we have data
   const tonPriceLines =

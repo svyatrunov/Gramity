@@ -228,7 +228,12 @@ export async function getLastExecutions(
 }
 
 export async function deletePlan(telegramId: number): Promise<void> {
-  await getPool().query("DELETE FROM plans WHERE telegram_id = $1", [telegramId]);
+  const pool = getPool();
+  await pool.query(
+    "DELETE FROM executions WHERE plan_id IN (SELECT id FROM plans WHERE telegram_id = $1)",
+    [telegramId]
+  );
+  await pool.query("DELETE FROM plans WHERE telegram_id = $1", [telegramId]);
 }
 
 export async function getTotalInvested(planId: string): Promise<number> {
