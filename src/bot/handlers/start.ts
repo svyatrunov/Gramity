@@ -22,12 +22,19 @@ import { getDepositAddress } from "../../execution/index.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function isValidTonAddress(addr: string): boolean {
+/**
+ * Accepts any TON address format:
+ *   EQ...  UQ...  (base64url, 48 chars)
+ *   0:xxxx        (raw hex, workchain:64hex)
+ * Returns normalized EQ... (bounceable, urlSafe) or null if invalid.
+ */
+function normalizeTonAddress(input: string): string | null {
+  const trimmed = input.trim();
   try {
-    Address.parse(addr);
-    return true;
+    const addr = Address.parse(trimmed);
+    return addr.toString({ urlSafe: true, bounceable: true });
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -135,16 +142,19 @@ export async function handleText(ctx: GramityContext) {
 // ─── Step: wallet address input ───────────────────────────────────────────────
 
 async function handleWalletInput(ctx: GramityContext, text: string) {
-  if (!isValidTonAddress(text)) {
+  const normalized = normalizeTonAddress(text);
+
+  if (!normalized) {
     await ctx.reply(
-      "❌ Некорректный адрес TON кошелька.\n\n" +
-        "Пожалуйста, отправь адрес в формате `EQ...` или `UQ...`",
+      "❌ Неверный формат адреса.\n\n" +
+        "Скопируй адрес из Tonkeeper → Receive → TON\n" +
+        "Форматы: `EQ...`, `UQ...`, `0:abc123...`",
       { parse_mode: "Markdown" }
     );
     return;
   }
 
-  ctx.session.tonAddress = text;
+  ctx.session.tonAddress = normalized;
   ctx.session.step = "waiting_deposit_confirm";
 
   const depositAddress = await getDepositAddress().catch(
@@ -153,7 +163,7 @@ async function handleWalletInput(ctx: GramityContext, text: string) {
 
   await ctx.reply(
     `✅ Кошелёк подключён\n` +
-      `Адрес: \`${text.slice(0, 6)}...${text.slice(-4)}\`\n\n` +
+      `Адрес: \`${normalized.slice(0, 6)}...${normalized.slice(-4)}\`\n\n` +
       `Пополни депозитный адрес USDT для старта:\n` +
       `\`${depositAddress}\`\n\n` +
       `Минимум: $25 USDT\n\n` +
