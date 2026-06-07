@@ -5,7 +5,7 @@ import {
   getLastExecutions,
   getTotalInvested,
 } from "../../db/index.js";
-import { getTonPriceUsd, getUsdtBalance } from "../../services/tonapi.js";
+import { getTonPriceUsd, getUsdtBalance, getPortfolioValueUsd, projectPortfolio } from "../../services/tonapi.js";
 import { createUserWallet } from "../../services/userWallet.js";
 import { POOL_ADDRESS, STON_API_URL } from "../../config.js";
 import { InlineKeyboard } from "grammy";
@@ -73,6 +73,15 @@ export async function handleStatus(ctx: GramityContext) {
   // ── Deposit balance ────────────────────────────────────────────────────────
   const depositBalance = depositAddress ? await getUsdtBalance(depositAddress) : 0;
 
+  // ── Full portfolio value (TON + tsTON + USDT in wallet) ───────────────────
+  let portfolioData = { totalUsd: 0, breakdown: { ton: 0, tston: 0, usdt: 0, lp: 0 } };
+  try {
+    portfolioData = await getPortfolioValueUsd(depositAddress, tonPrice);
+  } catch { /* non-critical */ }
+
+  // LP value (from STON.fi) + non-LP wallet assets = full portfolio
+  const totalPortfolioUsd = (lpValueNum ?? 0) + portfolioData.totalUsd;
+
   // ── Average entry price: SUM(usdt_spent) / SUM(ton_received) ──────────────
   const successExecs = allExecs.filter((e) => e.status === "success");
   const totalUsdtSpent = successExecs.reduce((s, e) => s + (e.usdt_spent ?? 0), 0);
@@ -80,11 +89,35 @@ export async function handleStatus(ctx: GramityContext) {
   const avgEntryPrice =
     totalTonReceived > 0 ? totalUsdtSpent / totalTonReceived : null;
 
-  // ── P&L ───────────────────────────────────────────────────────────────────
-  const totalAssets =
-    lpValueNum != null ? lpValueNum + depositBalance : depositBalance || null;
-  const pnlAbs = totalAssets != null && totalInvested > 0 ? totalAssets - totalInvested : null;
+  // ── P&L (relative to total invested) ─────────────────────────────────────
+  const pnlAbs = totalInvested > 0 ? totalPortfolioUsd - totalInvested : null;
   const pnlPct = pnlAbs != null && totalInvested > 0 ? (pnlAbs / totalInvested) * 100 : null;
+
+  // ── 1-year projection ─────────────────────────────────────────────────────
+  const FREQ_HOURS: Record<string, number> = {
+    weekly: 7 * 24,
+    biweekly: 14 * 24,
+    monthly: 30 * 24,
+    hourly: 1,
+    minutely: 1 / 60,
+  };
+  let projectionBlock = "";
+  try {
+    const intervalHours = FREQ_HOURS[plan.frequency] ?? 7 * 24;
+    const monthlyDca = plan.usdt_amount * ((30 * 24) / intervalHours);
+    const proj = projectPortfolio({
+      currentValueUsd: totalPortfolioUsd,
+      monthlyDcaUsd: monthlyDca,
+      annualApy: 0.054,
+      months: 12,
+      tonPriceUsd: tonPrice > 0 ? tonPrice : 1,
+    });
+    projectionBlock =
+      `\n━━━━━━━━━━━━━━━\n` +
+      `🔮 Через 12 месяцев при текущей стратегии:\n` +
+      `   ~${proj.futureTon.toFixed(0)} TON (~$${proj.futureValueUsd.toFixed(0)})\n` +
+      `   из них yield: +$${proj.yieldEarnedUsd.toFixed(0)}\n`;
+  } catch { /* non-critical */ }
 
   // ── Format strings ─────────────────────────────────────────────────────────
   const statusEmoji = plan.active ? "🟢" : "⏸";
@@ -99,10 +132,11 @@ export async function handleStatus(ctx: GramityContext) {
 
   const apyTotal = apy7d != null ? 5 + apy7d : null;
 
-  // Build P&L line
+  const portfolioLine = totalPortfolioUsd > 0 ? `💼 Портфель: $${fmt(totalPortfolioUsd)}\n` : "";
+  const investedLine = `💰 Вложено: $${fmt(totalInvested)}\n`;
   const pnlLine =
     pnlAbs != null && pnlPct != null
-      ? `Итого P&L: ${pnlAbs >= 0 ? "+" : ""}$${fmt(pnlAbs)} (${pnlPct >= 0 ? "+" : ""}${fmt(pnlPct)}%)\n`
+      ? `📈 PnL: ${pnlAbs >= 0 ? "+" : ""}$${fmt(pnlAbs)} (${pnlPct >= 0 ? "+" : ""}${fmt(pnlPct)}%)\n`
       : "";
 
   // TON price block — only if we have data
@@ -116,16 +150,17 @@ export async function handleStatus(ctx: GramityContext) {
     `📊 *Gramity — твоя позиция*\n\n` +
     `${statusEmoji} ${plan.active ? "Активна" : "Пауза"} · $${plan.usdt_amount} ${freqLabel}\n\n` +
     `Остаток на депозите: $${fmt(depositBalance)}\n` +
-    `LP позиция: ${lpValueNum != null ? "$" + fmt(lpValueNum) : "—"}\n` +
-    `Итого активов: ${totalAssets != null ? "$" + fmt(totalAssets) : "—"}\n\n` +
-    `Вложено: $${fmt(totalInvested)}\n` +
+    `LP позиция: ${lpValueNum != null ? "$" + fmt(lpValueNum) : "—"}\n\n` +
+    portfolioLine +
+    investedLine +
     pnlLine +
     (tonPriceLines ? `\n${tonPriceLines}` : "") +
     `\nДоходность:\n` +
     `  tsTON стейкинг: ~5.0%\n` +
     `  LP + фарминг:   ~${apy7d != null ? fmt(apy7d, 1) : "3.5"}%\n` +
-    `  *Итого APY:*    ~${apyTotal != null ? fmt(apyTotal, 1) : "8.5"}%\n\n` +
-    `⏰ Следующий: ${nextDate}`;
+    `  *Итого APY:*    ~${apyTotal != null ? fmt(apyTotal, 1) : "8.5"}%\n` +
+    projectionBlock +
+    `\n⏰ Следующий: ${nextDate}`;
 
   const kb = new InlineKeyboard()
     .text(plan.active ? "⏸ Пауза" : "▶️ Возобновить", plan.active ? "pause" : "resume")

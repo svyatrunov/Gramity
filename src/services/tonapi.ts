@@ -2,7 +2,7 @@
  * TonAPI helpers — USDT balance check, TON price
  */
 
-import { USDT_ADDRESS, TON_API_URL } from "../config.js";
+import { USDT_ADDRESS, TSTON_ADDRESS, TON_API_URL } from "../config.js";
 
 const USDT_DECIMALS = 6;
 
@@ -110,4 +110,78 @@ export async function getTonBalance(address: string): Promise<bigint> {
   } catch {
     return 0n;
   }
+}
+
+// ─── Portfolio valuation ───────────────────────────────────────────────────────
+
+/**
+ * Возвращает общую стоимость портфеля в USD:
+ * TON баланс + tsTON баланс (≈ TON) + USDT баланс.
+ * LP позиция учитывается отдельно в вызывающем коде (через STON.fi API).
+ */
+export async function getPortfolioValueUsd(
+  walletAddress: string,
+  tonPriceUsd: number
+): Promise<{
+  totalUsd: number;
+  breakdown: { ton: number; tston: number; usdt: number; lp: number };
+}> {
+  if (!walletAddress) {
+    return { totalUsd: 0, breakdown: { ton: 0, tston: 0, usdt: 0, lp: 0 } };
+  }
+
+  const [tonNano, jettons] = await Promise.all([
+    getTonBalance(walletAddress),
+    getAllVerifiedJettons(walletAddress),
+  ]);
+
+  const tonBalance = Number(tonNano) / 1e9;
+
+  const tstonJetton = jettons.find(
+    (j) =>
+      j.jettonAddress.toLowerCase() === TSTON_ADDRESS.toLowerCase() ||
+      j.symbol === "tsTON"
+  );
+  const usdtJetton = jettons.find(
+    (j) =>
+      j.jettonAddress.toLowerCase() === USDT_ADDRESS.toLowerCase() ||
+      j.symbol === "USD₮"
+  );
+
+  const tstonBalance = tstonJetton?.balance ?? 0;
+  const usdtBalance = usdtJetton?.balance ?? 0;
+
+  const ton = tonBalance * tonPriceUsd;
+  const tston = tstonBalance * tonPriceUsd;
+  const usdt = usdtBalance;
+
+  return {
+    totalUsd: ton + tston + usdt,
+    breakdown: { ton, tston, usdt, lp: 0 },
+  };
+}
+
+/** Проекция портфеля через N месяцев (compound interest + monthly DCA) */
+export function projectPortfolio(params: {
+  currentValueUsd: number;
+  monthlyDcaUsd: number;
+  annualApy: number;
+  months: number;
+  tonPriceUsd: number;
+}): { futureValueUsd: number; futureTon: number; yieldEarnedUsd: number } {
+  const r = params.annualApy / 12;
+  const n = params.months;
+  const growth = Math.pow(1 + r, n);
+
+  const futureValueUsd =
+    params.currentValueUsd * growth +
+    (r > 0
+      ? (params.monthlyDcaUsd * (growth - 1)) / r
+      : params.monthlyDcaUsd * n);
+
+  const totalDcaUsd = params.monthlyDcaUsd * n;
+  const yieldEarnedUsd = futureValueUsd - params.currentValueUsd - totalDcaUsd;
+  const futureTon = params.tonPriceUsd > 0 ? futureValueUsd / params.tonPriceUsd : 0;
+
+  return { futureValueUsd, futureTon, yieldEarnedUsd };
 }
