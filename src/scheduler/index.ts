@@ -4,15 +4,22 @@
 
 import cron from "node-cron";
 import { getDuePlans, updatePlan } from "../db/index.js";
-import { executeStrategy, type ExecutionResult } from "../execution/index.js";
+import { executeStrategy, InsufficientFundsError, type ExecutionResult } from "../execution/index.js";
 
 // Injected by bot/index.ts after bot starts
 let notifyUser: ((telegramId: number, result: ExecutionResult | null, error?: string) => Promise<void>) | null = null;
+let notifyInsufficientFunds: ((telegramId: number, balance: number, required: number) => Promise<void>) | null = null;
 
 export function setNotifyUser(
   fn: (telegramId: number, result: ExecutionResult | null, error?: string) => Promise<void>
 ) {
   notifyUser = fn;
+}
+
+export function setNotifyInsufficientFunds(
+  fn: (telegramId: number, balance: number, required: number) => Promise<void>
+) {
+  notifyInsufficientFunds = fn;
 }
 
 function getNextExecutionDate(frequency: string): Date {
@@ -69,11 +76,19 @@ async function checkAndExecute() {
           await notifyUser(plan.telegram_id, result);
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(`[SCHEDULER] Plan ${plan.id} failed:`, msg);
-
-        if (notifyUser) {
-          await notifyUser(plan.telegram_id, null, msg);
+        if (err instanceof InsufficientFundsError) {
+          console.warn(
+            `[SCHEDULER] Plan ${plan.id} paused — insufficient USDT: $${err.balance.toFixed(2)} < $${err.required}`
+          );
+          if (notifyInsufficientFunds) {
+            await notifyInsufficientFunds(plan.telegram_id, err.balance, err.required);
+          }
+        } else {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(`[SCHEDULER] Plan ${plan.id} failed:`, msg);
+          if (notifyUser) {
+            await notifyUser(plan.telegram_id, null, msg);
+          }
         }
       } finally {
         executing.delete(plan.id);

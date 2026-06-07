@@ -1,6 +1,6 @@
 /**
  * Strategy execution wrapper
- * Runs the 5-step engine for a given plan and logs results to Supabase.
+ * Runs the 5-step engine for a given plan and logs results to DB.
  */
 
 import { fromNano } from "@ton/ton";
@@ -11,8 +11,8 @@ import { step3Stake } from "../step3-stake.js";
 import { step4ProvideLiquidity } from "../step4-liquidity.js";
 import { step5Verify } from "../step5-verify.js";
 import { TSTON_ADDRESS } from "../config.js";
-import { logExecution, type Plan } from "../db/index.js";
-import { getTonPriceUsd } from "../services/tonapi.js";
+import { logExecution, updatePlan, type Plan } from "../db/index.js";
+import { getTonPriceUsd, getUsdtBalance } from "../services/tonapi.js";
 
 export interface ExecutionResult {
   usdtSpent: number;
@@ -25,6 +25,14 @@ export interface ExecutionResult {
   status: "success" | "failed" | "partial";
 }
 
+/** Thrown when wallet has insufficient USDT — no execution logged, plan paused */
+export class InsufficientFundsError extends Error {
+  constructor(public readonly balance: number, public readonly required: number) {
+    super(`Insufficient USDT: $${balance.toFixed(2)} < $${required}`);
+    this.name = "InsufficientFundsError";
+  }
+}
+
 // Cached deposit address (backend wallet)
 let _depositAddress: string | null = null;
 
@@ -35,14 +43,25 @@ export async function getDepositAddress(): Promise<string> {
   return _depositAddress;
 }
 
-export async function executeStrategy(
-  plan: Plan
-): Promise<ExecutionResult> {
+export async function executeStrategy(plan: Plan): Promise<ExecutionResult> {
   console.log(
-    `[EXEC] Starting strategy for plan ${plan.id} (tg: ${plan.telegram_id}, amount: $${plan.usdt_amount})`
+    `[EXEC] Starting plan ${plan.id} (tg: ${plan.telegram_id}, amount: $${plan.usdt_amount})`
   );
 
   const walletCtx = await createWallet();
+
+  // ── Pre-flight: check USDT balance ─────────────────────────────────────────
+  const usdtBalance = await getUsdtBalance(walletCtx.address);
+  console.log(`[EXEC] USDT balance: $${usdtBalance.toFixed(2)}, required: $${plan.usdt_amount}`);
+
+  if (usdtBalance < plan.usdt_amount) {
+    // Pause the plan so it doesn't retry every cycle
+    await updatePlan(plan.telegram_id, { active: false });
+    throw new InsufficientFundsError(usdtBalance, plan.usdt_amount);
+  }
+
+  // ── Fetch TON price upfront (needed for logging) ───────────────────────────
+  const tonPriceUsd = await getTonPriceUsd().catch(() => 0);
 
   let tonReceived = 0n;
   let tstonReceived = 0n;
@@ -89,26 +108,19 @@ export async function executeStrategy(
     console.log(`[EXEC] Step 5 done: LP value $${lpPositionValue}`);
   } catch (err) {
     console.error("[EXEC] Error during execution:", err);
-    execStatus = "partial";
-    if (tonReceived === 0n) execStatus = "failed";
+    execStatus = tonReceived === 0n ? "failed" : "partial";
   }
 
-  // Fetch TON price for logging
-  const tonPriceUsd = await getTonPriceUsd().catch(() => 0);
-
-  // Log to Supabase
+  // ── Log to DB ───────────────────────────────────────────────────────────────
   try {
     await logExecution({
       plan_id: plan.id,
       usdt_spent: plan.usdt_amount,
       ton_received: tonReceived > 0n ? Number(fromNano(tonReceived)) : null,
-      tston_received:
-        tstonReceived > 0n ? Number(fromNano(tstonReceived)) : null,
-      lp_tokens_added:
-        lpTokensAdded > 0n ? Number(fromNano(lpTokensAdded)) : null,
+      tston_received: tstonReceived > 0n ? Number(fromNano(tstonReceived)) : null,
+      lp_tokens_added: lpTokensAdded > 0n ? Number(fromNano(lpTokensAdded)) : null,
       ton_price_usdt: tonPriceUsd > 0 ? tonPriceUsd : null,
-      lp_position_value:
-        lpPositionValue !== "N/A" ? Number(lpPositionValue) : null,
+      lp_position_value: lpPositionValue !== "N/A" ? Number(lpPositionValue) : null,
       tx_swap: null,
       tx_stake: null,
       tx_lp: null,

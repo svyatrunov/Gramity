@@ -9,7 +9,7 @@ import {
 import { handleStatus } from "./handlers/status.js";
 import { handlePause, handleResume, handleWithdrawInfo } from "./handlers/pause.js";
 import { handleReset, handleResetCallback } from "./handlers/reset.js";
-import { setNotifyUser } from "../scheduler/index.js";
+import { setNotifyUser, setNotifyInsufficientFunds } from "../scheduler/index.js";
 import { BOT_TOKEN } from "../config.js";
 import type { ExecutionResult } from "../execution/index.js";
 import { InlineKeyboard } from "grammy";
@@ -157,8 +157,24 @@ async function sendExecutionNotification(
   }
 }
 
-// Register notification handler with scheduler
+// Register notification handlers with scheduler
 setNotifyUser(sendExecutionNotification);
+
+setNotifyInsufficientFunds(async (telegramId, balance, required) => {
+  try {
+    await bot.api.sendMessage(
+      telegramId,
+      `⚠️ *Недостаточно USDT для цикла*\n\n` +
+        `На депозите: $${balance.toFixed(2)}\n` +
+        `Нужно: $${required.toFixed(2)}\n\n` +
+        `Стратегия поставлена на паузу.\n` +
+        `Пополни депозит и нажми /resume`,
+      { parse_mode: "Markdown" }
+    );
+  } catch (err) {
+    console.error("[BOT] Failed to send insufficient funds notification:", err);
+  }
+});
 
 export async function startBot() {
   await bot.api.setMyCommands([
