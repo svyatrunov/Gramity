@@ -2,97 +2,184 @@
  * Full position exit orchestrator.
  *
  * Flow:
- *   1. Burn LP tokens → receive TON + tsTON back in wallet
- *   2. Swap tsTON → TON via Tonstakers instant unstake
- *   3. Sweep all verified tokens (USDT + TON) → user's ton_address
+ *   1. Burn LP tokens — balance checked DIRECTLY on-chain via JettonWallet,
+ *      not via STON.fi API (which can return empty for some wallets).
+ *   2. Burn tsTON → TON (Tonstakers instant unstake)
+ *   3. Wait for assets to settle
+ *   4. Sweep ALL jettons (verified + LP proceeds) + remaining TON → user's ton_address
  */
 
-import { fromNano, toNano } from "@ton/ton";
+import {
+  Address,
+  JettonMaster,
+  JettonWallet,
+  fromNano,
+  toNano,
+  type OpenedContract,
+  WalletContractV4,
+  internal,
+  SendMode,
+} from "@ton/ton";
 import type { Plan } from "../db/index.js";
 import { getUserWalletContext } from "../services/userWallet.js";
-import { sweepAllTokens } from "./sweep.js";
-import { burnJetton } from "../services/jetton.js";
-import { getAllVerifiedJettons, getUsdtBalance } from "../services/tonapi.js";
-import { POOL_ADDRESS, TSTON_ADDRESS, STON_API_URL } from "../config.js";
+import { sendJettonTransfer, burnJetton } from "../services/jetton.js";
+import { getAllVerifiedJettons, getTonBalance } from "../services/tonapi.js";
+import { POOL_ADDRESS, TSTON_ADDRESS, USDT_ADDRESS, USDT_DECIMALS } from "../config.js";
 import { sleep } from "../wallet.js";
-import { StonApiClient } from "@ston-fi/api";
+import type { WalletContext } from "../wallet.js";
 
 export interface ExitResult {
-  /** USDT sent to user's wallet */
   usdtSent: number;
-  /** Summary of all tokens sent */
   summary: string[];
 }
 
-/**
- * Execute a full exit from all DeFi positions.
- * After completion, the user's agent wallet should be nearly empty.
- */
+type TypedContract = OpenedContract<WalletContractV4> & {
+  getSeqno(): Promise<number>;
+  sendTransfer(p: {
+    seqno: number;
+    secretKey: Buffer;
+    messages: ReturnType<typeof internal>[];
+    sendMode: number;
+  }): Promise<void>;
+};
+
+/** Query LP token balance directly on-chain (bypasses STON.fi API) */
+async function getLpBalanceOnChain(
+  walletCtx: WalletContext,
+  lpMasterAddr: string
+): Promise<bigint> {
+  try {
+    const lpMaster = walletCtx.client.open(
+      JettonMaster.create(Address.parse(lpMasterAddr))
+    );
+    const userLpWalletAddr = await lpMaster.getWalletAddress(
+      Address.parse(walletCtx.address)
+    );
+    const userLpWallet = walletCtx.client.open(
+      JettonWallet.create(userLpWalletAddr)
+    );
+    return await userLpWallet.getBalance();
+  } catch {
+    return 0n;
+  }
+}
+
+/** Query any jetton balance directly on-chain */
+async function getJettonBalanceOnChain(
+  walletCtx: WalletContext,
+  jettonMasterAddr: string
+): Promise<bigint> {
+  try {
+    const master = walletCtx.client.open(
+      JettonMaster.create(Address.parse(jettonMasterAddr))
+    );
+    const userWalletAddr = await master.getWalletAddress(
+      Address.parse(walletCtx.address)
+    );
+    const userWallet = walletCtx.client.open(
+      JettonWallet.create(userWalletAddr)
+    );
+    return await userWallet.getBalance();
+  } catch {
+    return 0n;
+  }
+}
+
 export async function executeFullExit(plan: Plan): Promise<ExitResult> {
   const telegramId = plan.telegram_id;
   console.log(`[EXIT] Starting full exit for user ${telegramId}`);
 
   const walletCtx = await getUserWalletContext(telegramId);
   const { address } = walletCtx;
+  const typedContract = walletCtx.contract as unknown as TypedContract;
 
-  // ── Step 1: Burn LP tokens if any ──────────────────────────────────────────
+  const summary: string[] = [];
+
+  // ── Step 1: Burn LP tokens (on-chain balance check) ─────────────────────────
   try {
-    console.log("[EXIT] Step 1: Check LP position...");
-    const apiClient = new StonApiClient({ baseUrl: STON_API_URL });
+    console.log("[EXIT] Step 1: Checking LP balance on-chain...");
+    const lpBalance = await getLpBalanceOnChain(walletCtx, POOL_ADDRESS);
+    console.log(`[EXIT] LP balance: ${fromNano(lpBalance)} LP tokens`);
 
-    const walletPool = await apiClient.getWalletPool({
-      walletAddress: address,
-      poolAddress: POOL_ADDRESS,
-    }).catch(() => null);
-
-    if (walletPool?.lpBalance && BigInt(walletPool.lpBalance) > 0n) {
-      const lpAmount = BigInt(walletPool.lpBalance);
-      console.log(`[EXIT] Burning ${fromNano(lpAmount)} LP tokens...`);
-
-      await burnJetton(walletCtx, POOL_ADDRESS, lpAmount);
-      console.log("[EXIT] LP burn sent. Waiting 60s for assets to arrive...");
-      await sleep(60_000);
+    if (lpBalance > 0n) {
+      console.log("[EXIT] Burning LP tokens...");
+      await burnJetton(walletCtx, POOL_ADDRESS, lpBalance);
+      console.log("[EXIT] LP burn TX sent. Waiting 90s for TON + tsTON to arrive...");
+      await sleep(90_000);
     } else {
-      console.log("[EXIT] No LP position found, skipping step 1.");
+      console.log("[EXIT] No LP tokens found.");
     }
   } catch (err) {
-    console.warn("[EXIT] Step 1 LP burn failed (non-fatal):", (err as Error).message);
+    console.warn("[EXIT] Step 1 LP burn error (non-fatal):", (err as Error).message);
   }
 
-  // ── Step 2: Unstake tsTON if any ────────────────────────────────────────────
+  // ── Step 2: Unstake tsTON (on-chain balance check) ──────────────────────────
   try {
-    console.log("[EXIT] Step 2: Check tsTON balance...");
-    const jettons = await getAllVerifiedJettons(address);
-    const tston = jettons.find(
-      (j) =>
-        j.jettonAddress.toLowerCase() === TSTON_ADDRESS.toLowerCase() ||
-        j.symbol === "tsTON"
-    );
+    console.log("[EXIT] Step 2: Checking tsTON balance on-chain...");
+    const tstonBalance = await getJettonBalanceOnChain(walletCtx, TSTON_ADDRESS);
+    console.log(`[EXIT] tsTON balance: ${fromNano(tstonBalance)} tsTON`);
 
-    if (tston && tston.balanceRaw > 0n) {
-      console.log(`[EXIT] Found ${tston.balance.toFixed(4)} tsTON. Initiating instant unstake...`);
-      await burnJetton(walletCtx, TSTON_ADDRESS, tston.balanceRaw, toNano("0.5"));
+    if (tstonBalance > 0n) {
+      console.log("[EXIT] Burning tsTON for instant unstake...");
+      await burnJetton(walletCtx, TSTON_ADDRESS, tstonBalance, toNano("0.5"));
       console.log("[EXIT] tsTON burn sent. Waiting 30s...");
       await sleep(30_000);
     } else {
-      console.log("[EXIT] No tsTON found, skipping step 2.");
+      console.log("[EXIT] No tsTON found.");
     }
   } catch (err) {
-    console.warn("[EXIT] Step 2 tsTON unstake failed (non-fatal):", (err as Error).message);
+    console.warn("[EXIT] Step 2 tsTON unstake error (non-fatal):", (err as Error).message);
   }
 
-  // ── Step 3: Sweep everything to user's ton_address ───────────────────────────
-  console.log("[EXIT] Step 3: Sweeping all verified tokens...");
-  const { jettonsSent, tonSentNano } = await sweepAllTokens(walletCtx, plan.ton_address);
+  // ── Step 3: Send USDT (on-chain check) ──────────────────────────────────────
+  try {
+    console.log("[EXIT] Step 3: Checking USDT balance...");
+    const usdtBalance = await getJettonBalanceOnChain(walletCtx, USDT_ADDRESS);
+    console.log(`[EXIT] USDT balance: ${Number(usdtBalance) / 1e6} USDT`);
 
-  const usdtSent = await getUsdtBalance(plan.ton_address).catch(() => 0);
-
-  const summary: string[] = [...jettonsSent];
-  if (tonSentNano > 0n) {
-    summary.push(`${Number(fromNano(tonSentNano)).toFixed(3)} TON`);
+    if (usdtBalance > 0n) {
+      await sendJettonTransfer(walletCtx, USDT_ADDRESS, usdtBalance, plan.ton_address);
+      const usdtHuman = Number(usdtBalance) / Math.pow(10, USDT_DECIMALS);
+      summary.push(`${usdtHuman.toFixed(2)} USDT`);
+      console.log(`[EXIT] Sent ${usdtHuman.toFixed(2)} USDT`);
+      await sleep(2_000);
+    }
+  } catch (err) {
+    console.warn("[EXIT] Step 3 USDT send error (non-fatal):", (err as Error).message);
   }
 
-  console.log(`[EXIT] Complete. Sent: ${summary.join(", ")}`);
+  // ── Step 4: Send remaining TON ───────────────────────────────────────────────
+  try {
+    const GAS_RESERVE = toNano("0.3");
+    const tonBalance = await getTonBalance(address);
+    const sendable = tonBalance > GAS_RESERVE ? tonBalance - GAS_RESERVE : 0n;
+    console.log(`[EXIT] TON balance: ${fromNano(tonBalance)}, sendable: ${fromNano(sendable)}`);
 
+    if (sendable > toNano("0.05")) {
+      const seqno = await typedContract.getSeqno();
+      await typedContract.sendTransfer({
+        seqno,
+        secretKey: Buffer.from(walletCtx.key.secretKey),
+        messages: [
+          internal({
+            to: Address.parse(plan.ton_address),
+            value: sendable,
+            bounce: false,
+          }),
+        ],
+        sendMode: SendMode.PAY_GAS_SEPARATELY,
+      });
+      summary.push(`${Number(fromNano(sendable)).toFixed(3)} TON`);
+      console.log(`[EXIT] Sent ${fromNano(sendable)} TON`);
+    }
+  } catch (err) {
+    console.warn("[EXIT] Step 4 TON send error (non-fatal):", (err as Error).message);
+  }
+
+  const usdtSent = summary
+    .filter((s) => s.endsWith("USDT"))
+    .reduce((acc, s) => acc + parseFloat(s), 0);
+
+  console.log(`[EXIT] Complete. Sent: ${summary.join(", ") || "nothing"}`);
   return { usdtSent, summary };
 }
