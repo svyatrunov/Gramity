@@ -9,7 +9,6 @@
  * The Telegram sender is injected by bot/index.ts to avoid circular deps.
  */
 
-import { getDepositAddress } from "../execution/index.js";
 import { getUsdtBalance } from "../services/tonapi.js";
 import { InlineKeyboard } from "grammy";
 
@@ -31,15 +30,17 @@ const MAX_POLL_MS = 30 * 60_000;   // give up after 30 min
 const timers = new Map<number, ReturnType<typeof setTimeout>>();
 const starts = new Map<number, number>();
 const reminded = new Set<number>();
+const depositAddresses = new Map<number, string>();
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
-export function startDepositPoller(telegramId: number): void {
+export function startDepositPoller(telegramId: number, depositAddress: string): void {
   stopDepositPoller(telegramId);
   starts.set(telegramId, Date.now());
+  depositAddresses.set(telegramId, depositAddress);
   reminded.delete(telegramId);
   scheduleNext(telegramId);
-  console.log(`[POLLER] Started for user ${telegramId}`);
+  console.log(`[POLLER] Started for user ${telegramId} → ${depositAddress}`);
 }
 
 export function stopDepositPoller(telegramId: number): void {
@@ -48,6 +49,7 @@ export function stopDepositPoller(telegramId: number): void {
     clearTimeout(t);
     timers.delete(telegramId);
   }
+  depositAddresses.delete(telegramId);
 }
 
 // ── Internals ─────────────────────────────────────────────────────────────────
@@ -62,7 +64,7 @@ async function tick(telegramId: number): Promise<void> {
   const elapsed = Date.now() - (starts.get(telegramId) ?? 0);
 
   try {
-    const depositAddress = await getDepositAddress().catch(() => "");
+    const depositAddress = depositAddresses.get(telegramId) ?? "";
     const balance = depositAddress ? await getUsdtBalance(depositAddress) : 0;
 
     if (balance >= 1) {

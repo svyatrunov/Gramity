@@ -17,9 +17,20 @@ export function getPool(): Pool {
   return _pool;
 }
 
+/** Lazy pool proxy for services that need `pool.query(sql, params)` */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const pool = { query: (sql: string, params?: any[]) => getPool().query(sql, params) };
+
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS user_wallets (
+  telegram_id        BIGINT      PRIMARY KEY,
+  wallet_address     TEXT        NOT NULL,
+  encrypted_mnemonic TEXT        NOT NULL,
+  created_at         TIMESTAMPTZ DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS plans (
   id                UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
   telegram_id       BIGINT      NOT NULL UNIQUE,

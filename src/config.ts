@@ -7,6 +7,14 @@ function require_env(key: string): string {
   return v;
 }
 
+// ─── Master encryption key (per-user wallet encryption) ──────────────────────
+if (
+  !process.env.MASTER_ENCRYPTION_KEY ||
+  process.env.MASTER_ENCRYPTION_KEY.length !== 64
+) {
+  throw new Error("MASTER_ENCRYPTION_KEY must be 32 bytes hex (64 hex chars)");
+}
+
 // ─── Wallet ───────────────────────────────────────────────────────────────────
 // Lazy — only validated when execution engine actually runs
 export function getMnemonic(): string[] {

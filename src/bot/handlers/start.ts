@@ -19,7 +19,7 @@ import {
   getLastExecutions,
 } from "../../db/index.js";
 import { getUsdtBalance } from "../../services/tonapi.js";
-import { getDepositAddress } from "../../execution/index.js";
+import { createUserWallet } from "../../services/userWallet.js";
 import {
   startDepositPoller,
   stopDepositPoller,
@@ -162,11 +162,11 @@ async function handleWalletInput(ctx: GramityContext, text: string) {
   ctx.session.tonAddress = normalized;
   ctx.session.step = "waiting_deposit_confirm";
 
-  const depositAddress = await getDepositAddress().catch(() => "недоступен");
-
-  // Start auto-detector
   const telegramId = ctx.from!.id;
-  startDepositPoller(telegramId);
+  const depositAddress = await createUserWallet(telegramId).catch(() => "недоступен");
+  ctx.session.depositAddress = depositAddress;
+
+  startDepositPoller(telegramId, depositAddress);
 
   await ctx.reply(
     `✅ Кошелёк сохранён\n` +
@@ -190,7 +190,9 @@ async function handleWalletInput(ctx: GramityContext, text: string) {
 
 async function handleDepositConfirm(ctx: GramityContext) {
   const telegramId = ctx.from!.id;
-  const depositAddress = await getDepositAddress().catch(() => "");
+  const depositAddress =
+    ctx.session.depositAddress ??
+    (await createUserWallet(telegramId).catch(() => ""));
   const balance = depositAddress ? await getUsdtBalance(depositAddress) : 0;
 
   if (balance < 1) {
@@ -416,6 +418,9 @@ async function handleActivate(ctx: GramityContext) {
       active: true,
       next_execution_at: firstDate.toISOString(),
     });
+
+    // Ensure isolated wallet exists (idempotent — safe to call again)
+    await createUserWallet(telegramId);
 
     ctx.session.step = "idle";
 

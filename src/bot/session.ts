@@ -12,6 +12,8 @@ export type OnboardingStep =
 export interface UserSession {
   step: OnboardingStep;
   tonAddress?: string;
+  /** Per-user isolated deposit wallet address (UQ format) */
+  depositAddress?: string;
   usdtBalance?: number;
   amount?: number;
   frequency?: "weekly" | "biweekly" | "monthly" | "minutely" | "hourly";

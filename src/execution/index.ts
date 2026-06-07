@@ -4,7 +4,7 @@
  */
 
 import { fromNano } from "@ton/ton";
-import { createWallet } from "../wallet.js";
+import { getUserWalletContext } from "../services/userWallet.js";
 import { step1Swap } from "../step1-swap.js";
 import { step2CalculateSplit } from "../step2-split.js";
 import { step3Stake } from "../step3-stake.js";
@@ -33,22 +33,12 @@ export class InsufficientFundsError extends Error {
   }
 }
 
-// Cached deposit address (backend wallet)
-let _depositAddress: string | null = null;
-
-export async function getDepositAddress(): Promise<string> {
-  if (_depositAddress) return _depositAddress;
-  const ctx = await createWallet();
-  _depositAddress = ctx.address;
-  return _depositAddress;
-}
-
 export async function executeStrategy(plan: Plan): Promise<ExecutionResult> {
   console.log(
     `[EXEC] Starting plan ${plan.id} (tg: ${plan.telegram_id}, amount: $${plan.usdt_amount})`
   );
 
-  const walletCtx = await createWallet();
+  const walletCtx = await getUserWalletContext(plan.telegram_id);
 
   // ── Pre-flight: check USDT balance ─────────────────────────────────────────
   const usdtBalance = await getUsdtBalance(walletCtx.address);

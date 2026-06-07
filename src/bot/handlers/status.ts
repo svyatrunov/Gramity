@@ -6,7 +6,7 @@ import {
   getTotalInvested,
 } from "../../db/index.js";
 import { getTonPriceUsd, getUsdtBalance } from "../../services/tonapi.js";
-import { getDepositAddress } from "../../execution/index.js";
+import { createUserWallet } from "../../services/userWallet.js";
 import { POOL_ADDRESS, STON_API_URL } from "../../config.js";
 import { InlineKeyboard } from "grammy";
 
@@ -44,7 +44,7 @@ export async function handleStatus(ctx: GramityContext) {
     getLastExecutions(plan.id, 50),
     getTotalInvested(plan.id),
     getTonPriceUsd(),
-    getDepositAddress().catch(() => ""),
+    createUserWallet(telegramId).catch(() => ""),
   ]);
 
   // ── LP position from STON.fi API ───────────────────────────────────────────
