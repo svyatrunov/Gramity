@@ -1,15 +1,21 @@
 import { Pool } from "pg";
 
-const DATABASE_URL = process.env.DATABASE_URL;
-if (!DATABASE_URL) throw new Error("Missing env var: DATABASE_URL");
+// Lazy singleton — Pool is created on first use, after dotenv.config() has run
+let _pool: Pool | null = null;
 
-export const pool = new Pool({
-  connectionString: DATABASE_URL,
-  ssl: { rejectUnauthorized: false }, // Railway / Supabase Postgres require SSL
-  max: 10,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
-});
+export function getPool(): Pool {
+  if (_pool) return _pool;
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("Missing env var: DATABASE_URL");
+  _pool = new Pool({
+    connectionString: url,
+    ssl: { rejectUnauthorized: false },
+    max: 10,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 5_000,
+  });
+  return _pool;
+}
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -44,7 +50,7 @@ CREATE TABLE IF NOT EXISTS executions (
 `;
 
 export async function initDb(): Promise<void> {
-  await pool.query(SCHEMA_SQL);
+  await getPool().query(SCHEMA_SQL);
   console.log("[DB] Schema ready");
 }
 
@@ -83,7 +89,7 @@ export interface Execution {
 export async function getPlanByTelegramId(
   telegramId: number
 ): Promise<Plan | null> {
-  const { rows } = await pool.query<Plan>(
+  const { rows } = await getPool().query<Plan>(
     "SELECT * FROM plans WHERE telegram_id = $1 LIMIT 1",
     [telegramId]
   );
@@ -93,7 +99,7 @@ export async function getPlanByTelegramId(
 export async function upsertPlan(
   plan: Omit<Plan, "id" | "created_at">
 ): Promise<Plan> {
-  const { rows } = await pool.query<Plan>(
+  const { rows } = await getPool().query<Plan>(
     `INSERT INTO plans
        (telegram_id, ton_address, agent_wallet, usdt_amount, frequency, active, next_execution_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -133,14 +139,14 @@ export async function updatePlan(
   if (fields.length === 0) return;
 
   values.push(telegramId);
-  await pool.query(
+  await getPool().query(
     `UPDATE plans SET ${fields.join(", ")} WHERE telegram_id = $${i}`,
     values
   );
 }
 
 export async function getDuePlans(): Promise<Plan[]> {
-  const { rows } = await pool.query<Plan>(
+  const { rows } = await getPool().query<Plan>(
     "SELECT * FROM plans WHERE active = true AND next_execution_at <= NOW()"
   );
   return rows;
@@ -151,7 +157,7 @@ export async function getDuePlans(): Promise<Plan[]> {
 export async function logExecution(
   execution: Omit<Execution, "id" | "executed_at">
 ): Promise<void> {
-  await pool.query(
+  await getPool().query(
     `INSERT INTO executions
        (plan_id, usdt_spent, ton_received, tston_received, lp_tokens_added,
         ton_price_usdt, lp_position_value, tx_swap, tx_stake, tx_lp, status)
@@ -176,7 +182,7 @@ export async function getLastExecutions(
   planId: string,
   limit = 5
 ): Promise<Execution[]> {
-  const { rows } = await pool.query<Execution>(
+  const { rows } = await getPool().query<Execution>(
     "SELECT * FROM executions WHERE plan_id = $1 ORDER BY executed_at DESC LIMIT $2",
     [planId, limit]
   );
@@ -184,7 +190,7 @@ export async function getLastExecutions(
 }
 
 export async function getTotalInvested(planId: string): Promise<number> {
-  const { rows } = await pool.query<{ total: string }>(
+  const { rows } = await getPool().query<{ total: string }>(
     "SELECT COALESCE(SUM(usdt_spent), 0) AS total FROM executions WHERE plan_id = $1 AND status = 'success'",
     [planId]
   );
