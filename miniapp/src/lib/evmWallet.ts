@@ -12,8 +12,6 @@ import {
   connectMetaMaskWallet,
   getMetaMaskConnectProvider,
   getBrowserExtensionProvider,
-  needsExternalBrowserForMetaMask,
-  redirectToExternalBrowserForMetaMask,
 } from "./metamaskConnect";
 
 type Eip1193Provider = {
@@ -40,14 +38,6 @@ export async function connectMetaMask(): Promise<{
   address: string;
   chainId: number;
 }> {
-  if (needsExternalBrowserForMetaMask()) {
-    redirectToExternalBrowserForMetaMask();
-    throw new WalletError(
-      "Откройте Gramity в браузере и подтвердите подключение в MetaMask",
-      "EXTERNAL_BROWSER"
-    );
-  }
-
   let eip1193: Eip1193Provider | null = getBrowserExtensionProvider();
 
   if (!eip1193) {

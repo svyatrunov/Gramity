@@ -28,11 +28,11 @@ export function isMobileDevice(): boolean {
   return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent ?? "");
 }
 
-/** initData from Telegram WebApp or from URL after external-browser handoff */
+/** initData only from Telegram WebApp — never from URL (external browser has no valid session). */
 export function getTelegramInitData(): string {
   const tgData = getTelegramWebApp()?.initData;
   if (tgData && tgData.includes("hash=")) return tgData;
-  return new URLSearchParams(window.location.search).get("tgWebAppData") ?? "";
+  return "";
 }
 
 export function isInsideTelegramMiniApp(): boolean {
@@ -57,34 +57,30 @@ function openMobileLink(link: string): void {
   window.location.assign(url);
 }
 
-export function needsExternalBrowserForMetaMask(): boolean {
-  return isInsideTelegramMiniApp() && isMobileDevice() && !getBrowserExtensionProvider();
-}
-
-export function buildMetaMaskExternalUrl(targetHref?: string): string {
-  const url = new URL(targetHref ?? window.location.href);
-  url.searchParams.set("mm_connect", "1");
-  const initData = getTelegramInitData();
-  if (initData) url.searchParams.set("tgWebAppData", initData);
-  return url.toString();
-}
-
-export function openInExternalBrowser(url: string): void {
+/** Route metamask:// / app.link through tg.openLink (Telegram WebView blocks raw deeplinks). */
+function installTelegramOpenLinkPatch(): void {
+  if (!isInsideTelegramMiniApp()) return;
   const tg = getTelegramWebApp();
-  if (tg?.openLink) {
-    tg.openLink(url);
-    return;
-  }
-  window.location.assign(url);
-}
+  if (!tg?.openLink) return;
 
-/** Telegram WebView blocks wallet deeplinks — open the page in the system browser first. */
-export function redirectToExternalBrowserForMetaMask(targetHref?: string): void {
-  openInExternalBrowser(buildMetaMaskExternalUrl(targetHref));
+  const originalOpen = window.open.bind(window);
+  window.open = (url?: string | URL, target?: string, features?: string) => {
+    const href = typeof url === "string" ? url : url?.toString() ?? "";
+    if (
+      href.startsWith("metamask://") ||
+      href.includes("metamask.app.link") ||
+      href.includes("link.metamask.io")
+    ) {
+      openMobileLink(href);
+      return null;
+    }
+    return originalOpen(url, target, features);
+  };
 }
 
 export function getMetaMaskConnectClient(): Promise<MetamaskConnectEVM> {
   if (!clientPromise) {
+    installTelegramOpenLinkPatch();
     clientPromise = createEVMClient({
       dapp: {
         name: "Gramity",

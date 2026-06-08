@@ -1750,7 +1750,7 @@
               <span class="logo-circle logo-circle-lg"><img src="/app/logos/metamask.svg" alt="" class="wallet-logo-img" width="28" height="28"/></span>
               <div style="flex:1;text-align:left">
                 <div>Connect MetaMask</div>
-                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Opens in mobile browser · ETH · Base · BNB · Polygon</div>
+                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Opens MetaMask app · ETH · Base · BNB · Polygon</div>
               </div>
             </button>
           </div>
@@ -2139,8 +2139,7 @@
       var BOT_AUTH_URL = 'https://t.me/GramityBot';
       function getInitData() {
         if (tg && tg.initData && tg.initData.indexOf('hash=') !== -1) return tg.initData;
-        var p = new URLSearchParams(window.location.search);
-        return p.get('tgWebAppData') || '';
+        return '';
       }
       var initData = getInitData();
       var HAS_TG_AUTH = initData.indexOf('hash=') !== -1;
@@ -2886,31 +2885,7 @@
         if (e.key === 'Enter') document.getElementById('btnScanTon').click();
       });
 
-      function isMobileDevice() {
-        return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
-      }
-
-      function needsExternalBrowserForMetaMask() {
-        if (window.GramityMetaMask && window.GramityMetaMask.needsExternalBrowser) {
-          return window.GramityMetaMask.needsExternalBrowser();
-        }
-        return !!(tg && tg.initData && tg.initData.indexOf('hash=') !== -1) &&
-          isMobileDevice() && !getExtensionProvider();
-      }
-
-      function redirectToExternalBrowserForMetaMask() {
-        if (window.GramityMetaMask && window.GramityMetaMask.redirectToExternalBrowser) {
-          window.GramityMetaMask.redirectToExternalBrowser();
-          return;
-        }
-        var url = new URL(window.location.origin + '/app/onboarding.html');
-        url.searchParams.set('mm_connect', '1');
-        if (initData) url.searchParams.set('tgWebAppData', initData);
-        if (tg && tg.openLink) tg.openLink(url.toString());
-        else window.location.href = url.toString();
-      }
-
-      /* MetaMask connect — extension (desktop) or MetaMask Connect SDK (mobile deeplink) */
+      /* MetaMask connect — extension (desktop) or MetaMask Connect SDK (mobile deeplink via tg.openLink) */
       function getExtensionProvider() {
         if (!window.ethereum) return null;
         if (window.ethereum.providers && window.ethereum.providers.length) {
@@ -2991,18 +2966,6 @@
         var labelEl = btn.querySelector('div').children[0];
         var hintEl = btn.querySelector('div').children[1];
 
-        if (needsExternalBrowserForMetaMask()) {
-          labelEl.textContent = 'Opening browser…';
-          if (hintEl) hintEl.textContent = 'Confirm MetaMask connection there';
-          btn.style.borderColor = 'rgba(0,152,234,0.35)';
-          redirectToExternalBrowserForMetaMask();
-          setTimeout(function () {
-            labelEl.textContent = 'Open in browser ↑';
-            if (hintEl) hintEl.textContent = 'Tap link if browser did not open';
-          }, 2500);
-          return;
-        }
-
         labelEl.textContent = getExtensionProvider() ? 'Connecting…' : 'Opening MetaMask…';
         btn.style.borderColor = '';
 
@@ -3024,48 +2987,11 @@
           }
           setTimeout(function () {
             labelEl.textContent = 'Connect MetaMask';
-            if (hintEl) hintEl.textContent = 'Opens in mobile browser · ETH · Base · BNB · Polygon';
+            if (hintEl) hintEl.textContent = 'Opens MetaMask app · ETH · Base · BNB · Polygon';
             btn.style.borderColor = '';
           }, 4000);
         });
       });
-
-      /* Auto-connect MetaMask when opened in system browser from Telegram */
-      (function tryAutoMetaMaskConnect() {
-        var params = new URLSearchParams(window.location.search);
-        if (params.get('mm_connect') !== '1') return;
-        if (needsExternalBrowserForMetaMask()) return;
-
-        params.delete('mm_connect');
-        var qs = params.toString();
-        history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash);
-
-        function runAutoConnect() {
-          goTo(7);
-          var btn = document.getElementById('btnConnectMM');
-          var labelEl = btn && btn.querySelector('div').children[0];
-          if (labelEl) labelEl.textContent = 'Opening MetaMask…';
-
-          var attempt = getExtensionProvider()
-            ? connectViaExtension(btn)
-            : connectViaMetaMaskSdk(btn);
-
-          attempt.then(function (res) {
-            handleMetaMaskAccounts(btn, res.accounts, res.provider);
-          }).catch(function (err) {
-            console.error('[MetaMask auto]', err);
-            if (labelEl) labelEl.textContent = 'Connect MetaMask';
-          });
-        }
-
-        if (window.GramityMetaMask) {
-          setTimeout(runAutoConnect, 500);
-        } else {
-          window.addEventListener('gramity-metamask-ready', function () {
-            setTimeout(runAutoConnect, 500);
-          }, { once: true });
-        }
-      })();
 
       /* Disconnect wallet */
       document.getElementById('btnDisconnectWallet').addEventListener('click', function () {

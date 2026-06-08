@@ -6,7 +6,7 @@ function getInitData(): string {
   const tgData = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } })
     .Telegram?.WebApp?.initData;
   if (tgData && tgData.includes("hash=")) return tgData;
-  return new URLSearchParams(window.location.search).get("tgWebAppData") ?? "";
+  return "";
 }
 
 function headers(): HeadersInit {
