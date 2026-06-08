@@ -193,6 +193,41 @@ export function DepositScreen() {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("mm_connect") !== "1") return;
+
+    params.delete("mm_connect");
+    const qs = params.toString();
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${qs ? `?${qs}` : ""}`
+    );
+
+    let cancelled = false;
+    (async () => {
+      setConnecting(true);
+      setConnectErr("");
+      try {
+        const conn = await connectMetaMask();
+        if (cancelled) return;
+        setProvider(conn.provider);
+        setWalletAddress(conn.address);
+        setWalletChainId(conn.chainId);
+        setStep(2);
+      } catch (e: unknown) {
+        if (!cancelled) setConnectErr(parseWalletError(e));
+      } finally {
+        if (!cancelled) setConnecting(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const tokens = TOKENS_BY_CHAIN[chainKey];
     setToken(tokens[0]);
     setQuote(null);

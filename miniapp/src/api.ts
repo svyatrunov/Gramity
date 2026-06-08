@@ -3,8 +3,10 @@
 const BASE = "/api";
 
 function getInitData(): string {
-  return (window as unknown as { Telegram?: { WebApp?: { initData?: string } } })
-    .Telegram?.WebApp?.initData ?? "";
+  const tgData = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } })
+    .Telegram?.WebApp?.initData;
+  if (tgData && tgData.includes("hash=")) return tgData;
+  return new URLSearchParams(window.location.search).get("tgWebAppData") ?? "";
 }
 
 function headers(): HeadersInit {
