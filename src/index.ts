@@ -41,6 +41,7 @@ import {
   getNextPlanExecutionDate,
   formatPlanFrequency,
 } from "./constants/dca.js";
+import { normalizeTonAddress, hasWithdrawalAddress } from "./utils/tonAddress.js";
 
 // ─── Express app ──────────────────────────────────────────────────────────────
 
@@ -186,6 +187,8 @@ app.get("/api/portfolio", tgAuth, async (req, res) => {
             strategy_mode: plan.strategy_mode,
             active: plan.active,
             next_execution_at: plan.next_execution_at,
+            ton_address: plan.ton_address,
+            withdrawal_address_set: Boolean(plan.ton_address),
           }
         : null,
       executions: executions.map((e) => ({
@@ -237,6 +240,10 @@ app.post("/api/withdraw/usdt", tgAuth, async (req, res) => {
     const { getPlanByTelegramId } = await import("./db/index.js");
     const plan = await getPlanByTelegramId(telegramId);
     if (!plan) { res.status(404).json({ error: "No plan" }); return; }
+    if (!hasWithdrawalAddress(plan.ton_address)) {
+      res.status(400).json({ error: "Withdrawal address not set" });
+      return;
+    }
 
     const walletCtx = await getUserWalletContext(telegramId);
     const balance = await getUsdtBalance(walletCtx.address);
@@ -257,6 +264,10 @@ app.post("/api/withdraw/all", tgAuth, async (req, res) => {
     const { getPlanByTelegramId, updatePlan } = await import("./db/index.js");
     const plan = await getPlanByTelegramId(telegramId);
     if (!plan) { res.status(404).json({ error: "No plan" }); return; }
+    if (!hasWithdrawalAddress(plan.ton_address)) {
+      res.status(400).json({ error: "Withdrawal address not set" });
+      return;
+    }
     await updatePlan(telegramId, { active: false });
     const result = await executeFullExit(plan);
     res.json({ summary: result.summary });
@@ -708,18 +719,33 @@ app.get("/api/dca/limits", (_req, res) => {
 });
 
 // Create / update DCA plan from Mini App
-app.post("/api/plans", tgAuth, async (req, res) => {
+async function handleCreatePlan(
+  req: express.Request & { telegramId: number },
+  res: express.Response
+): Promise<void> {
   try {
-    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
-    const { ton_address, amount_usdt, frequency, strategy, demo_mode } = req.body ?? {};
+    const telegramId = req.telegramId;
+    const body = req.body ?? {};
+    const rawAddress =
+      body.ton_address ?? body.withdrawalAddress ?? body.withdrawal_address;
+    const { amount_usdt, amount, frequency, strategy, demo_mode } = body;
 
-    if (!ton_address || typeof ton_address !== "string") {
-      res.status(400).json({ error: "ton_address is required" });
-      return;
+    let normalizedAddress: string | null = null;
+    if (rawAddress != null && String(rawAddress).trim() !== "") {
+      if (typeof rawAddress !== "string") {
+        res.status(400).json({ error: "Invalid ton_address" });
+        return;
+      }
+      normalizedAddress = normalizeTonAddress(rawAddress);
+      if (!normalizedAddress) {
+        res.status(400).json({ error: "Invalid TON withdrawal address" });
+        return;
+      }
     }
+
     const isQuickMode = demo_mode === true || demo_mode === "true";
-    const amount = Number(amount_usdt);
-    const amountError = validatePlanAmount(amount, isQuickMode);
+    const amountUsdt = Number(amount_usdt ?? amount);
+    const amountError = validatePlanAmount(amountUsdt, isQuickMode);
     if (amountError) {
       res.status(400).json({
         error: amountError,
@@ -739,9 +765,9 @@ app.post("/api/plans", tgAuth, async (req, res) => {
     const { upsertPlan } = await import("./db/index.js");
     const plan = await upsertPlan({
       telegram_id:       telegramId,
-      ton_address:       String(ton_address),
+      ton_address:       normalizedAddress,
       agent_wallet:      null,
-      usdt_amount:       amount,
+      usdt_amount:       amountUsdt,
       frequency:         normalizedFreq,
       strategy_mode:     "full",
       active:            true,
@@ -773,13 +799,17 @@ app.post("/api/plans", tgAuth, async (req, res) => {
       .row()
       .url("🤖 Manage with Mira", "https://t.me/mira");
 
+    const withdrawalLine = normalizedAddress
+      ? `Withdrawal: \`${normalizedAddress.slice(0, 8)}…${normalizedAddress.slice(-6)}\`\n\n`
+      : `⚠️ Withdrawal address not set — open App to add before cycles run.\n\n`;
+
     if (isQuickMode) {
       await bot.api.sendMessage(
         telegramId,
         `🚀 *Quick Start activated*\n\n` +
-          `2 cycles × $${amount.toFixed(0)} USDT\n` +
+          `2 cycles × $${amountUsdt.toFixed(0)} USDT\n` +
           `Interval: ${freqLabel}\n` +
-          `Withdrawal: \`${String(ton_address).slice(0, 8)}…${String(ton_address).slice(-6)}\`\n\n` +
+          withdrawalLine +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `*FUND YOUR AGENT WALLET*\n` +
           `Send USDT here to start:\n\n` +
@@ -793,8 +823,9 @@ app.post("/api/plans", tgAuth, async (req, res) => {
         telegramId,
         `✅ *DCA Strategy Created!*\n\n` +
           `Strategy:  ${strategyLabel}\n` +
-          `Amount:    $${amount.toFixed(0)} USDT / ${freqLabel}\n` +
+          `Amount:    $${amountUsdt.toFixed(0)} USDT / ${freqLabel}\n` +
           `Est. APY:  ~5.4%\n\n` +
+          withdrawalLine +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `*FUND YOUR AGENT WALLET*\n` +
           `Send USDT here to start:\n\n` +
@@ -805,26 +836,88 @@ app.post("/api/plans", tgAuth, async (req, res) => {
       );
     }
 
-    console.log(`[API/plans] Strategy created user=${telegramId} amount=${amount} freq=${normalizedFreq} quick=${isQuickMode}`);
+    console.log(
+      `[API/plans] Strategy created user=${telegramId} amount=${amountUsdt} freq=${normalizedFreq} quick=${isQuickMode} withdrawal=${normalizedAddress ? "set" : "pending"}`
+    );
 
     const { getTonPriceUsd } = await import("./services/tonapi.js");
     const tonPrice = await getTonPriceUsd().catch(() => 5);
-    const economics_hint = isQuickMode ? undefined : buildEconomicsHint(amount, tonPrice);
+    const economics_hint = isQuickMode ? undefined : buildEconomicsHint(amountUsdt, tonPrice);
 
     res.json({
       ok: true,
       message: isQuickMode ? "Quick Start strategy created" : "Strategy created successfully",
       plan_id: plan.id,
       agent_wallet_address: depositAddress,
-      amount_usdt: amount,
+      amount_usdt: amountUsdt,
       deposit_address: depositAddress,
       deposit_url: depositUrl,
       quick_mode: isQuickMode,
       demo_mode: isQuickMode,
+      withdrawal_address: normalizedAddress,
+      withdrawal_address_set: hasWithdrawalAddress(normalizedAddress),
       ...(economics_hint ? { economics_hint } : {}),
     });
   } catch (err) {
     console.error("[API/plans] Error:", err);
+    res.status(500).json({ error: (err as Error).message });
+  }
+}
+
+app.post("/api/plans", tgAuth, (req, res) => {
+  void handleCreatePlan(req as express.Request & { telegramId: number }, res);
+});
+app.post("/api/strategy/create", tgAuth, (req, res) => {
+  void handleCreatePlan(req as express.Request & { telegramId: number }, res);
+});
+
+// Lock withdrawal address after first set (during onboarding skip flow)
+app.post("/api/plans/withdrawal-address", tgAuth, async (req, res) => {
+  try {
+    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const raw = req.body?.ton_address ?? req.body?.withdrawalAddress;
+    if (raw == null || String(raw).trim() === "") {
+      res.status(400).json({ error: "ton_address is required" });
+      return;
+    }
+
+    const normalized = normalizeTonAddress(String(raw));
+    if (!normalized) {
+      res.status(400).json({ error: "Invalid TON withdrawal address" });
+      return;
+    }
+
+    const { getPlanByTelegramId, updatePlan } = await import("./db/index.js");
+    const plan = await getPlanByTelegramId(telegramId);
+    if (!plan) {
+      res.status(404).json({ error: "No plan found" });
+      return;
+    }
+    if (hasWithdrawalAddress(plan.ton_address)) {
+      res.status(409).json({
+        error: "Withdrawal address is already set and locked",
+        ton_address: plan.ton_address,
+      });
+      return;
+    }
+
+    await updatePlan(telegramId, { ton_address: normalized });
+
+    const { bot } = await import("./bot/index.js");
+    await bot.api.sendMessage(
+      telegramId,
+      `✅ *Withdrawal address set*\n\n` +
+        `\`${normalized.slice(0, 8)}…${normalized.slice(-6)}\`\n\n` +
+        `LP tokens and withdrawals will go here. Address is locked.`,
+      { parse_mode: "Markdown" }
+    );
+
+    res.json({
+      ok: true,
+      ton_address: normalized,
+      withdrawal_address_set: true,
+    });
+  } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
 });

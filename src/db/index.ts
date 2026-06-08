@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS user_wallets (
 CREATE TABLE IF NOT EXISTS plans (
   id                UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
   telegram_id       BIGINT      NOT NULL UNIQUE,
-  ton_address       TEXT        NOT NULL,
+  ton_address       TEXT,
   agent_wallet      TEXT,
   usdt_amount       NUMERIC     NOT NULL,
   frequency         TEXT        NOT NULL,
@@ -110,6 +110,11 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 
+DO $$ BEGIN
+  ALTER TABLE plans ALTER COLUMN ton_address DROP NOT NULL;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
 CREATE TABLE IF NOT EXISTS notification_log (
   id           UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
   plan_id      UUID        REFERENCES plans(id) ON DELETE CASCADE,
@@ -152,7 +157,7 @@ export async function initDb(): Promise<void> {
 export interface Plan {
   id: string;
   telegram_id: number;
-  ton_address: string;
+  ton_address: string | null;
   agent_wallet: string | null;
   usdt_amount: number;
   frequency: "weekly" | "biweekly" | "monthly" | "daily" | "minutely" | "hourly" | "demo" | "10s" | "30s" | "60s";
@@ -225,7 +230,7 @@ export async function upsertPlan(
        (telegram_id, ton_address, agent_wallet, usdt_amount, frequency, active, next_execution_at, strategy_mode, demo_mode, cycles_completed, max_cycles)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      ON CONFLICT (telegram_id) DO UPDATE SET
-       ton_address       = EXCLUDED.ton_address,
+       ton_address       = COALESCE(EXCLUDED.ton_address, plans.ton_address),
        agent_wallet      = EXCLUDED.agent_wallet,
        usdt_amount       = EXCLUDED.usdt_amount,
        frequency         = EXCLUDED.frequency,
