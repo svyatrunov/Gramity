@@ -98,6 +98,10 @@ export function buildMiraBotDeeplink(telegramId: number | string): string {
   return `https://t.me/mira?start=gramity_${telegramId}`;
 }
 
+export function buildMiraOnboardingDeeplink(telegramId: number | string): string {
+  return `https://t.me/mira?start=gramity_onboard_${telegramId}`;
+}
+
 export function parseTelegramId(raw: unknown): number | null {
   if (raw == null || raw === "") return null;
   const str = String(raw).trim();

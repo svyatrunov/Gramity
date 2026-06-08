@@ -800,6 +800,20 @@ async function handleCreatePlan(
       demo_mode: isQuickMode,
     });
 
+    const STRATEGY_MODE_MAP: Record<string, "full" | "stake_only" | "accumulate"> = {
+      ton: "full",
+      multiply: "full",
+      lp: "full",
+      full: "full",
+      stake: "stake_only",
+      stake_only: "stake_only",
+      ston: "accumulate",
+      accumulate: "accumulate",
+    };
+    const rawStrategy = body.strategy_mode ?? body.strategy;
+    const strategyMode =
+      STRATEGY_MODE_MAP[String(rawStrategy)] ?? "full";
+
     const { upsertPlan } = await import("./db/index.js");
     const plan = await upsertPlan({
       telegram_id:       telegramId,
@@ -807,7 +821,7 @@ async function handleCreatePlan(
       agent_wallet:      null,
       usdt_amount:       amountUsdt,
       frequency:         normalizedFreq,
-      strategy_mode:     "full",
+      strategy_mode:     strategyMode,
       active:            true,
       next_execution_at: nextExec.toISOString(),
       demo_mode:         isQuickMode,
@@ -822,7 +836,13 @@ async function handleCreatePlan(
 
     const STRATEGY_LABELS: Record<string, string> = {
       ton: "TON + Stake + LP",
+      multiply: "Multiply Tokens",
+      stake: "TON Stake",
+      stake_only: "TON Stake",
+      lp: "Liquidity Pool",
       ston: "STON accumulation",
+      accumulate: "STON accumulation",
+      full: "Multiply Tokens",
     };
 
     const { bot } = await import("./bot/index.js");
@@ -830,12 +850,15 @@ async function handleCreatePlan(
     const { RAILWAY_PUBLIC_URL } = await import("./config.js");
     const depositUrl = `${RAILWAY_PUBLIC_URL}/app/deposit.html?wallet=${encodeURIComponent(depositAddress)}`;
 
-    const strategyLabel = STRATEGY_LABELS[String(strategy)] ?? "TON + Stake + LP";
+    const strategyLabel =
+      STRATEGY_LABELS[String(rawStrategy)] ??
+      STRATEGY_LABELS[strategyMode] ??
+      "Multiply Tokens";
     const freqLabel = formatPlanFrequency(normalizedFreq, isQuickMode);
     const planKb = new InlineKeyboard()
       .text("📊 Track Status", "status_check")
       .row()
-      .url("🤖 Manage with Mira", "https://t.me/mira");
+      .url("💬 Talk with Mira", "https://t.me/mira");
 
     const withdrawalLine = normalizedAddress
       ? `Withdrawal: \`${normalizedAddress.slice(0, 8)}…${normalizedAddress.slice(-6)}\`\n\n`

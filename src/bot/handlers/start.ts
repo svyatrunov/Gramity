@@ -84,11 +84,13 @@ export async function handleStart(ctx: GramityContext) {
     const execs       = await getLastExecutions(existingPlan.id, 1).catch(() => []);
     const lastExec    = execs[0];
 
+    const miraUrl = `https://t.me/mira?start=gramity_${telegramId}`;
     const kb = new InlineKeyboard()
       .text("📊 Status", "status_check")
       .text(existingPlan.active ? "⏸ Pause" : "▶️ Resume", existingPlan.active ? "pause" : "resume")
       .row()
-      .webApp("🚀 Open App", appUrl);
+      .webApp("🚀 Open App", appUrl)
+      .url("💬 Talk with Mira", miraUrl);
 
     await ctx.reply(
       `👋 Welcome back!\n\n` +
@@ -111,21 +113,23 @@ export async function handleStart(ctx: GramityContext) {
   // ── New user — Open App button ─────────────────────────────────────────────
   ctx.session.step = "idle";
 
+  const miraOnboardUrl = `https://t.me/mira?start=gramity_onboard_${telegramId}`;
   const kb = new InlineKeyboard()
-    .webApp("🚀 Open App", appUrl);
+    .webApp("🚀 Open App", appUrl)
+    .row()
+    .url("💬 Talk with Mira", miraOnboardUrl);
 
   await ctx.reply(
     `👋 Welcome to *Gramity* — automated DCA on TON.\n\n` +
       `*How it works:*\n` +
-      `💵 Deposit USDT once (any chain: ETH, Base, BNB, Polygon or TON)\n` +
+      `💵 One deposit from any chain (ETH, Base, BNB, Polygon or TON)\n` +
       `⚡ Every cycle, Gramity automatically:\n` +
       `  › Swaps USDT → TON via Omniston\n` +
       `  › Stakes → tsTON via Tonstakers (~5% APY)\n` +
-      `  › Provides liquidity on STON.fi (~5.4% APY)\n\n` +
-      `*LP tokens go directly to your wallet.*\n` +
+      `  › Compounds LP on STON.fi (~5.4% APY)\n\n` +
+      `*Rewards auto-reinvest* in your LP position.\n` +
       `~5.4% APY · 0% platform fee\n\n` +
-      `After setup, manage via *@Mira* (portfolio, pause, update).\n\n` +
-      `Tap *Open App* to set up in ~2 minutes 👇`,
+      `*Talk with Mira* to learn Gramity ideology, community gravity, Soulbound perks & NFT rewards — or tap *Open App* to set up in ~2 minutes 👇`,
     { parse_mode: "Markdown", reply_markup: kb }
   );
 }

@@ -11,6 +11,7 @@ import {
   sanitizeForMira,
   parseTelegramId,
   buildMiraBotDeeplink,
+  buildMiraOnboardingDeeplink,
   strategyModeToSlug,
 } from "./utils.js";
 import { hasWithdrawalAddress } from "../utils/tonAddress.js";
@@ -131,8 +132,20 @@ export function registerMiraRoutes(app: Express): void {
       }
 
       const plan = await getPlanByTelegramId(telegramId);
+      const fromOnboarding =
+        req.body?.source === "onboarding" || req.body?.context === "onboarding";
       if (!plan) {
-        res.json(await buildMiraContext(telegramId));
+        const ctx = await buildMiraContext(telegramId);
+        if (fromOnboarding) {
+          res.json({
+            ...ctx,
+            deeplink: buildMiraOnboardingDeeplink(telegramId),
+            mira_deeplink: buildMiraOnboardingDeeplink(telegramId),
+            context: "onboarding",
+          });
+          return;
+        }
+        res.json(ctx);
         return;
       }
 

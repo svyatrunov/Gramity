@@ -1626,23 +1626,81 @@
     .auth-gate-card strong { color: var(--accent); }
     .app.auth-locked { pointer-events: none; user-select: none; filter: blur(5px); }
 
-    #skip-onboarding {
-      position: fixed;
-      top: 16px;
-      right: 16px;
-      z-index: 1000;
-      background: rgba(255,255,255,0.12);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,0.18);
-      border-radius: 20px;
-      padding: 6px 14px;
-      font-size: 13px;
-      color: rgba(255,255,255,0.75);
-      cursor: pointer;
-      font-family: var(--font);
-      display: none;
+    .time-savings {
+      margin-top: 14px;
+      padding: 14px 16px;
+      background: rgba(74,138,255,0.06);
+      border: 1px solid rgba(74,138,255,0.2);
+      border-radius: var(--radius);
     }
+    .time-savings-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+    .time-savings-desc,
+    .time-savings-highlight {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.65;
+    }
+    .time-savings-desc strong,
+    .time-savings-highlight strong { color: var(--accent); font-weight: 600; }
+    .time-savings-highlight { margin-top: 8px; }
+
+    .strategy-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .strategy-card {
+      position: relative;
+      padding: 12px 8px 10px;
+      background: rgba(255,255,255,0.03);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      text-align: center;
+      font-family: var(--font);
+      color: var(--text-primary);
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .strategy-card.selected { border-color: var(--accent); background: rgba(74,138,255,0.08); }
+    .strategy-card.locked { opacity: 0.45; cursor: default; pointer-events: none; }
+    .strategy-icon { font-size: 20px; margin-bottom: 4px; }
+    .strategy-name { font-size: 12px; font-weight: 600; }
+    .strategy-desc { font-size: 10px; color: var(--text-secondary); margin-top: 2px; line-height: 1.4; }
+    .strategy-check {
+      position: absolute; top: 7px; right: 7px; width: 16px; height: 16px;
+      border-radius: 50%; background: var(--accent); color: #fff;
+      font-size: 10px; display: none; align-items: center; justify-content: center;
+    }
+    .strategy-card.selected .strategy-check { display: flex; }
+
+    .mira-perks {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      text-align: left;
+      margin: 12px 0;
+      list-style: none;
+      padding: 0;
+    }
+    .mira-perks li {
+      margin-bottom: 6px;
+      padding-left: 14px;
+      position: relative;
+    }
+    .mira-perks li::before {
+      content: '·';
+      position: absolute;
+      left: 0;
+      color: #a78bfa;
+      font-weight: 700;
+    }
+
+    @keyframes gramHubPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.55; }
+    }
+    .fund-gram-hub { animation: gramHubPulse 3.2s ease-in-out infinite; }
 
     .wizard-step-bar-2 {
       display: flex;
@@ -1858,8 +1916,6 @@
     </defs>
   </svg>
 
-  <button type="button" id="skip-onboarding">Skip →</button>
-
   <div class="app" id="app">
     <button class="nav-arrow prev hidden" id="btnPrev" aria-label="Previous">←</button>
     <button class="nav-arrow next" id="btnNext" aria-label="Next">→</button>
@@ -1886,8 +1942,7 @@
                 > </object>
               </div>
               <div class="hero-text">
-                <h1 class="hero-title hero-line">Gramity</h1>
-                <p class="hero-subtitle hero-line">Compounding yield on autopilot.</p>
+                <h1 class="hero-wordmark hero-line">Gramity</h1>
                 <p class="hero-tagline hero-line">DCA Agentic Wallets</p>
                 <p class="hero-meta hero-line">powered by <span class="mira-accent">Mira AI</span> · STON.fi · TON</p>
               </div>
@@ -1934,30 +1989,41 @@
             </div>
           </div>
 
-          <!-- Wallet connect preview -->
-          <div class="wallet-strip anim-item" id="walletStripSlide1">
-            <div class="wallet-strip-label">Connect to preview your balance</div>
-            <div class="wallet-strip-btns">
-              <button class="wstrip-btn ton" id="btnConnectTonStrip">
-                <span class="logo-circle"><img src="/app/logos/ton.png" alt="" class="wallet-logo-img" width="22" height="22"/></span>
-                TON Connect
-              </button>
-              <button class="wstrip-btn mm" id="btnConnectMMStrip">
-                <span class="logo-circle"><img src="/app/logos/metamask.svg" alt="" class="wallet-logo-img" width="22" height="22"/></span>
-                MetaMask
-              </button>
-            </div>
+          <div class="time-savings anim-item">
+            <p class="time-savings-title">One agent wallet — zero context switching</p>
+            <p class="time-savings-desc">No more hopping between wallets, chains, transfers, staking and liquidity pools — each manual session costs at least <strong>5 minutes</strong>.</p>
+            <p class="time-savings-highlight">With daily DCA, Gramity automates it all and saves you <strong>30+ hours per year</strong>.</p>
           </div>
-          <!-- Balance preview result -->
-          <div id="stripBalanceResult" style="margin-top:10px;display:none">
-            <div class="wstrip-connected">
-              <span class="wstrip-addr" id="stripAddr"></span>
-              <span class="wstrip-total" id="stripTotal"></span>
-            </div>
+
+          <div class="strategy-grid anim-item" id="strategyGrid">
+            <button type="button" class="strategy-card selected" data-strategy="multiply">
+              <span class="strategy-check">✓</span>
+              <div class="strategy-icon">⚡</div>
+              <div class="strategy-name">Multiply Tokens</div>
+              <div class="strategy-desc">Swap → stake → LP</div>
+            </button>
+            <button type="button" class="strategy-card" data-strategy="stake">
+              <span class="strategy-check">✓</span>
+              <div class="strategy-icon">🛡</div>
+              <div class="strategy-name">TON Stake</div>
+              <div class="strategy-desc">Liquid staking only</div>
+            </button>
+            <button type="button" class="strategy-card" data-strategy="lp">
+              <span class="strategy-check">✓</span>
+              <div class="strategy-icon">💧</div>
+              <div class="strategy-name">Liquidity Pool</div>
+              <div class="strategy-desc">STON.fi LP position</div>
+            </button>
+            <button type="button" class="strategy-card locked" data-strategy="partners">
+              <div class="strategy-icon">🤝</div>
+              <div class="strategy-name">Partners</div>
+              <div class="strategy-desc">Coming soon</div>
+            </button>
           </div>
         </div>
         <div class="slide-footer">
           <div class="dots dots-clone"></div>
+          <button class="btn btn-link anim-item btn-slide-next" type="button">Get started →</button>
         </div>
       </section>
 
@@ -2006,10 +2072,10 @@
             <div class="flow-connector anim-item"><svg viewBox="0 0 2 26"><line class="flow-line" x1="1" y1="0" x2="1" y2="26"/><circle class="flow-dot flow-dot-4" cx="1" cy="0" r="2"/></svg></div>
 
             <div class="flow-node anim-item">
-              <div class="logo-node"><svg width="36" height="36"><use href="#logo-wallet"/></svg></div>
+              <div class="logo-node"><svg width="36" height="36"><use href="#logo-ston"/></svg></div>
               <div class="flow-node-text">
-                <strong>LP tokens in your wallet</strong>
-                <span>LP to your wallet · direct delivery</span>
+                <strong>Auto-compound & LP</strong>
+                <span>LP stays in position · auto-reinvested · withdraw later if needed</span>
               </div>
             </div>
 
@@ -2017,6 +2083,7 @@
         </div>
         <div class="slide-footer">
           <div class="dots dots-clone"></div>
+          <button class="btn btn-link anim-item btn-slide-next" type="button">Get started →</button>
         </div>
       </section>
 
@@ -2086,9 +2153,9 @@
               <image href="/app/logos/polygon.png" x="18" y="168" width="44" height="44" clip-path="url(#cp-fd-poly)" preserveAspectRatio="xMidYMid slice"/>
               <text x="40" y="225" text-anchor="middle" font-size="9.5" fill="#999" font-family="system-ui,sans-serif">Polygon</text>
 
-              <circle cx="168" cy="115" r="27" fill="#0d1320" stroke="#4A8AFF" stroke-width="1.8"/>
-              <image href="/app/logos/ston.png" x="141" y="88" width="54" height="54" clip-path="url(#cp-fd-ston)" preserveAspectRatio="xMidYMid slice"/>
-              <text x="168" y="156" text-anchor="middle" font-size="9.5" fill="#4A8AFF" font-family="system-ui,sans-serif" font-weight="600">STON.fi</text>
+              <circle cx="168" cy="115" r="27" fill="#000000" stroke="rgba(255,255,255,0.35)" stroke-width="1.8" class="fund-gram-hub"/>
+              <image href="/app/logos/gram-gravity-animated.svg" x="141" y="88" width="54" height="54" clip-path="url(#cp-fd-ston)" preserveAspectRatio="xMidYMid slice" class="fund-gram-hub"/>
+              <text x="168" y="156" text-anchor="middle" font-size="9.5" fill="#ffffff" font-family="system-ui,sans-serif" font-weight="600">Gramity</text>
 
               <circle cx="278" cy="115" r="23" fill="#051520" stroke="#0098EA" stroke-width="1.8"/>
               <image href="/app/logos/ton.png" x="255" y="92" width="46" height="46" clip-path="url(#cp-fd-ton)" preserveAspectRatio="xMidYMid slice"/>
@@ -2097,10 +2164,11 @@
             </svg>
           </div>
 
-          <p class="bridge-caption anim-item">ETH · Base · BNB · Polygon USDT via STON.fi cross-chain</p>
+          <p class="bridge-caption anim-item">ETH · Base · BNB · Polygon USDT → Gramity agent wallet on TON</p>
         </div>
         <div class="slide-footer">
           <div class="dots dots-clone"></div>
+          <button class="btn btn-link anim-item btn-slide-next" type="button">Get started →</button>
         </div>
       </section>
 
@@ -2124,7 +2192,7 @@
               <div class="stat-label">One deposit, endless DCA</div>
             </div>
           </div>
-          <p class="stat-footnote anim-item">*Gas only + ~0.1% DEX routing fee<br>LP tokens go <strong style="color:#fff">directly to your wallet</strong> — Gramity never holds them</p>
+          <p class="stat-footnote anim-item">*Gas only + ~0.1% DEX routing fee<br>Rewards <strong style="color:#fff">auto-reinvest</strong> in your LP position · withdrawal wallet optional</p>
 
           <div class="partners">
             <div class="partner-badge anim-item">
@@ -2153,19 +2221,25 @@
       <section class="slide" data-slide="5.5">
         <div class="slide-content">
           <div class="mira-slide-center">
-            <h2 class="mira-slide-title anim-item">🤖 Powered by Mira AI</h2>
-            <p class="mira-slide-desc anim-item">After setup, manage your DCA through natural conversation in Telegram.</p>
+            <h2 class="mira-slide-title anim-item">🤖 Talk with Mira</h2>
+            <p class="mira-slide-desc anim-item">After <em>Start</em> in @GramityBot, Mira walks you through Gramity — ideology, community gravity, and why compounding together beats solo DCA.</p>
+            <ul class="mira-perks anim-item">
+              <li>Stronger community pull — more capital, more yield for everyone</li>
+              <li>Rewards for long-term holders bridging from other chains</li>
+              <li>Soulbound tokens & NFT perks for active strategists</li>
+            </ul>
             <div class="mira-examples anim-item">
-              <div>"How's my DCA doing?"</div>
-              <div>"Increase to $50/week"</div>
-              <div>"Pause until next month"</div>
+              <div>"Why Gramity vs manual DCA?"</div>
+              <div>"What strategy fits me?"</div>
+              <div>"How does LP auto-reinvest work?"</div>
             </div>
-            <p class="mira-tagline anim-item">Gramity executes. Mira explains.</p>
-            <button class="btn btn-mira-purple anim-item" id="btnOpenMiraSlide">Open Mira →</button>
+            <p class="mira-tagline anim-item">Gramity executes. Mira explains the why.</p>
+            <button class="btn btn-mira-purple anim-item" id="btnOpenMiraSlide">Talk with Mira →</button>
           </div>
         </div>
         <div class="slide-footer">
           <div class="dots dots-clone"></div>
+          <button class="btn btn-link anim-item btn-slide-next" type="button">Get started →</button>
         </div>
       </section>
 
@@ -2187,14 +2261,14 @@
                 aria-hidden="true"
               > </object>
             </div>
-            <h2 class="title anim-item">Ready to start?</h2>
-            <p class="subtitle anim-item">Set up your first DCA in ~2 minutes</p>
+            <h2 class="title anim-item">One deposit to start DCA</h2>
+            <p class="subtitle anim-item">Fund once from any chain — Gramity runs your strategy on autopilot</p>
             <div class="cta-buttons">
               <button class="btn btn-cta-hero anim-item" id="btnStartDCA">
                 ✦ Create DCA Strategy
               </button>
               <p class="cta-meta anim-item">~2 min setup · <span>0% platform fee</span></p>
-              <button class="btn btn-ghost anim-item" id="btnLearnMore">Learn more</button>
+              <button class="btn btn-ghost anim-item" id="btnLearnMore">Talk with Mira →</button>
             </div>
           </div>
         </div>
@@ -2425,7 +2499,7 @@
                 <button class="paste-btn" id="pasteAddrBtn" type="button">Paste</button>
               </div>
             </div>
-            <p class="addr-hint">LP tokens go here · locked once set · cycles wait until address is added</p>
+            <p class="addr-hint">Optional — LP auto-reinvests in position · set this only when you want withdrawals</p>
           </div>
         </div>
         <div class="slide-footer">
@@ -2480,7 +2554,7 @@
         </div>
         <div class="slide-footer" style="gap:10px;display:flex;flex-direction:column">
           <button class="btn btn-create-dca anim-item" id="btnCreateStrategy">✦ Create Strategy</button>
-          <button class="btn btn-mira-ghost anim-item" id="btnMiraBeforeCreate" type="button">Discuss with Mira →</button>
+          <button class="btn btn-mira-ghost anim-item" id="btnMiraBeforeCreate" type="button">Talk with Mira →</button>
         </div>
       </section>
 
@@ -2501,7 +2575,7 @@
 
           <div class="deposit-step-card anim-item" id="withdrawLaterCard" style="display:none;margin-top:14px">
             <div class="deposit-step-title">📬 Set withdrawal wallet</div>
-            <p class="deposit-meta-line" style="margin-top:8px">Required before DCA cycles run · LP tokens go here</p>
+            <p class="deposit-meta-line" style="margin-top:8px">Required before DCA cycles run · LP rewards auto-reinvest until you set this</p>
             <div class="addr-row anim-item" style="margin-top:12px">
               <input class="addr-input" id="withdrawLaterInput" type="text"
                      placeholder="EQ... or UQ..." autocomplete="off" spellcheck="false" style="flex:1"/>
@@ -2515,7 +2589,7 @@
           <div class="deposit-actions">
             <button class="btn btn-primary anim-item" id="btnTrackInBot">Track in Bot →</button>
             <button class="btn btn-mira-ghost anim-item" id="btnOpenEvmDeposit">Deposit from EVM chains →</button>
-            <button class="btn btn-mira-ghost anim-item" id="btnManageMiraDeposit">Manage with Mira →</button>
+            <button class="btn btn-mira-ghost anim-item" id="btnManageMiraDeposit">Talk with Mira →</button>
           </div>
         </div>
       </section>
@@ -2636,17 +2710,10 @@
       var WIZARD_CONFIRM = 10;
       var WIZARD_FINAL = 11;
 
-      function updateSkipVisibility() {
-        var skipBtn = document.getElementById('skip-onboarding');
-        if (!skipBtn) return;
-        skipBtn.style.display = current < WIZARD_CONNECT ? 'block' : 'none';
-      }
-
       function updateArrows() {
         var inWizard = current >= WIZARD_CONNECT;
         btnPrev.classList.toggle('hidden', current === 0 || inWizard);
         btnNext.classList.toggle('hidden', current >= TOTAL - 1 || inWizard);
-        updateSkipVisibility();
       }
 
       function getOffset() { return -(current * (100 / TOTAL)); }
@@ -2684,14 +2751,9 @@
       document.getElementById('btnGetStarted').addEventListener('click', next);
       document.getElementById('btnToFinal').addEventListener('click', function () { goTo(6); });
       document.getElementById('btnStartDCA').addEventListener('click', function () { goTo(WIZARD_CONNECT); });
-
-      var skipBtn = document.getElementById('skip-onboarding');
-      if (skipBtn) {
-        skipBtn.onclick = function () {
-          goTo(WIZARD_CONNECT);
-        };
-      }
-      updateSkipVisibility();
+      document.querySelectorAll('.btn-slide-next').forEach(function (btn) {
+        btn.addEventListener('click', next);
+      });
 
       function normalizeTelegramUrl(url) {
         if (!url || url.indexOf('tg://resolve?domain=') !== 0) return url;
@@ -2736,6 +2798,7 @@
               'Content-Type': 'application/json',
               'X-Telegram-Init-Data': initData,
             },
+            body: JSON.stringify({ source: 'onboarding' }),
           });
           if (res.ok) {
             var data = await res.json();
@@ -2753,7 +2816,7 @@
 
         if (btn) {
           btn.disabled = false;
-          btn.textContent = label || 'Manage with Mira →';
+          btn.textContent = label || 'Talk with Mira →';
         }
       }
 
@@ -2761,9 +2824,7 @@
         openMiraWithContext(this);
       });
       document.getElementById('btnLearnMore').addEventListener('click', function () {
-        var url = 'https://t.me/GramityBot';
-        if (tg && tg.openLink) tg.openLink(url);
-        else window.open(url, '_blank');
+        openMiraWithContext(this);
       });
 
       /* ── Keyboard ── */
@@ -2986,6 +3047,7 @@
         mode:            'live',
         frequency:       'weekly',
         amountPerCycle:  50,
+        selectedStrategy: 'multiply',
         withdrawAddress: '',
         evmWalletBalance: null,
         preferredBridgeChain: '',
@@ -3325,14 +3387,32 @@
          SLIDE 1 — Wallet strip (connect preview)
       ══════════════════════════════════════════════════════ */
 
-      document.getElementById('btnConnectTonStrip').addEventListener('click', function () {
-        goTo(WIZARD_CONNECT);
-        if (tonConnectUI) tonConnectUI.openModal();
-      });
+      var STRATEGY_LABELS = {
+        multiply: 'Multiply Tokens',
+        stake: 'TON Stake',
+        lp: 'Liquidity Pool',
+      };
+      var STRATEGY_MODES = {
+        multiply: 'full',
+        stake: 'stake_only',
+        lp: 'full',
+      };
+      var STRATEGY_APY = {
+        multiply: '~5.4%',
+        stake: '~5.0%',
+        lp: '~5.4%',
+      };
 
-      document.getElementById('btnConnectMMStrip').addEventListener('click', function () {
-        goTo(WIZARD_CONNECT);
-        runMetaMaskConnect(document.getElementById('btnConnectMM'));
+      document.querySelectorAll('#strategyGrid .strategy-card:not(.locked)').forEach(function (card) {
+        card.addEventListener('click', function () {
+          var strategy = card.dataset.strategy;
+          if (!strategy) return;
+          wiz.selectedStrategy = strategy;
+          document.querySelectorAll('#strategyGrid .strategy-card').forEach(function (c) {
+            c.classList.toggle('selected', c.dataset.strategy === strategy);
+          });
+          if (typeof buildSummary === 'function') buildSummary();
+        });
       });
 
       /* MetaMask — mobile: in-app browser; desktop TMA: system browser + extension */
@@ -3729,10 +3809,7 @@
       }
 
       document.getElementById('btnConnectMM').addEventListener('click', function () {
-        if (wiz.evmConnected) {
-          disconnectMetaMask(this);
-          return;
-        }
+        if (wiz.evmConnected) return;
         runMetaMaskConnect(this);
       });
 
@@ -3969,6 +4046,7 @@
         window.gramityState.amount = wiz.amountPerCycle;
         window.gramityState.mode = wiz.mode;
         window.gramityState.withdrawalAddress = wiz.withdrawAddress;
+        window.gramityState.selectedStrategy = wiz.selectedStrategy;
         window.gramityState.tonPrice = tonPrice;
       }
 
@@ -4106,10 +4184,13 @@
 
       function buildSummary() {
         var freqLabels = { daily: 'daily', weekly: 'weekly', monthly: 'monthly' };
-        document.getElementById('summaryStrategy').textContent = 'TON + LP';
+        var strat = wiz.selectedStrategy || 'multiply';
+        document.getElementById('summaryStrategy').textContent =
+          STRATEGY_LABELS[strat] || 'Multiply Tokens';
         document.getElementById('summaryAmount').textContent =
           '$' + wiz.amountPerCycle + ' USDT / ' + (freqLabels[wiz.frequency] || 'weekly');
-        document.getElementById('summaryApy').textContent = '~5.4%';
+        document.getElementById('summaryApy').textContent =
+          STRATEGY_APY[strat] || '~5.4%';
         document.getElementById('summaryWithdraw').textContent = wiz.withdrawAddress
           ? truncateAddr(wiz.withdrawAddress)
           : 'Set later';
@@ -4226,13 +4307,7 @@
       });
 
       document.getElementById('btnConnectTon').addEventListener('click', function () {
-        if (tonConnectUI) {
-          if (wiz.tonConnected) {
-            tonConnectUI.disconnect().catch(function () {});
-          } else {
-            tonConnectUI.openModal();
-          }
-        }
+        if (tonConnectUI && !wiz.tonConnected) tonConnectUI.openModal();
       });
 
       document.getElementById('btnTrackInBot').addEventListener('click', function () {
@@ -4358,7 +4433,8 @@
               ton_address: window.gramityState.withdrawalAddress || null,
               amount_usdt: window.gramityState.amount,
               demo_mode: window.gramityState.mode === 'demo',
-              strategy: 'ton',
+              strategy: window.gramityState.selectedStrategy || wiz.selectedStrategy || 'multiply',
+              strategy_mode: STRATEGY_MODES[window.gramityState.selectedStrategy || wiz.selectedStrategy || 'multiply'] || 'full',
             }),
           });
 
