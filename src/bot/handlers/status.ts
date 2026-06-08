@@ -20,7 +20,7 @@ import { InlineKeyboard } from "grammy";
 const MINI_APP_URL = `${RAILWAY_PUBLIC_URL}/app`;
 
 const fmt = (v: number | null | undefined, decimals = 2): string =>
-  v != null && !isNaN(v) && isFinite(v) && v !== 0
+  v != null && !isNaN(v) && isFinite(v)
     ? v.toFixed(decimals)
     : "—";
 

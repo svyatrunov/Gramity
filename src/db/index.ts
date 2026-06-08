@@ -178,7 +178,15 @@ export async function getPlanByTelegramId(
     "SELECT * FROM plans WHERE telegram_id = $1 LIMIT 1",
     [telegramId]
   );
-  return rows[0] ?? null;
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    ...row,
+    usdt_amount: Number(row.usdt_amount),
+    cycles_completed: Number(row.cycles_completed),
+    consecutive_failures: Number(row.consecutive_failures),
+    max_cycles: row.max_cycles != null ? Number(row.max_cycles) : null,
+  };
 }
 
 export async function upsertPlan(

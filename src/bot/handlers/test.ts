@@ -104,6 +104,23 @@ export async function handleTestRun(
   let partials  = 0;
   let stopped   = false;
 
+  const depositAddress = await createUserWallet(telegramId).catch(() => "");
+  const usdtBalance = depositAddress ? await getUsdtBalance(depositAddress).catch(() => 0) : 0;
+  const required = Number(plan.usdt_amount);
+
+  if (usdtBalance < required) {
+    await reply(
+      `💸 *Cannot run test — insufficient USDT*\n\n` +
+        `Balance:  $${usdtBalance.toFixed(2)}\n` +
+        `Required: $${required.toFixed(2)} per cycle\n\n` +
+        `Top up your agent wallet:\n` +
+        (depositAddress ? `\`${depositAddress}\`\n\n` : "") +
+        `_Send USDT on TON, then retry /test._`,
+      { parse_mode: "Markdown" }
+    );
+    return;
+  }
+
   await reply(
     `🚀 *Running ${cycles} test cycles immediately...*\n\nYou'll get a message after each one.`,
     { parse_mode: "Markdown" }

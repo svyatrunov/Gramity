@@ -44,9 +44,16 @@ export interface ExecutionResult {
 
 /** Thrown when wallet has insufficient USDT — execution stops immediately */
 export class InsufficientFundsError extends Error {
-  constructor(public readonly balance: number, public readonly required: number) {
-    super(`Insufficient USDT: $${balance.toFixed(2)} < $${required}`);
+  readonly balance: number;
+  readonly required: number;
+
+  constructor(balance: number | string, required: number | string) {
+    const bal = Number(balance);
+    const req = Number(required);
+    super(`Insufficient USDT: $${bal.toFixed(2)} < $${req.toFixed(2)}`);
     this.name = "InsufficientFundsError";
+    this.balance = bal;
+    this.required = req;
   }
 }
 
