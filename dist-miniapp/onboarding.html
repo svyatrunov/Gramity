@@ -798,6 +798,8 @@
       cursor: pointer;
       transition: background 0.2s, border-color 0.2s;
       position: relative;
+      -webkit-appearance: none;
+      appearance: none;
     }
     .connect-btn:hover { background: rgba(255,255,255,0.07); }
     .connect-btn.primary-ton {
@@ -2494,7 +2496,10 @@
       var TON_WALLET_LOGO = '/app/logos/ton.png';
 
       function tonWalletLogoImg(size) {
-        return '<img src="' + TON_WALLET_LOGO + '" alt="" class="wallet-logo-img" width="' + size + '" height="' + size + '"/>';
+        var lgClass = size >= 28 ? ' logo-circle-lg' : '';
+        return '<span class="logo-circle' + lgClass + '">' +
+          '<img src="' + TON_WALLET_LOGO + '" alt="" class="wallet-logo-img" width="' + size + '" height="' + size + '"/>' +
+        '</span>';
       }
 
       function updateTonConnectBtn(addr) {
@@ -2818,12 +2823,10 @@
       ══════════════════════════════════════════════════════ */
 
       document.getElementById('btnConnectTonStrip').addEventListener('click', function () {
-        document.getElementById('btnConnectTon').click(); // delegate to step1 handler
         goTo(7);
       });
 
       document.getElementById('btnConnectMMStrip').addEventListener('click', function () {
-        document.getElementById('btnConnectMM').click();
         goTo(7);
       });
 
@@ -2886,6 +2889,12 @@
       });
 
       /* MetaMask connect — extension (desktop) or MetaMask Connect SDK (mobile deeplink via tg.openLink) */
+      window.addEventListener('gramity-metamask-ready', function () {
+        if (window.GramityMetaMask && window.GramityMetaMask.warm) {
+          window.GramityMetaMask.warm();
+        }
+      }, { once: true });
+
       function getExtensionProvider() {
         if (!window.ethereum) return null;
         if (window.ethereum.providers && window.ethereum.providers.length) {
@@ -2963,10 +2972,13 @@
 
       document.getElementById('btnConnectMM').addEventListener('click', function () {
         var btn = this;
+        if (btn.disabled) return;
         var labelEl = btn.querySelector('div').children[0];
         var hintEl = btn.querySelector('div').children[1];
 
+        btn.disabled = true;
         labelEl.textContent = getExtensionProvider() ? 'Connecting…' : 'Opening MetaMask…';
+        if (hintEl) hintEl.textContent = 'Approve in MetaMask, then return to Telegram';
         btn.style.borderColor = '';
 
         var attempt = getExtensionProvider()
@@ -2974,14 +2986,19 @@
           : connectViaMetaMaskSdk(btn);
 
         attempt.then(function (res) {
+          btn.disabled = false;
           handleMetaMaskAccounts(btn, res.accounts, res.provider);
         }).catch(function (err) {
+          btn.disabled = false;
           console.error('[MetaMask]', err);
           btn.style.borderColor = '#ff4a6e';
           if (err && err.message === 'sdk_loading') {
             labelEl.textContent = 'Loading MetaMask…';
           } else if (err && err.message === 'no_extension') {
             labelEl.textContent = 'Open MetaMask app to connect';
+          } else if (err && (String(err.message || '').indexOf('timeout') !== -1 || String(err.message || '').indexOf('return to Telegram') !== -1)) {
+            labelEl.textContent = 'Waiting for MetaMask…';
+            if (hintEl) hintEl.textContent = 'Approve connection in MetaMask, then switch back here';
           } else {
             labelEl.textContent = 'Connection cancelled';
           }
@@ -2989,7 +3006,7 @@
             labelEl.textContent = 'Connect MetaMask';
             if (hintEl) hintEl.textContent = 'Opens MetaMask app · ETH · Base · BNB · Polygon';
             btn.style.borderColor = '';
-          }, 4000);
+          }, 8000);
         });
       });
 

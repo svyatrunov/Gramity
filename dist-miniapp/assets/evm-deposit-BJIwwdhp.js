@@ -1,0 +1,1 @@
+import{c as o,j as e,R as t,D as s}from"./DepositScreen-5oTFeltq.js";import"./metamaskConnect-BWWOuPZJ.js";import"./tslib.es6-Baw4jpgF.js";const n=new URLSearchParams(window.location.search),r=n.get("token");o(document.getElementById("root")).render(e.jsx(t.StrictMode,{children:e.jsx(s,{authMode:"token",sessionToken:r??void 0})}));
