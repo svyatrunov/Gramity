@@ -1,1 +1,1 @@
-import{q as e,s as a,j as r,n as t,p as s,m as n}from"./metamaskConnect-DMVu-Uj8.js";window.GramityMetaMask={connect:n,getProvider:s,needsExternalBrowser:t,redirectToExternalBrowser:r,isMobileDevice:a,isInsideTelegramMiniApp:e};window.dispatchEvent(new Event("gramity-metamask-ready"));
+import{n as e,p as a,m as t,l as i}from"./metamaskConnect-7CdJvi1S.js";window.GramityMetaMask={connect:i,getProvider:t,isMobileDevice:a,isInsideTelegramMiniApp:e};window.dispatchEvent(new Event("gramity-metamask-ready"));
