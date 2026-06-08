@@ -623,7 +623,7 @@
       100% { stroke-dashoffset: 0; opacity: 0; }
     }
 
-    /* Pulse glow on Omniston hub when lines arrive */
+    /* Pulse glow on STON.fi hub when lines arrive */
     @keyframes omniPulse {
       0%,100% { opacity: 1; }
       50%     { opacity: 0.6; }
@@ -1523,7 +1523,7 @@
       <symbol id="logo-omniston" viewBox="0 0 40 40">
         <clipPath id="cp-omni-s"><circle cx="20" cy="20" r="20"/></clipPath>
         <g clip-path="url(#cp-omni-s)">
-          <image href="/app/logos/omniston.png" x="0" y="0" width="40" height="40" preserveAspectRatio="xMidYMid slice"/>
+          <image href="/app/logos/ston.png" x="0" y="0" width="40" height="40" preserveAspectRatio="xMidYMid slice"/>
         </g>
       </symbol>
 
@@ -1614,7 +1614,7 @@
             </div>
             <h1 class="hero-title anim-item">Gramity</h1>
             <p class="hero-subtitle anim-item">Your money works while you sleep</p>
-            <p class="hero-tagline anim-item">STON.fi Hackathon · Omniston v1beta8 · ~5.4% APY</p>
+            <p class="hero-tagline anim-item">STON.fi Hackathon · ~5.4% APY</p>
             <p class="hero-meta anim-item">0% platform fee · <span class="mira-accent">AI-managed via Mira</span></p>
           </div>
         </div>
@@ -1703,11 +1703,10 @@
             <div class="flow-connector anim-item"><svg viewBox="0 0 2 26"><line class="flow-line" x1="1" y1="0" x2="1" y2="26"/><circle class="flow-dot flow-dot-1" cx="1" cy="0" r="2"/></svg></div>
 
             <div class="flow-node anim-item">
-              <div class="logo-node"><svg width="36" height="36"><use href="#logo-omniston"/></svg></div>
+              <div class="logo-node"><svg width="36" height="36"><use href="#logo-ston"/></svg></div>
               <div class="flow-node-text">
-                <strong>Omniston</strong>
+                <strong>STON.fi</strong>
                 <span>Best-rate DEX swap</span>
-                <span style="font-size:10px;color:#4a8aff;opacity:.7">Omniston SDK v1beta8 · cross-chain RFQ</span>
               </div>
             </div>
             <div class="flow-connector anim-item"><svg viewBox="0 0 2 26"><line class="flow-line" x1="1" y1="0" x2="1" y2="26"/><circle class="flow-dot flow-dot-2" cx="1" cy="0" r="2"/></svg></div>
@@ -1726,7 +1725,6 @@
               <div class="flow-node-text">
                 <strong>STON.fi</strong>
                 <span>DEX v2 LP position</span>
-                <span class="badge-ston">Powered by STON.fi v2</span>
               </div>
             </div>
             <div class="flow-connector anim-item"><svg viewBox="0 0 2 26"><line class="flow-line" x1="1" y1="0" x2="1" y2="26"/><circle class="flow-dot flow-dot-4" cx="1" cy="0" r="2"/></svg></div>
@@ -1762,9 +1760,9 @@
               </div>
               <div class="fund-simple-arrow">→</div>
               <div class="fund-simple-node">
-                <svg width="32" height="32"><use href="#logo-omniston"/></svg>
-                <strong>Omniston</strong>
-                <span>HTLC bridge</span>
+                <svg width="32" height="32"><use href="#logo-ston"/></svg>
+                <strong>STON.fi</strong>
+                <span>Cross-chain bridge</span>
               </div>
               <div class="fund-simple-arrow">→</div>
               <div class="fund-simple-node">
@@ -1775,7 +1773,7 @@
             </div>
           </div>
 
-          <p class="bridge-caption anim-item">ETH · Base · BNB · Polygon USDT via Omniston cross-chain RFQ</p>
+          <p class="bridge-caption anim-item">ETH · Base · BNB · Polygon USDT via STON.fi cross-chain</p>
         </div>
         <div class="slide-footer">
           <div class="dots dots-clone"></div>
@@ -1810,16 +1808,12 @@
               TON
             </div>
             <div class="partner-badge anim-item">
-              <span class="partner-icon"><img src="/app/logos/omniston.png" width="28" height="28" alt="Omniston"/></span>
-              Omniston
-            </div>
-            <div class="partner-badge anim-item">
-              <span class="partner-icon"><img src="/app/logos/tonstakers.png" width="28" height="28" alt="Tonstakers"/></span>
-              Tonstakers
-            </div>
-            <div class="partner-badge anim-item">
               <span class="partner-icon"><img src="/app/logos/ston.png" width="28" height="28" alt="STON.fi"/></span>
               STON.fi
+            </div>
+            <div class="partner-badge anim-item">
+              <span class="partner-icon"><svg width="28" height="28" aria-hidden="true"><use href="#logo-tonstakers"/></svg></span>
+              Tonstakers
             </div>
           </div>
         </div>
@@ -1908,7 +1902,7 @@
         <div class="slide-content">
           <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:14px">Connect wallet</h2>
           <p class="anim-item" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.5">
-            We scan your USDT balance to suggest a DCA amount. Funds stay in your wallet until you deposit to Gramity.
+            We scan your wallet, then bridge USDT to your Gramity agent wallet. DCA setup comes after funding.
           </p>
 
           <div class="connect-section anim-item" id="connectSection">
@@ -1941,25 +1935,95 @@
       </section>
 
       <!-- ═══════════════════════════════════════════
-           WIZARD — Step 2 of 4: Plan DCA (slider + calculator)
+           WIZARD — Step 2 of 4: Bridge / fund agent wallet
       ═══════════════════════════════════════════ -->
-      <section class="slide slide-wizard" data-slide="7">
+      <section class="slide slide-wizard" data-slide="7b">
         <div class="wizard-header anim-item">
-          <button class="wizard-back" id="btnWizardBack1">←</button>
+          <button class="wizard-back" id="btnWizardBackDeposit">←</button>
           <span class="wizard-step">Step 2 of 4</span>
           <div style="width:28px"></div>
         </div>
-        <div class="wizard-step-bar-2 anim-item" id="progressBar1">
+        <div class="wizard-step-bar-2 anim-item" id="progressBarDeposit">
           <div class="wizard-seg active"></div>
           <div class="wizard-seg active"></div>
           <div class="wizard-seg"></div>
           <div class="wizard-seg"></div>
         </div>
         <div class="slide-content">
+          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:10px">Bridge your budget</h2>
+          <p class="anim-item" style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;line-height:1.5">
+            Send USDT to your agent wallet on TON. Gramity seeds ~0.6 TON for gas. Min <strong id="depositMinLabel">$10</strong>.
+          </p>
+
+          <div id="bridgeBudgetSection" class="anim-item">
+            <p class="param-label">Amount to bridge</p>
+            <div class="amount-row">
+              <span class="amount-prefix">$</span>
+              <input class="amount-input" id="bridgeBudgetInput" type="number"
+                     inputmode="decimal" min="10" max="2000" step="1" value="100"/>
+              <span class="amount-suffix">USDT</span>
+            </div>
+          </div>
+
+          <div id="bridgeChainSection" class="anim-item" style="display:none;margin-top:12px">
+            <p class="param-label">Bridge from</p>
+            <div class="freq-tabs" id="bridgeChainTabs">
+              <button type="button" class="freq-tab" data-chain="ethereum">ETH</button>
+              <button type="button" class="freq-tab" data-chain="base">Base</button>
+              <button type="button" class="freq-tab" data-chain="bnb">BNB</button>
+              <button type="button" class="freq-tab" data-chain="polygon">Polygon</button>
+            </div>
+            <p id="bridgeChainHint" class="addr-hint" style="margin-top:8px"></p>
+          </div>
+
+          <button class="connect-btn anim-item" id="btnBridgeFromMM" type="button" style="display:none;margin-top:14px">
+            <span class="logo-circle logo-circle-lg"><img src="/app/logos/metamask.svg" alt="" class="wallet-logo-img" width="28" height="28"/></span>
+            <div style="flex:1;text-align:left">
+              <div id="btnBridgeFromMMLabel">Bridge USDT from MetaMask</div>
+              <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">STON.fi cross-chain · one tap</div>
+            </div>
+          </button>
+
+          <div class="deposit-agent-card anim-item" style="margin-top:14px">
+            <p class="param-label" style="margin-bottom:8px">Your agent wallet (TON)</p>
+            <div class="deposit-addr-row">
+              <span class="deposit-addr-text-lg" id="agentWalletAddr" style="font-size:12px">—</span>
+              <button class="btn-copy-addr" id="btnCopyAgentAddr" type="button">Copy</button>
+            </div>
+            <p class="gas-hint-line" id="agentGasLine">Gas: checking…</p>
+            <p class="deposit-poll-status" id="agentDepositPoll">Waiting for deposit…</p>
+          </div>
+
+          <p class="anim-item addr-hint" id="depositTonHint" style="display:none;margin-top:12px">
+            Or send USDT jetton from your TON wallet to the address above (TON network).
+          </p>
+        </div>
+        <div class="slide-footer">
+          <button class="btn btn-primary anim-item" id="btnWizardNextDeposit" disabled style="opacity:0.4">Continue →</button>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════
+           WIZARD — Step 3 of 4: Plan DCA (slider + calculator)
+      ═══════════════════════════════════════════ -->
+      <section class="slide slide-wizard" data-slide="7">
+        <div class="wizard-header anim-item">
+          <button class="wizard-back" id="btnWizardBack1">←</button>
+          <span class="wizard-step">Step 3 of 4</span>
+          <div style="width:28px"></div>
+        </div>
+        <div class="wizard-step-bar-2 anim-item" id="progressBar1">
+          <div class="wizard-seg active"></div>
+          <div class="wizard-seg active"></div>
+          <div class="wizard-seg active"></div>
+          <div class="wizard-seg"></div>
+        </div>
+        <div class="slide-content">
           <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:6px">Plan your DCA</h2>
 
           <div class="avail-bal-banner anim-item" id="availBalBanner">
-            Available for DCA: <strong id="availUsdtText">—</strong>
+            Funded on agent wallet: <strong id="availUsdtText">—</strong>
+            <div id="availChainHint" style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:4px"></div>
           </div>
 
           <div class="freq-tabs anim-item" id="freqTabsSetup">
@@ -2015,54 +2079,6 @@
         </div>
         <div class="slide-footer">
           <button class="btn btn-primary anim-item" id="btnWizardNext1" disabled style="opacity:0.4">Continue →</button>
-        </div>
-      </section>
-
-      <!-- ═══════════════════════════════════════════
-           WIZARD — Step 3 of 4: Deposit to agent wallet
-      ═══════════════════════════════════════════ -->
-      <section class="slide slide-wizard" data-slide="7b">
-        <div class="wizard-header anim-item">
-          <button class="wizard-back" id="btnWizardBackDeposit">←</button>
-          <span class="wizard-step">Step 3 of 4</span>
-          <div style="width:28px"></div>
-        </div>
-        <div class="wizard-step-bar-2 anim-item" id="progressBarDeposit">
-          <div class="wizard-seg active"></div>
-          <div class="wizard-seg active"></div>
-          <div class="wizard-seg active"></div>
-          <div class="wizard-seg"></div>
-        </div>
-        <div class="slide-content">
-          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:10px">Fund agent wallet</h2>
-          <p class="anim-item" style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;line-height:1.5">
-            Send at least <strong id="depositMinLabel">$10</strong> USDT (TON network). Gramity seeds ~0.6 TON for gas when you arrive here.
-          </p>
-
-          <div class="deposit-agent-card anim-item">
-            <p class="param-label" style="margin-bottom:8px">Your agent wallet (TON)</p>
-            <div class="deposit-addr-row">
-              <span class="deposit-addr-text-lg" id="agentWalletAddr" style="font-size:12px">—</span>
-              <button class="btn-copy-addr" id="btnCopyAgentAddr" type="button">Copy</button>
-            </div>
-            <p class="gas-hint-line" id="agentGasLine">Gas: checking…</p>
-            <p class="deposit-poll-status" id="agentDepositPoll">Waiting for deposit…</p>
-          </div>
-
-          <button class="connect-btn anim-item" id="btnBridgeFromMM" type="button" style="display:none">
-            <span class="logo-circle logo-circle-lg"><img src="/app/logos/metamask.svg" alt="" class="wallet-logo-img" width="28" height="28"/></span>
-            <div style="flex:1;text-align:left">
-              <div>Bridge USDT from MetaMask</div>
-              <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Omniston · ETH · Base · BNB · Polygon</div>
-            </div>
-          </button>
-
-          <p class="anim-item addr-hint" id="depositTonHint" style="display:none;margin-top:12px">
-            Or send USDT jetton from your TON wallet to the address above (TON network).
-          </p>
-        </div>
-        <div class="slide-footer">
-          <button class="btn btn-primary anim-item" id="btnWizardNextDeposit" disabled style="opacity:0.4">Continue →</button>
         </div>
       </section>
 
@@ -2264,8 +2280,8 @@
       }
 
       var WIZARD_CONNECT = 7;
-      var WIZARD_SETUP = 8;
-      var WIZARD_DEPOSIT = 9;
+      var WIZARD_DEPOSIT = 8;
+      var WIZARD_SETUP = 9;
       var WIZARD_CONFIRM = 10;
       var WIZARD_FINAL = 11;
 
@@ -2556,6 +2572,20 @@
         frequency:       'weekly',
         amountPerCycle:  50,
         withdrawAddress: '',
+        evmWalletBalance: null,
+        preferredBridgeChain: '',
+        bridgeAmount: 100,
+        bridgeChain: '',
+      };
+
+      var AMOUNT_MIN = 10;
+      var AMOUNT_MAX = 2000;
+
+      var CHAIN_LABELS = {
+        ethereum: 'Ethereum',
+        base: 'Base',
+        bnb: 'BNB Chain',
+        polygon: 'Polygon',
       };
 
       /* ── TonConnect UI ── */
@@ -3104,8 +3134,124 @@
       function displayEvmBalances(walletBalance) {
         if (!walletBalance || walletBalance.totalUsd == null) return walletBalance;
         wiz.totalUsdBalance = walletBalance.totalUsd;
-        wiz.usdtBalance = walletBalance.totalUsd;
+        wiz.evmWalletBalance = walletBalance;
+        var bridgeUsd = 0;
+        if (walletBalance.chainBalances && walletBalance.chainBalances.length) {
+          bridgeUsd = walletBalance.chainBalances.reduce(function (s, c) { return s + c.usd; }, 0);
+        } else {
+          bridgeUsd = walletBalance.totalUsd;
+        }
+        wiz.usdtBalance = bridgeUsd;
+        applyBridgeRecommendation(walletBalance);
         return walletBalance;
+      }
+
+      function applyBridgeRecommendation(walletBalance) {
+        if (!walletBalance) return;
+        var rec = walletBalance.recommendedChain;
+        var recUsd = walletBalance.recommendedUsd || 0;
+        if (rec && recUsd >= AMOUNT_MIN) {
+          wiz.bridgeChain = rec;
+          wiz.preferredBridgeChain = rec;
+          if (!wiz.bridgeAmount || wiz.bridgeAmount < AMOUNT_MIN) {
+            wiz.bridgeAmount = Math.min(Math.floor(recUsd), AMOUNT_MAX);
+          }
+        } else if (walletBalance.chainBalances && walletBalance.chainBalances.length) {
+          var best = walletBalance.chainBalances[0];
+          wiz.bridgeChain = best.chain;
+          wiz.preferredBridgeChain = best.chain;
+        }
+        updateBridgeUI();
+      }
+
+      function updateBridgeUI() {
+        var section = document.getElementById('bridgeChainSection');
+        var hint = document.getElementById('bridgeChainHint');
+        var budgetInput = document.getElementById('bridgeBudgetInput');
+        var label = document.getElementById('btnBridgeFromMMLabel');
+        var balances = wiz.evmWalletBalance && wiz.evmWalletBalance.chainBalances
+          ? wiz.evmWalletBalance.chainBalances
+          : [];
+
+        if (budgetInput && document.activeElement !== budgetInput) {
+          budgetInput.value = String(Math.max(AMOUNT_MIN, wiz.bridgeAmount || AMOUNT_MIN));
+        }
+
+        if (section) {
+          section.style.display = wiz.evmConnected && balances.length ? 'block' : 'none';
+        }
+
+        document.querySelectorAll('#bridgeChainTabs .freq-tab').forEach(function (tab) {
+          var chain = tab.dataset.chain;
+          var match = balances.find(function (b) { return b.chain === chain; });
+          tab.classList.toggle('active', chain === wiz.bridgeChain);
+          tab.disabled = !match && balances.length > 0;
+          tab.style.opacity = match || !balances.length ? '1' : '0.35';
+          if (match) {
+            tab.textContent = chain === 'bnb' ? 'BNB' : chain === 'ethereum' ? 'ETH' : chain === 'base' ? 'Base' : 'Polygon';
+            tab.title = '$' + match.usd.toFixed(0) + ' ' + match.symbol;
+          }
+        });
+
+        if (hint && wiz.bridgeChain) {
+          var sel = balances.find(function (b) { return b.chain === wiz.bridgeChain; });
+          hint.textContent = sel
+            ? '$' + sel.usd.toFixed(0) + ' ' + sel.symbol + ' available on ' + (CHAIN_LABELS[sel.chain] || sel.chain)
+            : 'Select network with USDT balance';
+        }
+
+        if (label && wiz.bridgeChain) {
+          label.textContent = 'Bridge $' + (wiz.bridgeAmount || AMOUNT_MIN) + ' from ' + (CHAIN_LABELS[wiz.bridgeChain] || wiz.bridgeChain);
+        }
+
+        var minLbl = document.getElementById('depositMinLabel');
+        if (minLbl) minLbl.textContent = '$' + AMOUNT_MIN;
+      }
+
+      function setBridgeAmount(val) {
+        var n = Math.round(parseFloat(val));
+        if (isNaN(n)) n = AMOUNT_MIN;
+        var max = AMOUNT_MAX;
+        if (wiz.evmWalletBalance && wiz.bridgeChain) {
+          var sel = (wiz.evmWalletBalance.chainBalances || []).find(function (b) {
+            return b.chain === wiz.bridgeChain;
+          });
+          if (sel && sel.usd >= AMOUNT_MIN) max = Math.min(AMOUNT_MAX, Math.floor(sel.usd));
+        }
+        wiz.bridgeAmount = Math.max(AMOUNT_MIN, Math.min(max, n));
+        updateBridgeUI();
+        updateDepositContinueBtn();
+      }
+
+      function setBridgeChain(chain) {
+        wiz.bridgeChain = chain;
+        wiz.preferredBridgeChain = chain;
+        var sel = wiz.evmWalletBalance && (wiz.evmWalletBalance.chainBalances || []).find(function (b) {
+          return b.chain === chain;
+        });
+        if (sel && sel.usd >= AMOUNT_MIN && wiz.bridgeAmount > sel.usd) {
+          wiz.bridgeAmount = Math.min(AMOUNT_MAX, Math.floor(sel.usd));
+        }
+        updateBridgeUI();
+      }
+
+      function disconnectMetaMask(btn) {
+        wiz.evmConnected = false;
+        wiz.evmAddress = null;
+        wiz.usdtBalance = 0;
+        wiz.evmWalletBalance = null;
+        wiz.preferredBridgeChain = '';
+        wiz.bridgeChain = '';
+        updateBridgeUI();
+        if (btn) {
+          btn.querySelector('div').children[0].textContent = 'Connect MetaMask';
+          if (btn.querySelector('div').children[1]) {
+            btn.querySelector('div').children[1].textContent = 'Opens browser · ETH · Base · BNB · Polygon';
+          }
+          btn.style.borderColor = '';
+        }
+        syncAvailableUsdt();
+        updateConnectContinueBtn();
       }
 
       function handleMetaMaskAccounts(btn, accounts, walletBalance) {
@@ -3115,6 +3261,9 @@
 
         var short = accounts[0].slice(0, 6) + '…' + accounts[0].slice(-4);
         btn.querySelector('div').children[0].textContent = 'Connected: ' + short;
+        if (btn.querySelector('div').children[1]) {
+          btn.querySelector('div').children[1].textContent = 'Tap to disconnect';
+        }
         btn.style.borderColor = 'rgba(230,119,30,0.5)';
 
         var stripResult = document.getElementById('stripBalanceResult');
@@ -3207,15 +3356,31 @@
       }
 
       document.getElementById('btnConnectMM').addEventListener('click', function () {
+        if (wiz.evmConnected) {
+          disconnectMetaMask(this);
+          return;
+        }
         runMetaMaskConnect(this);
       });
 
+      function appendDepositPrefill(url) {
+        var parts = [];
+        if (wiz.bridgeChain) parts.push('chain=' + encodeURIComponent(wiz.bridgeChain));
+        if (wiz.bridgeAmount >= AMOUNT_MIN) {
+          parts.push('amount=' + encodeURIComponent(String(wiz.bridgeAmount)));
+        }
+        if (!parts.length) return url;
+        return url + (url.indexOf('?') >= 0 ? '&' : '?') + parts.join('&');
+      }
+
       function openCrossChainDeposit(btn) {
         if (!assertAuth()) return;
-        var label = btn ? btn.textContent : '';
+        saveBridgeState();
+        var labelEl = btn ? btn.querySelector('#btnBridgeFromMMLabel') : null;
+        var label = labelEl ? labelEl.textContent : (btn ? btn.textContent : '');
         if (btn) {
           btn.disabled = true;
-          btn.textContent = 'Opening browser…';
+          if (labelEl) labelEl.textContent = 'Opening browser…';
         }
         fetch('/api/evm-deposit/session', {
           method: 'POST',
@@ -3229,7 +3394,7 @@
             return r.json();
           })
           .then(function (session) {
-            openMetaMaskUrl(getMetaMaskSessionOpenUrl(session));
+            openMetaMaskUrl(appendDepositPrefill(getMetaMaskSessionOpenUrl(session)));
           })
           .catch(function (err) {
             console.error('[EVM deposit]', err);
@@ -3237,7 +3402,7 @@
           .finally(function () {
             if (btn) {
               btn.disabled = false;
-              btn.textContent = label || 'Deposit from EVM chains →';
+              updateBridgeUI();
             }
           });
       }
@@ -3247,11 +3412,9 @@
       });
 
       /* ══════════════════════════════════════════════════════
-         WIZARD — Connect → Plan → Deposit → Confirm
+         WIZARD — Connect → Bridge → Plan → Confirm
       ══════════════════════════════════════════════════════ */
 
-      var AMOUNT_MIN = 10;
-      var AMOUNT_MAX = 2000;
       var FREQ_CYCLES = { daily: 365, weekly: 52, monthly: 12 };
       var sliderEl = document.getElementById('amountSlider');
       var amountInputEl = document.getElementById('amountInput');
@@ -3269,6 +3432,8 @@
       function syncAvailableUsdt() {
         if (wiz.mode === 'demo') {
           wiz.availableUsdt = AMOUNT_MAX;
+        } else if (current >= WIZARD_SETUP && wiz.agentUsdtBalance >= 0) {
+          wiz.availableUsdt = wiz.agentUsdtBalance;
         } else if (wiz.evmConnected && wiz.usdtBalance > 0) {
           wiz.availableUsdt = wiz.usdtBalance;
         } else if (wiz.tonConnected) {
@@ -3282,9 +3447,21 @@
             ? 'Demo mode'
             : wiz.availableUsdt >= AMOUNT_MIN
               ? '$' + wiz.availableUsdt.toFixed(0) + ' USDT'
-              : wiz.tonConnected || wiz.evmConnected
+              : wiz.tonConnected || wiz.evmConnected || wiz.agentWalletAddress
                 ? '$' + wiz.availableUsdt.toFixed(2) + ' USDT (low)'
-                : 'Connect wallet first';
+                : 'Fund agent wallet first';
+        }
+        var chainEl = document.getElementById('availChainHint');
+        if (chainEl) {
+          if (current >= WIZARD_SETUP && wiz.agentUsdtBalance >= AMOUNT_MIN) {
+            chainEl.textContent = 'Based on your agent wallet balance after bridge';
+          } else if (wiz.evmConnected && wiz.bridgeChain) {
+            chainEl.textContent = 'Bridge from ' + (CHAIN_LABELS[wiz.bridgeChain] || wiz.bridgeChain) + ' on previous step';
+          } else if (wiz.tonConnected) {
+            chainEl.textContent = 'Funded via TON network USDT jetton';
+          } else {
+            chainEl.textContent = '';
+          }
         }
         applySliderMax();
       }
@@ -3380,7 +3557,7 @@
       function updateDepositContinueBtn() {
         var btn = document.getElementById('btnWizardNextDeposit');
         if (!btn) return;
-        var minNeeded = Math.max(AMOUNT_MIN, Math.min(wiz.amountPerCycle, AMOUNT_MIN));
+        var minNeeded = Math.max(AMOUNT_MIN, wiz.bridgeAmount || AMOUNT_MIN);
         var can = wiz.mode === 'demo' || wiz.depositConfirmed || wiz.agentUsdtBalance >= minNeeded;
         btn.disabled = !can;
         btn.style.opacity = can ? '1' : '0.4';
@@ -3395,7 +3572,12 @@
         refreshSetupProjection();
         updateSetupContinueBtn();
         var minLbl = document.getElementById('depositMinLabel');
-        if (minLbl) minLbl.textContent = '$' + Math.max(AMOUNT_MIN, Math.min(wiz.amountPerCycle, AMOUNT_MIN));
+        if (minLbl) minLbl.textContent = '$' + AMOUNT_MIN;
+      }
+
+      function saveBridgeState() {
+        var budgetInput = document.getElementById('bridgeBudgetInput');
+        if (budgetInput) setBridgeAmount(budgetInput.value);
       }
 
       function setSetupFrequency(freq) {
@@ -3449,10 +3631,10 @@
           wiz.withdrawAddress = window.gramityState.withdrawalAddress;
         }
         if (window.gramityState.frequency) setSetupFrequency(window.gramityState.frequency);
-        var suggested = wiz.availableUsdt >= AMOUNT_MIN
-          ? Math.min(50, Math.floor(wiz.availableUsdt * 0.25))
-          : 50;
-        suggested = Math.max(AMOUNT_MIN, suggested);
+        var budget = wiz.agentUsdtBalance || 0;
+        var suggested = budget >= AMOUNT_MIN
+          ? Math.max(AMOUNT_MIN, Math.min(50, Math.floor(budget / 12)))
+          : AMOUNT_MIN;
         if (window.gramityState.amount) setSetupAmount(window.gramityState.amount);
         else setSetupAmount(suggested);
         updateSetupContinueBtn();
@@ -3490,6 +3672,7 @@
         if (bridgeBtn) bridgeBtn.style.display = wiz.evmConnected ? 'flex' : 'none';
         var tonHint = document.getElementById('depositTonHint');
         if (tonHint) tonHint.style.display = wiz.tonConnected ? 'block' : 'none';
+        updateBridgeUI();
         updateDepositContinueBtn();
       }
 
@@ -3507,7 +3690,7 @@
           fetchAgentWallet(false).then(function (data) {
             wiz.agentUsdtBalance = data.usdt_balance || 0;
             wiz.agentTonBalance = data.ton_balance || 0;
-            if (wiz.agentUsdtBalance >= Math.max(AMOUNT_MIN, Math.min(wiz.amountPerCycle, AMOUNT_MIN))) {
+            if (wiz.agentUsdtBalance >= Math.max(AMOUNT_MIN, wiz.bridgeAmount || AMOUNT_MIN)) {
               wiz.depositConfirmed = true;
             }
             updateAgentDepositUI();
@@ -3522,13 +3705,21 @@
           updateAgentDepositUI();
           return;
         }
+        if (wiz.evmConnected && wiz.evmWalletBalance) {
+          applyBridgeRecommendation(wiz.evmWalletBalance);
+        } else if (wiz.evmConnected && wiz.evmAddress) {
+          fetchEvmBalancesFromServer(wiz.evmAddress).then(function (wb) {
+            displayEvmBalances(wb);
+          }).catch(function () {});
+        }
+        updateBridgeUI();
         var pollEl = document.getElementById('agentDepositPoll');
         if (pollEl) pollEl.textContent = 'Preparing agent wallet…';
         fetchAgentWallet(true).then(function (data) {
           wiz.agentWalletAddress = data.agent_wallet_address || '';
           wiz.agentUsdtBalance = data.usdt_balance || 0;
           wiz.agentTonBalance = data.ton_balance || 0;
-          if (wiz.agentUsdtBalance >= Math.max(AMOUNT_MIN, Math.min(wiz.amountPerCycle, AMOUNT_MIN))) {
+          if (wiz.agentUsdtBalance >= Math.max(AMOUNT_MIN, wiz.bridgeAmount || AMOUNT_MIN)) {
             wiz.depositConfirmed = true;
           }
           updateAgentDepositUI();
@@ -3563,25 +3754,25 @@
       document.getElementById('btnWizardBackConnect').addEventListener('click', function () { goTo(6); });
       document.getElementById('btnWizardNextConnect').addEventListener('click', function () {
         if (this.disabled) return;
-        goTo(WIZARD_SETUP);
-      });
-
-      document.getElementById('btnWizardBack1').addEventListener('click', function () { goTo(WIZARD_CONNECT); });
-      document.getElementById('btnWizardNext1').addEventListener('click', function () {
-        if (this.disabled) return;
-        saveSetupState();
         goTo(WIZARD_DEPOSIT);
       });
 
-      document.getElementById('btnWizardBackDeposit').addEventListener('click', function () { goTo(WIZARD_SETUP); });
-      document.getElementById('btnWizardNextDeposit').addEventListener('click', function () {
+      document.getElementById('btnWizardBack1').addEventListener('click', function () { goTo(WIZARD_DEPOSIT); });
+      document.getElementById('btnWizardNext1').addEventListener('click', function () {
         if (this.disabled) return;
         saveSetupState();
         buildSummary();
         goTo(WIZARD_CONFIRM);
       });
 
-      document.getElementById('btnWizardBack2').addEventListener('click', function () { goTo(WIZARD_DEPOSIT); });
+      document.getElementById('btnWizardBackDeposit').addEventListener('click', function () { goTo(WIZARD_CONNECT); });
+      document.getElementById('btnWizardNextDeposit').addEventListener('click', function () {
+        if (this.disabled) return;
+        saveBridgeState();
+        goTo(WIZARD_SETUP);
+      });
+
+      document.getElementById('btnWizardBack2').addEventListener('click', function () { goTo(WIZARD_SETUP); });
 
       document.getElementById('btnToggleDemoConnect').addEventListener('click', function () {
         setDemoMode(wiz.mode !== 'demo');
@@ -3589,6 +3780,22 @@
 
       document.getElementById('btnBridgeFromMM').addEventListener('click', function () {
         openCrossChainDeposit(this);
+      });
+
+      var bridgeBudgetInput = document.getElementById('bridgeBudgetInput');
+      if (bridgeBudgetInput) {
+        bridgeBudgetInput.addEventListener('input', function () {
+          setBridgeAmount(bridgeBudgetInput.value);
+        });
+        bridgeBudgetInput.addEventListener('blur', function () {
+          setBridgeAmount(bridgeBudgetInput.value || AMOUNT_MIN);
+        });
+      }
+      document.querySelectorAll('#bridgeChainTabs .freq-tab').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          if (tab.disabled) return;
+          setBridgeChain(tab.dataset.chain);
+        });
       });
 
       document.getElementById('btnCopyAgentAddr').addEventListener('click', function () {

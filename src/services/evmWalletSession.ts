@@ -13,6 +13,15 @@ export interface EvmWalletToken {
   balanceUsd: number;
   type: "NATIVE" | "BEP20";
   icon: string;
+  blockchain?: string;
+}
+
+export interface EvmChainBridgeBalance {
+  chain: string;
+  label: string;
+  symbol: string;
+  usd: number;
+  balance: string;
 }
 
 export interface EvmWalletBalancePayload {
@@ -22,6 +31,10 @@ export interface EvmWalletBalancePayload {
   chain: string;
   tokens: EvmWalletToken[];
   totalUsd: number;
+  /** USDT/USDC per supported bridge chain (best stable per chain) */
+  chainBalances: EvmChainBridgeBalance[];
+  recommendedChain: string | null;
+  recommendedUsd: number;
 }
 
 export interface EvmWalletSession {
@@ -46,6 +59,96 @@ interface AnkrAsset {
   balanceUsd?: string;
   tokenType?: string;
   thumbnail?: string;
+  blockchain?: string;
+  contractAddress?: string;
+}
+
+type BridgeChainKey = "ethereum" | "base" | "bnb" | "polygon";
+
+const ANKR_TO_CHAIN: Record<string, BridgeChainKey> = {
+  eth: "ethereum",
+  ethereum: "ethereum",
+  base: "base",
+  bsc: "bnb",
+  bnb: "bnb",
+  polygon: "polygon",
+  pol: "polygon",
+};
+
+const CHAIN_LABELS: Record<BridgeChainKey, string> = {
+  ethereum: "Ethereum",
+  base: "Base",
+  bnb: "BNB Chain",
+  polygon: "Polygon",
+};
+
+/** Bridge-eligible stables per chain (lowercase addresses) */
+const BRIDGE_STABLES: Record<
+  BridgeChainKey,
+  { symbols: string[]; addresses: string[] }
+> = {
+  ethereum: {
+    symbols: ["USDT"],
+    addresses: ["0xdac17f958d2ee523a2206206994597c13d831ec7"],
+  },
+  base: {
+    symbols: ["USDC"],
+    addresses: ["0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"],
+  },
+  bnb: {
+    symbols: ["USDT"],
+    addresses: ["0x55d398326f99059ff775485246999027b3197955"],
+  },
+  polygon: {
+    symbols: ["USDC", "PUSD"],
+    addresses: [
+      "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+      "0xc011a7e12a19f7b1f670d46f03b03f3342e82dfb",
+    ],
+  },
+};
+
+function isBridgeStable(chain: BridgeChainKey, symbol: string, address?: string): boolean {
+  const cfg = BRIDGE_STABLES[chain];
+  const sym = symbol.toUpperCase();
+  if (!cfg.symbols.includes(sym)) return false;
+  if (!address) return true;
+  return cfg.addresses.includes(address.toLowerCase());
+}
+
+function buildChainBalances(
+  assets: Array<{
+    chain: BridgeChainKey;
+    symbol: string;
+    balance: string;
+    balanceUsd: number;
+  }>
+): Pick<EvmWalletBalancePayload, "chainBalances" | "recommendedChain" | "recommendedUsd"> {
+  const byChain = new Map<BridgeChainKey, EvmChainBridgeBalance>();
+
+  for (const asset of assets) {
+    const prev = byChain.get(asset.chain);
+    if (!prev || asset.balanceUsd > prev.usd) {
+      byChain.set(asset.chain, {
+        chain: asset.chain,
+        label: CHAIN_LABELS[asset.chain],
+        symbol: asset.symbol,
+        usd: asset.balanceUsd,
+        balance: asset.balance,
+      });
+    }
+  }
+
+  const chainBalances = Array.from(byChain.values())
+    .filter((c) => c.usd >= 1)
+    .sort((a, b) => b.usd - a.usd);
+
+  const best = chainBalances[0];
+  return {
+    chainBalances,
+    recommendedChain: best?.chain ?? null,
+    recommendedUsd: best?.usd ?? 0,
+  };
 }
 
 function purgeExpiredSessions(): void {
@@ -146,19 +249,37 @@ function parseAnkrAssets(
   address: string,
   assets: AnkrAsset[]
 ): EvmWalletBalancePayload {
+  const bridgeAssets: Array<{
+    chain: BridgeChainKey;
+    symbol: string;
+    balance: string;
+    balanceUsd: number;
+  }> = [];
+
   const tokens: EvmWalletToken[] = assets
     .map((asset) => {
       const balance = asset.balance ?? "0";
       const balanceUsd = parseFloat(asset.balanceUsd ?? "0") || 0;
+      const blockchain = asset.blockchain ?? "";
+      const chainKey = ANKR_TO_CHAIN[blockchain.toLowerCase()];
+      const symbol = asset.tokenSymbol ?? "?";
       // Ankr labels BSC fungible tokens as "ERC20" — on BNB Chain that is BEP20.
       const tokenType = asset.tokenType === "NATIVE" ? "NATIVE" : "BEP20";
+      if (
+        chainKey &&
+        balanceUsd >= 1 &&
+        isBridgeStable(chainKey, symbol, asset.contractAddress)
+      ) {
+        bridgeAssets.push({ chain: chainKey, symbol, balance, balanceUsd });
+      }
       return {
-        symbol: asset.tokenSymbol ?? "?",
-        name: asset.tokenName ?? asset.tokenSymbol ?? "?",
+        symbol,
+        name: asset.tokenName ?? symbol,
         balance,
         balanceUsd,
         type: tokenType as "NATIVE" | "BEP20",
         icon: asset.thumbnail ?? "",
+        blockchain,
       };
     })
     .filter((t) => parseFloat(t.balance) > 0)
@@ -169,6 +290,7 @@ function parseAnkrAssets(
     });
 
   const totalUsd = tokens.reduce((sum, t) => sum + t.balanceUsd, 0);
+  const chainMeta = buildChainBalances(bridgeAssets);
 
   return {
     type: "wallet_balance",
@@ -177,6 +299,7 @@ function parseAnkrAssets(
     chain: "multichain",
     tokens,
     totalUsd,
+    ...chainMeta,
   };
 }
 
@@ -197,7 +320,7 @@ async function fetchViaAnkr(
       method: "ankr_getAccountBalance",
       params: {
         walletAddress: address,
-        blockchain: ["bsc", "eth", "polygon"],
+        blockchain: ["bsc", "eth", "polygon", "base"],
         onlyWhitelisted: false,
         nativeFirst: true,
       },

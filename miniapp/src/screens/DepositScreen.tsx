@@ -161,11 +161,15 @@ const S: Record<string, React.CSSProperties> = {
 export interface DepositScreenProps {
   authMode?: "telegram" | "token";
   sessionToken?: string;
+  initialChain?: EvmChainKey;
+  initialAmount?: string;
 }
 
 export function DepositScreen({
   authMode = "telegram",
   sessionToken,
+  initialChain,
+  initialAmount,
 }: DepositScreenProps) {
   const isTokenMode = authMode === "token";
   const useMetaMaskRedirect =
@@ -186,9 +190,13 @@ export function DepositScreen({
   const [openingMetaMask, setOpeningMetaMask] = useState(false);
   const [sessionPollStatus, setSessionPollStatus] = useState<string | null>(null);
 
-  const [chainKey, setChainKey] = useState<EvmChainKey>("ethereum");
-  const [token, setToken] = useState<TokenConfig>(TOKENS_BY_CHAIN.ethereum[0]);
-  const [amount, setAmount] = useState("");
+  const [chainKey, setChainKey] = useState<EvmChainKey>(
+    initialChain && CHAINS[initialChain] ? initialChain : "ethereum"
+  );
+  const [token, setToken] = useState<TokenConfig>(
+    TOKENS_BY_CHAIN[initialChain && CHAINS[initialChain] ? initialChain : "ethereum"][0]
+  );
+  const [amount, setAmount] = useState(initialAmount ?? "");
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteErr, setQuoteErr] = useState("");
@@ -203,6 +211,35 @@ export function DepositScreen({
   const [allowanceOk, setAllowanceOk] = useState(false);
   const [orderTrack, setOrderTrack] = useState<OrderTrackState | null>(null);
   const [orderTrackErr, setOrderTrackErr] = useState("");
+
+  const prefilledRef = useRef(Boolean(initialChain && initialAmount));
+  const autoConnectAttempted = useRef(false);
+
+  useEffect(() => {
+    if (!isTokenMode || !sessionToken || !depositAddress || autoConnectAttempted.current) {
+      return;
+    }
+    autoConnectAttempted.current = true;
+    (async () => {
+      setConnecting(true);
+      try {
+        const conn = await connectNativeEthereum();
+        setProvider(conn.provider);
+        setWalletAddress(conn.address);
+        setWalletChainId(conn.chainId);
+        setStep(2);
+      } catch (e: unknown) {
+        setConnectErr(parseWalletError(e));
+      } finally {
+        setConnecting(false);
+      }
+    })();
+  }, [isTokenMode, sessionToken, depositAddress]);
+
+  useEffect(() => {
+    if (!prefilledRef.current || !quote || !walletAddress || step >= 3) return;
+    setStep(3);
+  }, [quote, walletAddress, step]);
 
   const quoteDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -487,7 +524,7 @@ export function DepositScreen({
         setWalletChainId(chain.chainId);
       }
       const signer = await provider.getSigner();
-      const hash = await approveToken(signer, token, spender);
+      const hash = await approveToken(signer, token, spender, BigInt(quote.inputUnits));
       setApproveHash(hash);
       await waitTx(provider, hash);
       setApproveStatus("confirmed");
@@ -769,13 +806,11 @@ export function DepositScreen({
                   ? "Approve…"
                   : approveStatus === "confirmed"
                     ? "✅ Approved"
-                    : "Approve"}
+                    : `Approve ${amount} ${token.symbol}`}
               </button>
-              {approveStatus === "pending" && (
-                <div style={{ fontSize: 12, marginTop: 6, color: "var(--tg-theme-hint-color,#888)" }}>
-                  Status: pending…
-                </div>
-              )}
+              <div style={{ fontSize: 12, marginTop: 6, color: "var(--tg-theme-hint-color,#888)" }}>
+                Exact amount only · STON.fi cross-chain resolver (not unlimited)
+              </div>
               {approveStatus === "confirmed" && approveHash && (
                 <div style={{ ...S.success, marginTop: 8 }}>
                   Approve confirmed:{" "}
@@ -818,7 +853,7 @@ export function DepositScreen({
                   </div>
                   {orderTrack && (
                     <div style={{ marginTop: 8, fontSize: 12 }}>
-                      Omniston: {orderTrack.message}
+                      STON.fi: {orderTrack.message}
                       {orderTrack.phase === "disclosing" && " · disclosing HTLC secret…"}
                       {orderTrack.phase === "completed" && " · done"}
                     </div>

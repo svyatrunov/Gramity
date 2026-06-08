@@ -187,11 +187,12 @@ export async function readAllowance(
 export async function approveToken(
   signer: Signer,
   token: TokenConfig,
-  spender: string
+  spender: string,
+  amount?: bigint
 ): Promise<string> {
   const contract = new Contract(token.address, ERC20_ABI, signer);
   try {
-    const tx = await contract.approve(spender, MaxUint256);
+    const tx = await contract.approve(spender, amount ?? MaxUint256);
     return tx.hash as string;
   } catch (err: unknown) {
     const e = err as { code?: string; message?: string; reason?: string };

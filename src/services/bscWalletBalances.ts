@@ -187,6 +187,16 @@ export async function fetchBscRpcWalletBalances(
 
   const sorted = sortTokens(tokens);
   const totalUsd = sorted.reduce((sum, t) => sum + t.balanceUsd, 0);
+  const usdt = sorted.find((t) => t.symbol === "USDT");
+  const chainBalances = usdt && usdt.balanceUsd >= 1
+    ? [{
+        chain: "bnb",
+        label: "BNB Chain",
+        symbol: "USDT",
+        usd: usdt.balanceUsd,
+        balance: usdt.balance,
+      }]
+    : [];
 
   return {
     type: "wallet_balance",
@@ -195,5 +205,8 @@ export async function fetchBscRpcWalletBalances(
     chain: "bsc",
     tokens: sorted,
     totalUsd,
+    chainBalances,
+    recommendedChain: chainBalances[0]?.chain ?? null,
+    recommendedUsd: chainBalances[0]?.usd ?? 0,
   };
 }
