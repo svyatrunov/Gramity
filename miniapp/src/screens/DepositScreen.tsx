@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { BrowserProvider } from "ethers";
+import { WalletIcon, metamaskIcon } from "../components/WalletIcon";
 import type { Quote } from "@ston-fi/omniston-sdk";
 import { api } from "../api";
 import {
@@ -150,7 +151,7 @@ const S: Record<string, React.CSSProperties> = {
 export function DepositScreen() {
   const [step, setStep] = useState<Step>(1);
   const [configErr, setConfigErr] = useState("");
-  const [botWallet, setBotWallet] = useState("");
+  const [depositAddress, setDepositAddress] = useState("");
   const [omnistonWs, setOmnistonWs] = useState("");
   const [tonUsdt, setTonUsdt] = useState("");
 
@@ -184,7 +185,7 @@ export function DepositScreen() {
     api
       .depositConfig()
       .then((c) => {
-        setBotWallet(c.botWalletAddress);
+        setDepositAddress(c.depositAddress || c.botWalletAddress);
         setOmnistonWs(c.omnistonWsUrl);
         setTonUsdt(c.tonUsdtAddress);
       })
@@ -206,7 +207,7 @@ export function DepositScreen() {
   }, [provider, walletAddress, token, chainKey]);
 
   useEffect(() => {
-    if (!amount || !omnistonWs || !tonUsdt || !botWallet || parseFloat(amount) <= 0) {
+    if (!amount || !omnistonWs || !tonUsdt || !depositAddress || parseFloat(amount) <= 0) {
       setQuote(null);
       setQuoteErr("");
       setGasInfo("");
@@ -218,7 +219,7 @@ export function DepositScreen() {
       setQuoteLoading(true);
       setQuoteErr("");
       try {
-        const req = buildQuoteRequest(chainKey, token, amount, tonUsdt, botWallet);
+        const req = buildQuoteRequest(chainKey, token, amount, tonUsdt, depositAddress);
         const q = await fetchQuote(omnistonWs, req);
         setQuote(q);
         if (provider) {
@@ -242,7 +243,7 @@ export function DepositScreen() {
     return () => {
       if (quoteDebounce.current) clearTimeout(quoteDebounce.current);
     };
-  }, [amount, chainKey, token, omnistonWs, tonUsdt, botWallet, provider]);
+  }, [amount, chainKey, token, omnistonWs, tonUsdt, depositAddress, provider]);
 
   useEffect(() => {
     async function checkAllowance() {
@@ -299,12 +300,12 @@ export function DepositScreen() {
   };
 
   const copyDestination = useCallback(() => {
-    if (!botWallet) return;
-    navigator.clipboard.writeText(botWallet).then(() => {
+    if (!depositAddress) return;
+    navigator.clipboard.writeText(depositAddress).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
-  }, [botWallet]);
+  }, [depositAddress]);
 
   const handleApprove = async () => {
     if (!provider || !quote) return;
@@ -334,7 +335,7 @@ export function DepositScreen() {
   };
 
   const handleSend = async () => {
-    if (!provider || !quote || !botWallet || !omnistonWs) return;
+    if (!provider || !quote || !depositAddress || !omnistonWs) return;
 
     setActionErr("");
     setSendStatus("pending");
@@ -350,7 +351,7 @@ export function DepositScreen() {
         quote,
         chainKey,
         walletAddress,
-        botWallet,
+        depositAddress,
         signer
       );
 
@@ -384,7 +385,7 @@ export function DepositScreen() {
     );
   }
 
-  if (!botWallet) {
+  if (!depositAddress) {
     return <div style={S.root}>Загрузка конфигурации…</div>;
   }
 
@@ -414,10 +415,11 @@ export function DepositScreen() {
           {!walletAddress ? (
             <>
               <button
-                style={connecting ? S.btnDisabled : S.btn}
+                style={connecting ? S.btnDisabled : { ...S.btn, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
                 onClick={handleConnect}
                 disabled={connecting}
               >
+                {!connecting && <WalletIcon icon={metamaskIcon} size={20} color="#fff" />}
                 {connecting ? "Подключение…" : "Connect MetaMask"}
               </button>
               {connectErr && <div style={{ ...S.error, marginTop: 10 }}>{connectErr}</div>}
@@ -527,9 +529,9 @@ export function DepositScreen() {
             </div>
           )}
 
-          <div style={S.label}>Адрес назначения (TON)</div>
+          <div style={S.label}>Адрес назначения (TON — ваш агентский кошелёк)</div>
           <div style={S.dest} onClick={copyDestination} title="Нажмите чтобы скопировать">
-            <span style={S.mono}>{botWallet}</span>
+            <span style={S.mono}>{depositAddress}</span>
             <span style={{ fontSize: 12, color: "var(--tg-theme-link-color,#2481cc)" }}>
               {copied ? "✓" : "Copy"}
             </span>
