@@ -18,12 +18,14 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, "index.html"),
         evmDeposit: resolve(__dirname, "evm-deposit.html"),
+        evmWallet: resolve(__dirname, "evm-wallet.html"),
         metamaskConnect: resolve(__dirname, "src/metamask-connect-entry.ts"),
       },
       output: {
         entryFileNames: (chunk) => {
           if (chunk.name === "metamaskConnect") return "assets/metamask-connect.js";
           if (chunk.name === "evmDeposit") return "assets/evm-deposit-[hash].js";
+          if (chunk.name === "evmWallet") return "assets/evm-wallet-[hash].js";
           return "assets/[name]-[hash].js";
         },
       },

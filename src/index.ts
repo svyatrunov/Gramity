@@ -418,6 +418,92 @@ app.post("/api/evm-deposit/deposit-initiated", async (req, res) => {
   }
 });
 
+// EVM wallet connect session — MetaMask in-app browser (no MWP relay in Telegram WebView)
+app.post("/api/evm-wallet/session", tgAuth, async (req, res) => {
+  try {
+    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const { createEvmWalletSession } = await import("./services/evmWalletSession.js");
+    const session = createEvmWalletSession(telegramId);
+    console.log(`[EVM-WALLET] Session created user=${telegramId} id=${session.sessionId}`);
+    res.json(session);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.get("/api/evm-wallet/session", async (req, res) => {
+  try {
+    const token = String(req.query.token ?? "");
+    const { resolveWalletToken, updateEvmWalletSession } =
+      await import("./services/evmWalletSession.js");
+    const resolved = resolveWalletToken(token);
+    if (!resolved) {
+      res.status(401).json({ error: "Invalid or expired session token" });
+      return;
+    }
+    updateEvmWalletSession(resolved.session.id, { status: "opened" });
+    res.json({ status: resolved.session.status, expiresAt: resolved.session.expiresAt });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.get("/api/evm-wallet/status", async (req, res) => {
+  try {
+    const token = String(req.query.token ?? "");
+    const { resolveWalletToken } = await import("./services/evmWalletSession.js");
+    const resolved = resolveWalletToken(token);
+    if (!resolved) {
+      res.status(401).json({ error: "Invalid or expired session token" });
+      return;
+    }
+    const { session } = resolved;
+    res.json({
+      status: session.status,
+      evmAddress: session.evmAddress ?? null,
+      chainId: session.chainId ?? null,
+      expiresAt: session.expiresAt,
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post("/api/evm-wallet/connected", async (req, res) => {
+  try {
+    const { token, address, chainId } = req.body ?? {};
+    if (!token || typeof token !== "string") {
+      res.status(400).json({ error: "token required" });
+      return;
+    }
+    if (!address || typeof address !== "string") {
+      res.status(400).json({ error: "address required" });
+      return;
+    }
+
+    const { resolveWalletToken, updateEvmWalletSession } =
+      await import("./services/evmWalletSession.js");
+    const resolved = resolveWalletToken(token);
+    if (!resolved) {
+      res.status(401).json({ error: "Invalid or expired session token" });
+      return;
+    }
+
+    updateEvmWalletSession(resolved.session.id, {
+      status: "connected",
+      evmAddress: address,
+      chainId: chainId != null ? Number(chainId) : undefined,
+    });
+
+    console.log(
+      `[EVM-WALLET] Connected user=${resolved.telegramId} address=${address.slice(0, 10)}…`
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 app.post("/api/debug-log", tgAuth, (req, res) => {
   const telegramId = (req as express.Request & { telegramId: number }).telegramId;
   const { tag, message, data } = req.body ?? {};

@@ -4,6 +4,7 @@ import {
   warmMetaMaskConnectClient,
   isMobileDevice,
   isInsideTelegramMiniApp,
+  openMetaMaskLink,
 } from "./lib/metamaskConnect";
 
 declare global {
@@ -14,6 +15,7 @@ declare global {
       warm: typeof warmMetaMaskConnectClient;
       isMobileDevice: typeof isMobileDevice;
       isInsideTelegramMiniApp: typeof isInsideTelegramMiniApp;
+      openLink: typeof openMetaMaskLink;
     };
   }
 }
@@ -24,6 +26,7 @@ window.GramityMetaMask = {
   warm: warmMetaMaskConnectClient,
   isMobileDevice,
   isInsideTelegramMiniApp,
+  openLink: openMetaMaskLink,
 };
 
 window.dispatchEvent(new Event("gramity-metamask-ready"));

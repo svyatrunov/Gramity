@@ -850,6 +850,41 @@
     .scan-assets-list { max-height: 140px; overflow-y: auto; }
 
     /* ── Wizard Step 2: DCA Params ── */
+    .mode-tabs {
+      display: flex;
+      background: rgba(255,255,255,0.04);
+      border-radius: 12px;
+      padding: 3px;
+      margin-bottom: 14px;
+      gap: 2px;
+    }
+    .mode-tab {
+      flex: 1;
+      padding: 9px 6px;
+      background: transparent;
+      border: none;
+      border-radius: 10px;
+      color: var(--text-secondary);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .mode-tab.active {
+      background: #fff;
+      color: #1c1c1e;
+    }
+    .dca-min-banner {
+      background: rgba(245,158,11,0.1);
+      border: 1px solid rgba(245,158,11,0.3);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: #fbbf24;
+      margin-bottom: 14px;
+      display: none;
+    }
     .freq-tabs {
       display: flex;
       background: rgba(255,255,255,0.04);
@@ -2884,12 +2919,31 @@
         if (e.key === 'Enter') document.getElementById('btnScanTon').click();
       });
 
-      /* MetaMask connect — extension (desktop) or MetaMask Connect SDK (mobile deeplink via tg.openLink) */
+      /* MetaMask connect — desktop extension or MetaMask in-app browser on mobile (no MWP relay) */
       window.addEventListener('gramity-metamask-ready', function () {
-        if (window.GramityMetaMask && window.GramityMetaMask.warm) {
+        if (window.GramityMetaMask && window.GramityMetaMask.warm && !isMobileDevice()) {
           window.GramityMetaMask.warm();
         }
       }, { once: true });
+
+      function isMobileDevice() {
+        if (window.GramityMetaMask && window.GramityMetaMask.isMobileDevice) {
+          return window.GramityMetaMask.isMobileDevice();
+        }
+        return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+      }
+
+      function openMetaMaskUrl(url) {
+        if (window.GramityMetaMask && window.GramityMetaMask.openLink) {
+          window.GramityMetaMask.openLink(url);
+          return;
+        }
+        if (tg && tg.openLink) {
+          tg.openLink(url);
+          return;
+        }
+        window.open(url, '_blank');
+      }
 
       function getExtensionProvider() {
         if (!window.ethereum) return null;
@@ -2912,36 +2966,73 @@
         });
       }
 
-      function connectViaMetaMaskSdk(btn) {
-        function tryConnect() {
-          if (!window.GramityMetaMask) {
-            return Promise.reject(new Error('sdk_loading'));
+      function connectViaMetaMaskApp(btn) {
+        var labelEl = btn.querySelector('div').children[0];
+        var hintEl = btn.querySelector('div').children[1];
+        if (hintEl) hintEl.textContent = 'Approve in MetaMask, then return to Telegram';
+
+        return fetch('/api/evm-wallet/session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Telegram-Init-Data': initData,
+          },
+        })
+          .then(function (r) {
+            if (!r.ok) return r.text().then(function (t) { throw new Error(t || String(r.status)); });
+            return r.json();
+          })
+          .then(function (session) {
+            openMetaMaskUrl(session.metamaskUrl);
+            return pollEvmWalletSession(session.token, btn, labelEl, hintEl);
+          });
+      }
+
+      function pollEvmWalletSession(token, btn, labelEl, hintEl) {
+        var attempts = 0;
+        var maxAttempts = 120;
+        var pollMs = 2500;
+
+        return new Promise(function (resolve, reject) {
+          function check() {
+            attempts++;
+            fetch('/api/evm-wallet/status?token=' + encodeURIComponent(token))
+              .then(function (r) { return r.ok ? r.json() : null; })
+              .then(function (data) {
+                if (data && data.status === 'connected' && data.evmAddress) {
+                  cleanup();
+                  resolve({ accounts: [data.evmAddress], provider: null });
+                  return;
+                }
+                if (attempts >= maxAttempts) {
+                  cleanup();
+                  reject(new Error('MetaMask connect timeout — approve in MetaMask and return to Telegram'));
+                  return;
+                }
+                if (labelEl && attempts % 4 === 0) {
+                  labelEl.textContent = 'Waiting for MetaMask…';
+                }
+              })
+              .catch(function () {});
           }
-          return window.GramityMetaMask.connect().then(function (result) {
-            return window.GramityMetaMask.getProvider().then(function (provider) {
-              return { accounts: result.accounts, provider: provider };
-            });
-          });
-        }
-        return tryConnect().catch(function (err) {
-          if (err && err.message !== 'sdk_loading') throw err;
-          return new Promise(function (resolve, reject) {
-            var done = false;
-            function finish(fn) {
-              if (done) return;
-              done = true;
-              fn();
-            }
-            window.addEventListener('gramity-metamask-ready', function onReady() {
-              window.removeEventListener('gramity-metamask-ready', onReady);
-              tryConnect().then(function (r) { finish(function () { resolve(r); }); })
-                .catch(function (e) { finish(function () { reject(e); }); });
-            });
-            setTimeout(function () {
-              finish(function () { reject(new Error('sdk_loading')); });
-            }, 8000);
-          });
+
+          function onVisible() {
+            if (document.visibilityState === 'visible') check();
+          }
+
+          function cleanup() {
+            clearInterval(timer);
+            document.removeEventListener('visibilitychange', onVisible);
+          }
+
+          var timer = setInterval(check, pollMs);
+          document.addEventListener('visibilitychange', onVisible);
+          check();
         });
+      }
+
+      function shouldUseMetaMaskAppBrowser() {
+        return !getExtensionProvider() && isMobileDevice();
       }
 
       function handleMetaMaskAccounts(btn, accounts, provider) {
@@ -2972,13 +3063,23 @@
         var hintEl = btn.querySelector('div').children[1];
 
         btn.disabled = true;
-        labelEl.textContent = getExtensionProvider() ? 'Connecting…' : 'Opening MetaMask…';
-        if (hintEl) hintEl.textContent = 'Approve in MetaMask, then return to Telegram';
+        labelEl.textContent = getExtensionProvider()
+          ? 'Connecting…'
+          : shouldUseMetaMaskAppBrowser()
+            ? 'Opening MetaMask…'
+            : 'Connecting…';
+        if (hintEl) {
+          hintEl.textContent = shouldUseMetaMaskAppBrowser()
+            ? 'Approve in MetaMask app, then switch back to Telegram'
+            : 'Approve in MetaMask, then return to Telegram';
+        }
         btn.style.borderColor = '';
 
         var attempt = getExtensionProvider()
           ? connectViaExtension(btn)
-          : connectViaMetaMaskSdk(btn);
+          : shouldUseMetaMaskAppBrowser()
+            ? connectViaMetaMaskApp(btn)
+            : connectViaExtension(btn);
 
         attempt.then(function (res) {
           btn.disabled = false;
