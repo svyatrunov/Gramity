@@ -17,13 +17,15 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, "index.html"),
+        evmDeposit: resolve(__dirname, "evm-deposit.html"),
         metamaskConnect: resolve(__dirname, "src/metamask-connect-entry.ts"),
       },
       output: {
-        entryFileNames: (chunk) =>
-          chunk.name === "metamaskConnect"
-            ? "assets/metamask-connect.js"
-            : "assets/[name]-[hash].js",
+        entryFileNames: (chunk) => {
+          if (chunk.name === "metamaskConnect") return "assets/metamask-connect.js";
+          if (chunk.name === "evmDeposit") return "assets/evm-deposit-[hash].js";
+          return "assets/[name]-[hash].js";
+        },
       },
     },
   },

@@ -313,6 +313,118 @@ app.get("/api/deposit/config", tgAuth, async (req, res) => {
   }
 });
 
+// EVM deposit session — JWT for MetaMask in-app browser (no initData in URL)
+app.post("/api/evm-deposit/session", tgAuth, async (req, res) => {
+  try {
+    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const { createEvmDepositSession } = await import("./services/evmDepositSession.js");
+    const session = await createEvmDepositSession(telegramId);
+    res.json(session);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.get("/api/evm-deposit/session", async (req, res) => {
+  try {
+    const token = String(req.query.token ?? "");
+    const { resolveDepositToken, getEvmDepositConfigForSession, updateEvmDepositSession } =
+      await import("./services/evmDepositSession.js");
+    const resolved = resolveDepositToken(token);
+    if (!resolved) {
+      res.status(401).json({ error: "Invalid or expired session token" });
+      return;
+    }
+    updateEvmDepositSession(resolved.session.id, { status: "opened" });
+    res.json(getEvmDepositConfigForSession(resolved.session));
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.get("/api/evm-deposit/status", async (req, res) => {
+  try {
+    const token = String(req.query.token ?? "");
+    const { resolveDepositToken } = await import("./services/evmDepositSession.js");
+    const resolved = resolveDepositToken(token);
+    if (!resolved) {
+      res.status(401).json({ error: "Invalid or expired session token" });
+      return;
+    }
+    const { session } = resolved;
+    res.json({
+      status: session.status,
+      txHash: session.txHash ?? null,
+      amount: session.amount ?? null,
+      sourceChain: session.sourceChain ?? null,
+      sourceToken: session.sourceToken ?? null,
+      expiresAt: session.expiresAt,
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post("/api/evm-deposit/deposit-initiated", async (req, res) => {
+  try {
+    const { token, txHash, amount, sourceChain, sourceToken } = req.body ?? {};
+    if (!token || typeof token !== "string") {
+      res.status(400).json({ error: "token required" });
+      return;
+    }
+    if (!txHash || typeof txHash !== "string") {
+      res.status(400).json({ error: "txHash required" });
+      return;
+    }
+
+    const { resolveDepositToken, updateEvmDepositSession } =
+      await import("./services/evmDepositSession.js");
+    const resolved = resolveDepositToken(token);
+    if (!resolved) {
+      res.status(401).json({ error: "Invalid or expired session token" });
+      return;
+    }
+
+    const telegramId = resolved.telegramId;
+    updateEvmDepositSession(resolved.session.id, {
+      status: "completed",
+      txHash,
+      amount: amount != null ? Number(amount) : undefined,
+      sourceChain: sourceChain != null ? String(sourceChain) : undefined,
+      sourceToken: sourceToken != null ? String(sourceToken) : undefined,
+    });
+
+    const { bot } = await import("./bot/index.js");
+    const amt = amount != null ? String(amount) : "?";
+    const chain = sourceChain != null ? String(sourceChain) : "?";
+    const tokenSym = sourceToken != null ? String(sourceToken) : "?";
+
+    await bot.api.sendMessage(
+      telegramId,
+      `🌉 *Cross-chain deposit sent*\n\n` +
+        `Amount: ${amt} ${tokenSym}\n` +
+        `Network: ${chain}\n` +
+        `Tx: \`${txHash.slice(0, 10)}…${txHash.slice(-8)}\`\n\n` +
+        `_Funds will arrive on TON after bridge confirmation (usually 5–15 min)._`,
+      { parse_mode: "Markdown" }
+    );
+
+    console.log(
+      `[DEPOSIT] EVM session completed user=${telegramId} chain=${chain} token=${tokenSym} tx=${txHash}`
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post("/api/debug-log", tgAuth, (req, res) => {
+  const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+  const { tag, message, data } = req.body ?? {};
+  console.log(`[CLIENT ${telegramId}] ${tag ?? "log"}: ${message ?? ""}`, data ?? "");
+  res.json({ ok: true });
+});
+
 // Notify bot after cross-chain deposit tx confirmed
 app.post("/api/deposit-initiated", tgAuth, async (req, res) => {
   try {

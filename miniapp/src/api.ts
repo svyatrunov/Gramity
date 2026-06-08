@@ -68,6 +68,37 @@ export interface DepositConfig {
   tonUsdtAddress: string;
 }
 
+export interface EvmDepositSessionResponse {
+  token: string;
+  sessionId: string;
+  metamaskUrl: string;
+  pageUrl: string;
+  expiresAt: number;
+  depositAddress: string;
+}
+
+export interface EvmDepositStatus {
+  status: string;
+  txHash: string | null;
+  amount: number | null;
+  sourceChain: string | null;
+  sourceToken: string | null;
+  expiresAt: number;
+}
+
+async function tokenFetch<T>(path: string, token: string, opts?: RequestInit): Promise<T> {
+  const url = `${BASE}${path}${path.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}`;
+  const res = await fetch(url, {
+    ...opts,
+    headers: { "Content-Type": "application/json", ...(opts?.headers ?? {}) },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API ${path}: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<T>;
+}
+
 export const api = {
   portfolio: () => apiFetch<Portfolio>("/portfolio"),
   wallets: () => apiFetch<WalletInfo[]>("/wallets"),
@@ -101,5 +132,34 @@ export const api = {
     apiFetch<{ ok: boolean }>("/deposit-initiated", {
       method: "POST",
       body: JSON.stringify(body),
+    }),
+  createEvmDepositSession: () =>
+    apiFetch<EvmDepositSessionResponse>("/evm-deposit/session", { method: "POST" }),
+  evmDepositConfig: (token: string) =>
+    tokenFetch<DepositConfig & { status: string; expiresAt: number }>(
+      "/evm-deposit/session",
+      token
+    ),
+  evmDepositStatus: (token: string) =>
+    tokenFetch<EvmDepositStatus>("/evm-deposit/status", token),
+  evmDepositInitiated: (
+    token: string,
+    body: {
+      txHash: string;
+      amount: number;
+      sourceChain: string;
+      sourceToken: string;
+    }
+  ) =>
+    fetch(`${BASE}/evm-deposit/deposit-initiated`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, ...body }),
+    }).then(async (res) => {
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`API /evm-deposit/deposit-initiated: ${res.status} ${text}`);
+      }
+      return res.json() as Promise<{ ok: boolean }>;
     }),
 };

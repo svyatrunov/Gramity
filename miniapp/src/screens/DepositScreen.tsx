@@ -20,6 +20,7 @@ import {
 } from "../lib/omnistonClient";
 import {
   connectMetaMask,
+  connectNativeEthereum,
   switchChain,
   readTokenBalance,
   readAllowance,
@@ -31,6 +32,10 @@ import {
   shortAddress,
   parseWalletError,
 } from "../lib/evmWallet";
+import {
+  getBrowserExtensionProvider,
+  isInsideTelegramMiniApp,
+} from "../lib/metamaskConnect";
 
 type Step = 1 | 2 | 3;
 type TxStatus = "idle" | "pending" | "confirmed" | "failed";
@@ -148,7 +153,21 @@ const S: Record<string, React.CSSProperties> = {
   },
 };
 
-export function DepositScreen() {
+export interface DepositScreenProps {
+  authMode?: "telegram" | "token";
+  sessionToken?: string;
+}
+
+export function DepositScreen({
+  authMode = "telegram",
+  sessionToken,
+}: DepositScreenProps) {
+  const isTokenMode = authMode === "token";
+  const useMetaMaskRedirect =
+    !isTokenMode &&
+    isInsideTelegramMiniApp() &&
+    getBrowserExtensionProvider() === null;
+
   const [step, setStep] = useState<Step>(1);
   const [configErr, setConfigErr] = useState("");
   const [depositAddress, setDepositAddress] = useState("");
@@ -161,6 +180,8 @@ export function DepositScreen() {
   const [tokenBalance, setTokenBalance] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [connectErr, setConnectErr] = useState("");
+  const [openingMetaMask, setOpeningMetaMask] = useState(false);
+  const [sessionPollStatus, setSessionPollStatus] = useState<string | null>(null);
 
   const [chainKey, setChainKey] = useState<EvmChainKey>("ethereum");
   const [token, setToken] = useState<TokenConfig>(TOKENS_BY_CHAIN.ethereum[0]);
@@ -179,9 +200,29 @@ export function DepositScreen() {
   const [allowanceOk, setAllowanceOk] = useState(false);
 
   const quoteDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const activeSessionToken = useRef<string | null>(sessionToken ?? null);
 
   useEffect(() => {
     window.Telegram?.WebApp?.ready?.();
+
+    if (isTokenMode) {
+      if (!sessionToken) {
+        setConfigErr("Сессия недействительна — откройте депозит из Telegram заново.");
+        return;
+      }
+      activeSessionToken.current = sessionToken;
+      api
+        .evmDepositConfig(sessionToken)
+        .then((c) => {
+          setDepositAddress(c.depositAddress);
+          setOmnistonWs(c.omnistonWsUrl);
+          setTonUsdt(c.tonUsdtAddress);
+        })
+        .catch((e: Error) => setConfigErr(e.message));
+      return;
+    }
+
     api
       .depositConfig()
       .then((c) => {
@@ -190,6 +231,12 @@ export function DepositScreen() {
         setTonUsdt(c.tonUsdtAddress);
       })
       .catch((e: Error) => setConfigErr(e.message));
+  }, [isTokenMode, sessionToken]);
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -271,10 +318,12 @@ export function DepositScreen() {
     setConnecting(true);
     setConnectErr("");
     try {
-      if (!hasMetaMask()) {
+      if (!hasMetaMask() && !isTokenMode) {
         throw new Error("MetaMask не установлен");
       }
-      const conn = await connectMetaMask();
+      const conn = isTokenMode
+        ? await connectNativeEthereum()
+        : await connectMetaMask();
       setProvider(conn.provider);
       setWalletAddress(conn.address);
       setWalletChainId(conn.chainId);
@@ -283,6 +332,46 @@ export function DepositScreen() {
       setConnectErr(parseWalletError(e));
     } finally {
       setConnecting(false);
+    }
+  };
+
+  const startSessionPolling = (token: string) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        const status = await api.evmDepositStatus(token);
+        setSessionPollStatus(status.status);
+        if (status.status === "completed") {
+          if (pollRef.current) clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
+      } catch {
+        /* ignore transient poll errors */
+      }
+    }, 4000);
+  };
+
+  const handleOpenInMetaMask = async () => {
+    setOpeningMetaMask(true);
+    setConnectErr("");
+    try {
+      const session = await api.createEvmDepositSession();
+      activeSessionToken.current = session.token;
+      startSessionPolling(session.token);
+
+      const tg = (
+        window as unknown as { Telegram?: { WebApp?: { openLink?: (url: string) => void } } }
+      ).Telegram?.WebApp;
+      if (tg?.openLink) {
+        tg.openLink(session.metamaskUrl);
+      } else {
+        window.open(session.metamaskUrl, "_blank");
+      }
+      setSessionPollStatus("pending");
+    } catch (e: unknown) {
+      setConnectErr(parseWalletError(e));
+    } finally {
+      setOpeningMetaMask(false);
     }
   };
 
@@ -359,12 +448,19 @@ export function DepositScreen() {
       setSendHash(pseudoHash);
       setSendStatus("confirmed");
 
-      await api.depositInitiated({
-        txHash: pseudoHash,
-        amount: parseFloat(amount),
-        sourceChain: chain.label,
-        sourceToken: token.symbol,
-      });
+      await (isTokenMode && activeSessionToken.current
+        ? api.evmDepositInitiated(activeSessionToken.current, {
+            txHash: pseudoHash,
+            amount: parseFloat(amount),
+            sourceChain: chain.label,
+            sourceToken: token.symbol,
+          })
+        : api.depositInitiated({
+            txHash: pseudoHash,
+            amount: parseFloat(amount),
+            sourceChain: chain.label,
+            sourceToken: token.symbol,
+          }));
     } catch (e: unknown) {
       setSendStatus("failed");
       setActionErr(parseWalletError(e));
@@ -393,9 +489,42 @@ export function DepositScreen() {
     <div style={S.root}>
       <h2 style={{ marginBottom: 4, fontSize: 20 }}>Cross-chain депозит</h2>
       <p style={{ fontSize: 13, color: "var(--tg-theme-hint-color,#888)", marginBottom: 16 }}>
-        Пополнение USDT на TON через MetaMask
+        {isTokenMode
+          ? "Подтверждение в MetaMask · ETH · Base · BNB · Polygon"
+          : "Пополнение USDT на TON через MetaMask"}
       </p>
 
+      {useMetaMaskRedirect && (
+        <div style={S.card}>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Депозит через MetaMask</div>
+          <p style={{ fontSize: 13, color: "var(--tg-theme-hint-color,#888)", marginBottom: 12 }}>
+            В Telegram подключение MetaMask ненадёжно. Откройте депозит во встроенном браузере
+            MetaMask — там approve и sign работают нативно.
+          </p>
+          <button
+            style={
+              openingMetaMask
+                ? S.btnDisabled
+                : { ...S.btn, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }
+            }
+            onClick={handleOpenInMetaMask}
+            disabled={openingMetaMask}
+          >
+            {!openingMetaMask && <WalletIcon icon={metamaskIcon} size={20} color="#fff" />}
+            {openingMetaMask ? "Открываю MetaMask…" : "Open in MetaMask"}
+          </button>
+          {sessionPollStatus && (
+            <div style={{ fontSize: 12, marginTop: 10, color: "var(--tg-theme-hint-color,#888)" }}>
+              Статус сессии: {sessionPollStatus}
+              {sessionPollStatus === "completed" && " — вернитесь в Telegram"}
+            </div>
+          )}
+          {connectErr && <div style={{ ...S.error, marginTop: 10 }}>{connectErr}</div>}
+        </div>
+      )}
+
+      {!useMetaMaskRedirect && (
+      <>
       <div style={S.stepBar}>
         {([1, 2, 3] as Step[]).map((n) => (
           <div
@@ -620,6 +749,8 @@ export function DepositScreen() {
           {sendStatus === "failed" && <div style={S.error}>Send failed</div>}
           {actionErr && <div style={{ ...S.error, marginTop: 8 }}>{actionErr}</div>}
         </div>
+      )}
+      </>
       )}
     </div>
   );

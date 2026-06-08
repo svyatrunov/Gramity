@@ -91,6 +91,27 @@ export async function connectMetaMask(): Promise<{
   return { provider, signer, address, chainId: Number(network.chainId) };
 }
 
+export async function connectNativeEthereum(): Promise<{
+  provider: BrowserProvider;
+  signer: Signer;
+  address: string;
+  chainId: number;
+}> {
+  const eip1193 = getBrowserExtensionProvider();
+  if (!eip1193) {
+    throw new WalletError(
+      "Откройте эту страницу во встроенном браузере MetaMask.",
+      "NO_PROVIDER"
+    );
+  }
+  const provider = new BrowserProvider(eip1193);
+  await provider.send("eth_requestAccounts", []);
+  const signer = await provider.getSigner();
+  const address = await signer.getAddress();
+  const network = await provider.getNetwork();
+  return { provider, signer, address, chainId: Number(network.chainId) };
+}
+
 async function getActiveProvider(): Promise<Eip1193Provider> {
   const ext = getBrowserExtensionProvider();
   if (ext) return ext;
