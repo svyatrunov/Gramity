@@ -1,7 +1,7 @@
 {
   "name": "gramity",
   "version": "1.0.0",
-  "description": "Gramity — custodial DCA executor on TON mainnet. Conversational control via Mira; no funds flow through Mira.",
+  "description": "Gramity — custodial DCA executor on TON mainnet. Post-onboarding control plane via Mira; onboarding must be completed in Mini App first. Withdrawal address is optional at onboarding and can be set later via set_withdrawal_address or Mini App; once set it is locked. No funds flow through Mira.",
   "endpoint": "https://gramity-production.up.railway.app/mcp",
   "constraints": {
     "mainnet": true,
@@ -10,12 +10,16 @@
     "standard_min_amount_usdt": 10,
     "quick_min_amount_usdt": 2,
     "quick_intervals": ["10s", "30s", "60s"],
-    "standard_frequencies": ["daily", "weekly", "biweekly", "monthly"]
+    "standard_frequencies": ["daily", "weekly", "biweekly", "monthly"],
+    "onboarding_required": true,
+    "withdrawal_address_optional_at_onboarding": true,
+    "withdrawal_address_locked_after_set": true,
+    "cycles_blocked_until_withdrawal_address_set": true
   },
   "tools": [
     {
       "name": "get_portfolio",
-      "description": "Returns portfolio summary with frequency, amount_usdt, status, next_cycle, cycles_completed, total_invested_usdt, agent_wallet_balance_usdt, can_run_now, and masked withdrawal_address.",
+      "description": "Returns portfolio summary with frequency, amount_usdt, status, next_cycle, cycles_completed, total_invested_usdt, agent_wallet_balance_usdt, can_run_now, can_run_next_cycle, withdrawal_address_set, and masked withdrawal_address (null if not set). If withdrawal_address_set is false, cycles are blocked until set_withdrawal_address is called.",
       "inputSchema": {
         "type": "object",
         "required": ["telegram_id"],
@@ -26,7 +30,7 @@
     },
     {
       "name": "create_strategy",
-      "description": "Update DCA strategy. Standard: min $10, daily/weekly/biweekly/monthly. Quick Start: min $2, intervals 10s/30s/60s, 2 cycles on mainnet. Use quick_mode=true to switch.",
+      "description": "Update an existing DCA strategy (plan must exist from Mini App onboarding). Standard: min $10, daily/weekly/biweekly/monthly. Quick Start: min $2, intervals 10s/30s/60s, 2 cycles on mainnet. Use quick_mode=true to switch. Does not set withdrawal address — use set_withdrawal_address if missing.",
       "inputSchema": {
         "type": "object",
         "required": ["telegram_id", "amount_usdt", "frequency", "strategy"],
@@ -65,7 +69,7 @@
     },
     {
       "name": "run_now",
-      "description": "Immediately execute one DCA cycle: Omniston swap → Tonstakers → STON.fi LP. Uses strategy amount by default. LP tokens go to locked withdrawal address.",
+      "description": "Immediately execute one DCA cycle: Omniston swap → Tonstakers → STON.fi LP. Requires withdrawal_address_set=true. Fails with action=set_withdrawal_address if address not set yet.",
       "inputSchema": {
         "type": "object",
         "required": ["telegram_id"],
@@ -77,7 +81,7 @@
     },
     {
       "name": "withdraw",
-      "description": "Send available USDT from agent wallet to user's locked withdrawal address. Cannot change the withdrawal address — it was locked during onboarding.",
+      "description": "Send available USDT from agent wallet to user's withdrawal address. Requires withdrawal_address_set=true. Cannot change an already locked address.",
       "inputSchema": {
         "type": "object",
         "required": ["telegram_id"],
@@ -108,6 +112,25 @@
         "properties": {
           "telegram_id": { "type": "string" },
           "amount_usdt": { "type": "number", "minimum": 10 }
+        }
+      }
+    },
+    {
+      "name": "set_withdrawal_address",
+      "description": "Set the user's TON withdrawal wallet (EQ…/UQ…) when not yet configured. Optional during Mini App onboarding; required before DCA cycles or withdraw. Can only be called once — address is locked after set. Ignored if address already set.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["telegram_id", "ton_address"],
+        "properties": {
+          "telegram_id": { "type": "string" },
+          "ton_address": {
+            "type": "string",
+            "description": "User's TON wallet (EQ… or UQ…). LP tokens and withdrawals go here."
+          },
+          "withdrawal_address": {
+            "type": "string",
+            "description": "Alias for ton_address"
+          }
         }
       }
     },

@@ -135,6 +135,26 @@ async function checkAndExecute() {
         // ── 1. Pre-flight check ──────────────────────────────────────────────
         const preflight = await preflightCheck(plan);
         if (!preflight.ok) {
+          if (preflight.reason === "missing_withdrawal_address") {
+            if (preflight.userMessage && notifyUser) {
+              try {
+                await notifyUser(plan.telegram_id, null, preflight.userMessage);
+                await logNotification(plan.id, "missing_withdrawal_address", true, preflight.userMessage);
+              } catch (err) {
+                await logNotification(
+                  plan.id,
+                  "missing_withdrawal_address",
+                  false,
+                  preflight.userMessage,
+                  err instanceof Error ? err.message : String(err)
+                );
+              }
+            }
+            const nextDate = getNextExecutionDate(plan);
+            await updatePlan(plan.telegram_id, { next_execution_at: nextDate.toISOString() });
+            return;
+          }
+
           if (!preflight.silent) {
             // Specific notifications for gas vs USDT
             if (preflight.reason === "insufficient_usdt" && notifyInsufficientFunds && preflight.walletAddress) {

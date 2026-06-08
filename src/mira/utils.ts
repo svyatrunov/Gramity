@@ -7,8 +7,8 @@ const SENSITIVE_KEYS = new Set([
   "wallet_id",
 ]);
 
-export function maskAddress(address: string): string {
-  if (!address || address.length < 10) return "—";
+export function maskAddress(address: string | null | undefined): string {
+  if (!address || address.length < 10) return "not set";
   return `${address.slice(0, 4)}...${address.slice(-4)}`;
 }
 

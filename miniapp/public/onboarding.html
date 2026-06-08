@@ -1914,16 +1914,16 @@
           </div>
 
           <div class="withdraw-block anim-item">
-            <p class="param-label">Withdrawal wallet (TON address)</p>
+            <p class="param-label">Withdrawal wallet (TON address) <span style="opacity:0.55;font-weight:400">· optional</span></p>
             <div class="input-group visible">
               <div class="addr-row" style="flex:1;min-width:0">
                 <input class="addr-input" id="withdrawAddrInput" type="text"
-                       placeholder="EQ... or UQ..." autocomplete="off" spellcheck="false" style="flex:1"/>
+                       placeholder="Skip for now — set later in App" autocomplete="off" spellcheck="false" style="flex:1"/>
                 <span class="addr-valid-check" id="withdrawAddrCheck">✓</span>
                 <button class="paste-btn" id="pasteAddrBtn" type="button">Paste</button>
               </div>
             </div>
-            <p class="addr-hint">LP tokens go here · locked at setup · agent can't redirect</p>
+            <p class="addr-hint">LP tokens go here · locked once set · cycles wait until address is added</p>
           </div>
         </div>
         <div class="slide-footer">
@@ -2010,6 +2010,18 @@
               <span class="deposit-addr-text-lg" id="depositStepAddr">—</span>
               <button class="btn-copy-addr" id="btnCopyDepositAddr" type="button">Copy</button>
             </div>
+          </div>
+
+          <div class="deposit-step-card anim-item" id="withdrawLaterCard" style="display:none;margin-top:14px">
+            <div class="deposit-step-title">📬 Set withdrawal wallet</div>
+            <p class="deposit-meta-line" style="margin-top:8px">Required before DCA cycles run · LP tokens go here</p>
+            <div class="addr-row anim-item" style="margin-top:12px">
+              <input class="addr-input" id="withdrawLaterInput" type="text"
+                     placeholder="EQ... or UQ..." autocomplete="off" spellcheck="false" style="flex:1"/>
+              <span class="addr-valid-check" id="withdrawLaterCheck">✓</span>
+            </div>
+            <button class="btn btn-mira-ghost anim-item" id="btnSaveWithdrawLater" type="button"
+                    style="margin-top:12px;width:100%;opacity:0.4" disabled>Save withdrawal address</button>
           </div>
         </div>
         <div class="slide-footer">
@@ -3171,7 +3183,8 @@
       function updateSetupContinueBtn() {
         var btn = document.getElementById('btnWizardNext1');
         if (!btn) return;
-        var addrOk = isValidWithdrawAddr(wiz.withdrawAddress);
+        var addrProvided = wiz.withdrawAddress.trim().length > 0;
+        var addrOk = !addrProvided || isValidWithdrawAddr(wiz.withdrawAddress);
         var amountOk = wiz.amountPerCycle >= AMOUNT_MIN;
         var can = addrOk && amountOk;
         btn.disabled = !can;
@@ -3179,7 +3192,7 @@
         btn.style.pointerEvents = can ? 'auto' : 'none';
 
         var checkEl = document.getElementById('withdrawAddrCheck');
-        if (checkEl) checkEl.classList.toggle('visible', addrOk);
+        if (checkEl) checkEl.classList.toggle('visible', addrProvided && addrOk);
       }
 
       function setSetupAmount(val) {
@@ -3279,7 +3292,9 @@
         document.getElementById('summaryAmount').textContent =
           '$' + wiz.amountPerCycle + ' USDT / ' + (freqLabels[wiz.frequency] || 'weekly');
         document.getElementById('summaryApy').textContent = '~5.4%';
-        document.getElementById('summaryWithdraw').textContent = truncateAddr(wiz.withdrawAddress);
+        document.getElementById('summaryWithdraw').textContent = wiz.withdrawAddress
+          ? truncateAddr(wiz.withdrawAddress)
+          : 'Set later';
       }
 
       function updateCreateBtn() {
@@ -3364,7 +3379,72 @@
         agentDepositAddress = address;
         var addrEl = document.getElementById('depositStepAddr');
         if (addrEl && address) addrEl.textContent = address;
+
+        var laterCard = document.getElementById('withdrawLaterCard');
+        var hasWithdrawal = data.withdrawal_address_set === true ||
+          (data.withdrawal_address && String(data.withdrawal_address).length > 0) ||
+          isValidWithdrawAddr(wiz.withdrawAddress);
+        if (laterCard) laterCard.style.display = hasWithdrawal ? 'none' : 'block';
       }
+
+      function updateWithdrawLaterBtn() {
+        var btn = document.getElementById('btnSaveWithdrawLater');
+        var inp = document.getElementById('withdrawLaterInput');
+        var checkEl = document.getElementById('withdrawLaterCheck');
+        if (!btn || !inp) return;
+        var val = inp.value.trim();
+        var ok = isValidWithdrawAddr(val);
+        btn.disabled = !ok;
+        btn.style.opacity = ok ? '1' : '0.4';
+        if (checkEl) checkEl.classList.toggle('visible', ok);
+      }
+
+      document.getElementById('withdrawLaterInput').addEventListener('input', updateWithdrawLaterBtn);
+
+      document.getElementById('btnSaveWithdrawLater').addEventListener('click', async function () {
+        if (!assertAuth()) return;
+        var inp = document.getElementById('withdrawLaterInput');
+        var btn = this;
+        var addr = inp && inp.value ? inp.value.trim() : '';
+        if (!isValidWithdrawAddr(addr)) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+        try {
+          var res = await fetch('/api/plans/withdrawal-address', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Telegram-Init-Data': initData,
+            },
+            body: JSON.stringify({ ton_address: addr }),
+          });
+          if (res.ok) {
+            wiz.withdrawAddress = addr;
+            window.gramityState.withdrawalAddress = addr;
+            var card = document.getElementById('withdrawLaterCard');
+            if (card) card.style.display = 'none';
+            var tgApp = window.Telegram && window.Telegram.WebApp;
+            if (tgApp && tgApp.HapticFeedback && tgApp.HapticFeedback.notificationOccurred) {
+              tgApp.HapticFeedback.notificationOccurred('success');
+            }
+          } else {
+            var errData = await res.json().catch(function () { return {}; });
+            var errMsg = errData.error || 'Failed to save address';
+            var tgApp2 = window.Telegram && window.Telegram.WebApp;
+            if (tgApp2 && tgApp2.showAlert) tgApp2.showAlert('❌ ' + errMsg);
+            else alert('Error: ' + errMsg);
+            btn.disabled = false;
+            btn.textContent = 'Save withdrawal address';
+            updateWithdrawLaterBtn();
+          }
+        } catch (e) {
+          console.error('[btnSaveWithdrawLater]', e);
+          btn.disabled = false;
+          btn.textContent = 'Save withdrawal address';
+          updateWithdrawLaterBtn();
+        }
+      });
 
       document.getElementById('btnCreateStrategy').addEventListener('click', async function () {
         if (!assertAuth()) return;
@@ -3392,9 +3472,9 @@
               frequency: window.gramityState.frequency,
               amount: window.gramityState.amount,
               mode: window.gramityState.mode,
-              withdrawalAddress: window.gramityState.withdrawalAddress,
+              withdrawalAddress: window.gramityState.withdrawalAddress || null,
               tonPrice: window.gramityState.tonPrice,
-              ton_address: window.gramityState.withdrawalAddress,
+              ton_address: window.gramityState.withdrawalAddress || null,
               amount_usdt: window.gramityState.amount,
               demo_mode: window.gramityState.mode === 'demo',
               strategy: 'ton',

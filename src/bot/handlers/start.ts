@@ -93,7 +93,9 @@ export async function handleStart(ctx: GramityContext) {
       `👋 Welcome back!\n\n` +
         `📊 *Your Gramity Strategy*\n\n` +
         `${statusEmoji} ${statusLabel} · $${existingPlan.usdt_amount} USDT ${freqLabel}\n` +
-        `Wallet: \`${existingPlan.ton_address.slice(0, 6)}…${existingPlan.ton_address.slice(-4)}\`\n` +
+        (existingPlan.ton_address
+          ? `Withdrawal: \`${existingPlan.ton_address.slice(0, 6)}…${existingPlan.ton_address.slice(-4)}\`\n`
+          : `⚠️ Withdrawal address not set — open App to configure\n`) +
         (lastExec
           ? `Last run: ${new Date(lastExec.executed_at).toLocaleDateString("en-US")}\n`
           : "") +

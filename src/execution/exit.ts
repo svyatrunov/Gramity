@@ -87,6 +87,9 @@ async function getJettonBalanceOnChain(
 }
 
 export async function executeFullExit(plan: Plan): Promise<ExitResult> {
+  if (!plan.ton_address) {
+    throw new Error("Withdrawal address not set");
+  }
   const telegramId = plan.telegram_id;
   console.log(`[EXIT] Starting full exit for user ${telegramId}`);
 

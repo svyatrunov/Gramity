@@ -13,6 +13,7 @@ import {
   buildMiraBotDeeplink,
   strategyModeToSlug,
 } from "./utils.js";
+import { hasWithdrawalAddress } from "../utils/tonAddress.js";
 
 function validateInitData(initDataStr: string): number | null {
   try {
@@ -94,6 +95,7 @@ async function buildMiraContext(telegramId: number) {
     frequency: plan.frequency,
     strategy: strategyModeToSlug(plan.strategy_mode),
     cycles_completed: plan.cycles_completed,
+    withdrawal_address_set: hasWithdrawalAddress(plan.ton_address),
     deeplink,
   };
 }
@@ -155,6 +157,10 @@ export function registerMiraRoutes(app: Express): void {
         total_usd: portfolio.total_usd,
         strategies: portfolio.strategies,
         agent_wallet_address: portfolio.agent_wallet_address,
+        withdrawal_address_set: portfolio.withdrawal_address_set,
+        withdrawal_address_masked: portfolio.withdrawal_address_masked,
+        cycle_blocked_reason: portfolio.cycle_blocked_reason,
+        suggested_action: portfolio.suggested_action,
       }));
     } catch (err) {
       const msg = (err as Error).message;

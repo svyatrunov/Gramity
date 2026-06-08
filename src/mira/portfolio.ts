@@ -14,6 +14,7 @@ import {
 import { createUserWallet } from "../services/userWallet.js";
 import { POOL_ADDRESS, STON_API_URL } from "../config.js";
 import { maskAddress } from "./utils.js";
+import { hasWithdrawalAddress } from "../utils/tonAddress.js";
 import type { Plan } from "../db/index.js";
 
 const STRATEGY_LABELS: Record<string, string> = {
@@ -86,12 +87,32 @@ export async function buildMiraPortfolio(telegramId: number) {
   const nextCycleRequiresUsdt = Number(plan.usdt_amount);
   const preflight = await preflightCheck(plan);
   const canRunNextCycle = preflight.ok;
-  const topUpHint = canRunNextCycle
-    ? undefined
-    : `Top up agent wallet with $${nextCycleRequiresUsdt} USDT + ${GAS_RESERVE_TON} TON gas`;
+  const withdrawalAddressSet = hasWithdrawalAddress(plan.ton_address);
+
+  let topUpHint: string | undefined;
+  let cycleBlockedReason: string | undefined;
+  let suggestedAction: string | undefined;
+
+  if (!canRunNextCycle) {
+    if (preflight.reason === "missing_withdrawal_address") {
+      cycleBlockedReason = "missing_withdrawal_address";
+      topUpHint =
+        "Set TON withdrawal address via set_withdrawal_address or Mini App before cycles can run.";
+      suggestedAction = "set_withdrawal_address";
+    } else if (preflight.reason === "insufficient_usdt") {
+      cycleBlockedReason = "insufficient_usdt";
+      topUpHint = `Top up agent wallet with $${nextCycleRequiresUsdt} USDT`;
+    } else if (preflight.reason === "insufficient_gas") {
+      cycleBlockedReason = "insufficient_gas";
+      topUpHint = `Send ${GAS_RESERVE_TON} TON to agent wallet for gas`;
+    } else {
+      topUpHint = `Top up agent wallet with $${nextCycleRequiresUsdt} USDT + ${GAS_RESERVE_TON} TON gas`;
+    }
+  }
 
   const status = plan.active ? "active" : "paused";
-  const canRunNow = usdtBalance >= Number(plan.usdt_amount);
+  const canRunNow =
+    withdrawalAddressSet && usdtBalance >= Number(plan.usdt_amount);
 
   return {
     telegram_id: telegramId,
@@ -104,6 +125,8 @@ export async function buildMiraPortfolio(telegramId: number) {
     can_run_next_cycle: canRunNextCycle,
     can_run_now: canRunNow,
     top_up_hint: topUpHint,
+    cycle_blocked_reason: cycleBlockedReason,
+    suggested_action: suggestedAction,
     lp_value_usd: lpValue,
     total_invested_usd: totalInvested,
     total_invested_usdt: totalInvested,
@@ -115,8 +138,9 @@ export async function buildMiraPortfolio(telegramId: number) {
     amount_usdt: Number(plan.usdt_amount),
     status,
     agent_wallet_balance_usdt: usdtBalance,
-    withdrawal_address: maskAddress(plan.ton_address),
-    withdrawal_address_masked: maskAddress(plan.ton_address),
+    withdrawal_address: plan.ton_address ? maskAddress(plan.ton_address) : null,
+    withdrawal_address_masked: plan.ton_address ? maskAddress(plan.ton_address) : null,
+    withdrawal_address_set: withdrawalAddressSet,
     agent_wallet_address: depositAddress,
     quick_mode: plan.demo_mode,
     demo_mode: plan.demo_mode,

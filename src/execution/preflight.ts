@@ -8,12 +8,14 @@ import { GAS_RESERVE_TON } from "../constants/dca.js";
 import { getUserWalletContext } from "../services/userWallet.js";
 import { getUsdtBalance, getTonBalance } from "../services/tonapi.js";
 import type { Plan } from "../db/index.js";
+import { hasWithdrawalAddress } from "../utils/tonAddress.js";
 
 export type PreflightFailReason =
   | "insufficient_usdt"
   | "insufficient_gas"
   | "plan_paused"
-  | "wallet_error";
+  | "wallet_error"
+  | "missing_withdrawal_address";
 
 export interface PreflightResult {
   ok: boolean;
@@ -36,6 +38,18 @@ export async function preflightCheck(plan: Plan): Promise<PreflightResult> {
   // Check 0: plan must be active (race-condition guard, scheduler also checks)
   if (!plan.active) {
     return { ok: false, reason: "plan_paused", silent: true };
+  }
+
+  if (!hasWithdrawalAddress(plan.ton_address)) {
+    return {
+      ok: false,
+      reason: "missing_withdrawal_address",
+      message: "No withdrawal address configured",
+      userMessage:
+        `⚠️ *Cycle skipped — no withdrawal address*\n\n` +
+        `Set your TON withdrawal wallet in the Mini App before cycles can run.\n\n` +
+        `👉 Open App → Settings → withdrawal address`,
+    };
   }
 
   // Load agent wallet

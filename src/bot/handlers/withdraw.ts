@@ -35,6 +35,14 @@ export async function handleWithdrawMenu(ctx: GramityContext) {
     await ctx.reply("No active strategy. Use /start.");
     return;
   }
+  if (!plan.ton_address) {
+    await ctx.reply(
+      "⚠️ *No withdrawal address set*\n\n" +
+        "Open the Mini App to set your TON withdrawal wallet before withdrawing.",
+      { parse_mode: "Markdown" }
+    );
+    return;
+  }
 
   let depositAddress = "";
   let usdtBalance    = 0;
@@ -93,6 +101,14 @@ export async function handleWithdrawUsdtConfirm(ctx: GramityContext) {
     await ctx.reply("⚠️ Strategy not found.");
     return;
   }
+  if (!plan.ton_address) {
+    await ctx.reply(
+      "⚠️ *No withdrawal address set*\n\nOpen the Mini App to set your TON withdrawal wallet.",
+      { parse_mode: "Markdown" }
+    );
+    return;
+  }
+  const dest = plan.ton_address;
 
   await ctx.reply("⏳ Sending USDT to your wallet...");
 
@@ -109,11 +125,11 @@ export async function handleWithdrawUsdtConfirm(ctx: GramityContext) {
       Math.floor(usdtBalance * Math.pow(10, USDT_DECIMALS))
     );
 
-    await sendJettonTransfer(walletCtx, USDT_ADDRESS, amountRaw, plan.ton_address);
+    await sendJettonTransfer(walletCtx, USDT_ADDRESS, amountRaw, dest);
 
     await ctx.reply(
       `✅ *$${usdtBalance.toFixed(2)} USDT sent*\n\n` +
-        `To: \`${plan.ton_address}\`\n\n` +
+        `To: \`${dest}\`\n\n` +
         `Transaction will appear in the explorer in 1–2 min.`,
       { parse_mode: "Markdown" }
     );

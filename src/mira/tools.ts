@@ -23,6 +23,10 @@ import { RAILWAY_PUBLIC_URL, USDT_ADDRESS, USDT_DECIMALS } from "../config.js";
 import { buildMiraPortfolio } from "./portfolio.js";
 import { sanitizeForMira, maskAddress, parseTelegramId } from "./utils.js";
 import { notify } from "../bot/notifications.js";
+import {
+  normalizeTonAddress,
+  hasWithdrawalAddress,
+} from "../utils/tonAddress.js";
 
 function tonTxUrl(hash: string | null | undefined): string | undefined {
   return hash ? `https://tonviewer.com/transaction/${hash}` : undefined;
@@ -86,11 +90,14 @@ export async function toolCreateStrategy(args: Record<string, unknown>) {
   const existing = await getPlanByTelegramId(telegramId);
   if (!existing) {
     throw new Error(
-      "No Gramity plan found. User must complete onboarding in Mini App first (withdrawal address is locked there)."
+      "No Gramity plan found. User must complete onboarding in Mini App first."
     );
   }
 
   const originalWithdrawal = existing.ton_address;
+  const withdrawalLine = hasWithdrawalAddress(originalWithdrawal)
+    ? `Withdrawal: \`${maskAddress(originalWithdrawal)}\` _(locked)_\n\n`
+    : `⚠️ Withdrawal address not set — cycles wait until user sets it via set_withdrawal_address or Mini App.\n\n`;
   const nextExec = getNextPlanExecutionDate({
     frequency: normalizedFreq,
     demo_mode: isQuickMode,
@@ -130,7 +137,7 @@ export async function toolCreateStrategy(args: Record<string, unknown>) {
       `Strategy: ${strategyLabel}\n` +
       `Amount: $${amount.toFixed(0)} USDT / cycle\n` +
       `Frequency: ${freqLabel}\n` +
-      `Withdrawal: \`${maskAddress(originalWithdrawal)}\` _(locked)_\n\n` +
+      withdrawalLine +
       `Deposit to agent wallet:\n\`${agentWallet}\`\n\n` +
       `/status — check position`,
     { parse_mode: "Markdown" }
@@ -146,7 +153,10 @@ export async function toolCreateStrategy(args: Record<string, unknown>) {
     quick_mode: isQuickMode,
     demo_mode: isQuickMode,
     max_cycles: isQuickMode ? 2 : null,
-    withdrawal_address_masked: maskAddress(originalWithdrawal),
+    withdrawal_address_masked: hasWithdrawalAddress(originalWithdrawal)
+      ? maskAddress(originalWithdrawal)
+      : null,
+    withdrawal_address_set: hasWithdrawalAddress(originalWithdrawal),
     agent_wallet_address: agentWallet,
     withdrawal_address_unchanged: true,
   });
@@ -181,6 +191,15 @@ export async function toolRunNow(args: Record<string, unknown>) {
 
   const plan = await getPlanByTelegramId(telegramId);
   if (!plan) throw new Error("No plan found");
+  if (!plan.ton_address) {
+    return sanitizeForMira({
+      success: false,
+      error:
+        "Withdrawal address not set. Call set_withdrawal_address with a TON address (EQ…/UQ…), or ask user to set it in Mini App.",
+      withdrawal_address_set: false,
+      action: "set_withdrawal_address",
+    });
+  }
 
   const amountUsdt =
     args.amount_usdt != null ? Number(args.amount_usdt) : plan.usdt_amount;
@@ -260,6 +279,15 @@ export async function toolWithdraw(args: Record<string, unknown>) {
 
   const plan = await getPlanByTelegramId(telegramId);
   if (!plan) throw new Error("No plan found");
+  if (!plan.ton_address) {
+    return sanitizeForMira({
+      success: false,
+      error:
+        "Withdrawal address not set. Call set_withdrawal_address first, or ask user to set it in Mini App.",
+      withdrawal_address_set: false,
+      action: "set_withdrawal_address",
+    });
+  }
 
   const newAddress =
     args.withdrawal_address ?? args.new_address ?? args.to_address;
@@ -439,13 +467,65 @@ export async function toolResumeStrategy(args: Record<string, unknown>) {
   });
 }
 
+export async function toolSetWithdrawalAddress(args: Record<string, unknown>) {
+  const telegramId = parseTelegramId(args.telegram_id);
+  if (telegramId === null) throw new Error("telegram_id required");
+
+  const raw =
+    args.ton_address ??
+    args.withdrawal_address ??
+    args.address ??
+    args.withdrawalAddress;
+  if (raw == null || String(raw).trim() === "") {
+    throw new Error("ton_address required (EQ… or UQ… TON wallet)");
+  }
+
+  const normalized = normalizeTonAddress(String(raw));
+  if (!normalized) {
+    throw new Error("Invalid TON withdrawal address. Use EQ… or UQ… format.");
+  }
+
+  const plan = await getPlanByTelegramId(telegramId);
+  if (!plan) {
+    throw new Error("No plan found. User must complete onboarding in Mini App first.");
+  }
+  if (hasWithdrawalAddress(plan.ton_address)) {
+    return sanitizeForMira({
+      success: false,
+      error: "Withdrawal address is already set and locked.",
+      withdrawal_address_set: true,
+      withdrawal_address_masked: maskAddress(plan.ton_address),
+    });
+  }
+
+  await updatePlan(telegramId, { ton_address: normalized });
+
+  const { bot } = await import("../bot/index.js");
+  await bot.api
+    .sendMessage(
+      telegramId,
+      `✅ *Withdrawal address set via Mira*\n\n` +
+        `\`${normalized.slice(0, 8)}…${normalized.slice(-6)}\`\n\n` +
+        `DCA cycles can now run. Address is locked.`,
+      { parse_mode: "Markdown" }
+    )
+    .catch(() => {});
+
+  return sanitizeForMira({
+    success: true,
+    withdrawal_address_set: true,
+    withdrawal_address_masked: maskAddress(normalized),
+    note: "Address is now locked. Cycles will proceed on schedule when funded.",
+  });
+}
+
 export function getMcpManifest() {
   const base = RAILWAY_PUBLIC_URL;
   return {
     name: "gramity",
     version: "1.0.0",
     description:
-      "Gramity — custodial DCA executor on TON mainnet. Post-onboarding control plane via Mira; onboarding must be completed in Mini App first. No funds flow through Mira.",
+      "Gramity — custodial DCA executor on TON mainnet. Post-onboarding control plane via Mira; onboarding must be completed in Mini App first. Withdrawal address is optional at onboarding and can be set later via set_withdrawal_address or Mini App; once set it is locked. No funds flow through Mira.",
     endpoint: `${base}/mcp`,
     constraints: {
       mainnet: true,
@@ -456,12 +536,15 @@ export function getMcpManifest() {
       quick_intervals: QUICK_INTERVAL_KEYS,
       standard_frequencies: STANDARD_FREQUENCIES,
       onboarding_required: true,
+      withdrawal_address_optional_at_onboarding: true,
+      withdrawal_address_locked_after_set: true,
+      cycles_blocked_until_withdrawal_address_set: true,
     },
     tools: [
       {
         name: "get_portfolio",
         description:
-          "Returns portfolio summary with frequency, amount_usdt, status, next_cycle, cycles_completed, total_invested_usdt, agent_wallet_balance_usdt, can_run_now, and masked withdrawal_address.",
+          "Returns portfolio summary with frequency, amount_usdt, status, next_cycle, cycles_completed, total_invested_usdt, agent_wallet_balance_usdt, can_run_now, can_run_next_cycle, withdrawal_address_set, and masked withdrawal_address (null if not set). If withdrawal_address_set is false, cycles are blocked until set_withdrawal_address is called.",
         inputSchema: {
           type: "object",
           required: ["telegram_id"],
@@ -471,7 +554,7 @@ export function getMcpManifest() {
       {
         name: "create_strategy",
         description:
-          `Update an existing DCA strategy. Standard mode: min $${MIN_DCA_USDT}, frequencies daily/weekly/biweekly/monthly. Quick Start: min $${QUICK_MIN_USDT}, intervals 10s/30s/60s, 2 cycles on mainnet. Set quick_mode=true (or demo_mode=true) to switch user to Quick Start.`,
+          `Update an existing DCA strategy (plan must exist from Mini App onboarding). Standard mode: min $${MIN_DCA_USDT}, frequencies daily/weekly/biweekly/monthly. Quick Start: min $${QUICK_MIN_USDT}, intervals 10s/30s/60s, 2 cycles on mainnet. Set quick_mode=true (or demo_mode=true) to switch user to Quick Start. Does not set withdrawal address — use set_withdrawal_address if missing.`,
         inputSchema: {
           type: "object",
           required: ["telegram_id", "amount_usdt", "frequency", "strategy"],
@@ -521,7 +604,7 @@ export function getMcpManifest() {
       {
         name: "run_now",
         description:
-          "Immediately execute one DCA cycle: Omniston swap → Tonstakers → STON.fi LP. Uses strategy amount by default. LP tokens go to locked withdrawal address.",
+          "Immediately execute one DCA cycle: Omniston swap → Tonstakers → STON.fi LP. Requires withdrawal_address_set=true. Fails with action=set_withdrawal_address if address not set yet.",
         inputSchema: {
           type: "object",
           required: ["telegram_id"],
@@ -534,7 +617,7 @@ export function getMcpManifest() {
       {
         name: "withdraw",
         description:
-          "Send available USDT from agent wallet to user's locked withdrawal address. Cannot change the withdrawal address — it was locked during onboarding.",
+          "Send available USDT from agent wallet to user's withdrawal address. Requires withdrawal_address_set=true. Cannot change an already locked address.",
         inputSchema: {
           type: "object",
           required: ["telegram_id"],
@@ -574,6 +657,26 @@ export function getMcpManifest() {
         },
       },
       {
+        name: "set_withdrawal_address",
+        description:
+          "Set the user's TON withdrawal wallet (EQ…/UQ…) when not yet configured. Optional during Mini App onboarding; required before DCA cycles or withdraw. Can only be called once — address is locked after set. Ignored if address already set.",
+        inputSchema: {
+          type: "object",
+          required: ["telegram_id", "ton_address"],
+          properties: {
+            telegram_id: { type: "string" },
+            ton_address: {
+              type: "string",
+              description: "User's TON wallet (EQ… or UQ…). LP tokens and withdrawals go here.",
+            },
+            withdrawal_address: {
+              type: "string",
+              description: "Alias for ton_address",
+            },
+          },
+        },
+      },
+      {
         name: "get_history",
         description:
           "Returns last N completed DCA cycles with amounts and transaction links.",
@@ -603,6 +706,7 @@ const TOOL_HANDLERS: Record<
   update_frequency: toolUpdateFrequency,
   update_amount: toolUpdateAmount,
   get_history: toolGetHistory,
+  set_withdrawal_address: toolSetWithdrawalAddress,
 };
 
 function wrapToolResult(data: unknown) {
