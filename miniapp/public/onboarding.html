@@ -2826,10 +2826,6 @@
         goTo(7);
       });
 
-      document.getElementById('btnConnectMMStrip').addEventListener('click', function () {
-        goTo(7);
-      });
-
       /* ══════════════════════════════════════════════════════
          WIZARD STEP 1 — Connect & Scan
       ══════════════════════════════════════════════════════ */
@@ -2970,9 +2966,8 @@
           });
       }
 
-      document.getElementById('btnConnectMM').addEventListener('click', function () {
-        var btn = this;
-        if (btn.disabled) return;
+      function runMetaMaskConnect(btn) {
+        if (!btn || btn.disabled) return;
         var labelEl = btn.querySelector('div').children[0];
         var hintEl = btn.querySelector('div').children[1];
 
@@ -3008,6 +3003,15 @@
             btn.style.borderColor = '';
           }, 8000);
         });
+      }
+
+      document.getElementById('btnConnectMMStrip').addEventListener('click', function () {
+        goTo(7);
+        runMetaMaskConnect(document.getElementById('btnConnectMM'));
+      });
+
+      document.getElementById('btnConnectMM').addEventListener('click', function () {
+        runMetaMaskConnect(this);
       });
 
       /* Disconnect wallet */

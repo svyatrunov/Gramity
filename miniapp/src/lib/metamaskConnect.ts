@@ -96,6 +96,11 @@ function openMobileLink(link: string): void {
   window.location.assign(url);
 }
 
+/** Open MetaMask app or in-app browser from Telegram — Android intent bypasses Branch.io. */
+export function openMetaMaskLink(link: string): void {
+  openMobileLink(link);
+}
+
 /** Route metamask:// / app.link through tg.openLink (Telegram WebView blocks raw deeplinks). */
 function installTelegramOpenLinkPatch(): void {
   if (!isInsideTelegramMiniApp()) return;

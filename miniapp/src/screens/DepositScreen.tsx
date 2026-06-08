@@ -35,6 +35,7 @@ import {
 import {
   getBrowserExtensionProvider,
   isInsideTelegramMiniApp,
+  openMetaMaskLink,
 } from "../lib/metamaskConnect";
 
 type Step = 1 | 2 | 3;
@@ -358,15 +359,7 @@ export function DepositScreen({
       const session = await api.createEvmDepositSession();
       activeSessionToken.current = session.token;
       startSessionPolling(session.token);
-
-      const tg = (
-        window as unknown as { Telegram?: { WebApp?: { openLink?: (url: string) => void } } }
-      ).Telegram?.WebApp;
-      if (tg?.openLink) {
-        tg.openLink(session.metamaskUrl);
-      } else {
-        window.open(session.metamaskUrl, "_blank");
-      }
+      openMetaMaskLink(session.metamaskUrl);
       setSessionPollStatus("pending");
     } catch (e: unknown) {
       setConnectErr(parseWalletError(e));
