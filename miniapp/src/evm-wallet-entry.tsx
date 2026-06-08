@@ -34,7 +34,7 @@ async function connectWallet() {
     connectBtn.disabled = true;
     connectBtn.textContent = "Waiting for MetaMask…";
   }
-  setStatus("Approve the connection in the MetaMask extension popup.");
+  setStatus("Approve the connection in MetaMask and pick the wallet with your funds.");
 
   try {
     await fetch(`/api/evm-wallet/session?token=${encodeURIComponent(token)}`);
@@ -73,7 +73,7 @@ async function connectWallet() {
 if (!token) {
   setStatus("Invalid session. Open Gramity from Telegram and try again.", "err");
 } else {
-  setStatus("Click the button below — MetaMask will ask you to approve the connection.");
+  setStatus("Select the correct account in the MetaMask popup — stale wallets are cleared first.");
 }
 
 connectBtn?.addEventListener("click", () => {

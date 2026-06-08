@@ -12,6 +12,7 @@ import {
   connectMetaMaskWallet,
   getMetaMaskConnectProvider,
   getBrowserExtensionProvider,
+  requestFreshMetaMaskAccounts,
 } from "./metamaskConnect";
 
 type Eip1193Provider = {
@@ -83,12 +84,16 @@ export async function connectMetaMask(): Promise<{
     );
   }
 
+  const accounts = await requestFreshMetaMaskAccounts(eip1193);
   const provider = new BrowserProvider(eip1193);
-  await provider.send("eth_requestAccounts", []);
-  const signer = await provider.getSigner();
-  const address = await signer.getAddress();
+  const signer = await provider.getSigner(accounts[0]);
   const network = await provider.getNetwork();
-  return { provider, signer, address, chainId: Number(network.chainId) };
+  return {
+    provider,
+    signer,
+    address: accounts[0],
+    chainId: Number(network.chainId),
+  };
 }
 
 export async function connectNativeEthereum(): Promise<{
@@ -104,12 +109,24 @@ export async function connectNativeEthereum(): Promise<{
       "NO_PROVIDER"
     );
   }
-  const provider = new BrowserProvider(eip1193);
-  await provider.send("eth_requestAccounts", []);
-  const signer = await provider.getSigner();
-  const address = await signer.getAddress();
-  const network = await provider.getNetwork();
-  return { provider, signer, address, chainId: Number(network.chainId) };
+  try {
+    const accounts = await requestFreshMetaMaskAccounts(eip1193);
+    const provider = new BrowserProvider(eip1193);
+    const signer = await provider.getSigner(accounts[0]);
+    const network = await provider.getNetwork();
+    return {
+      provider,
+      signer,
+      address: accounts[0],
+      chainId: Number(network.chainId),
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.toLowerCase().includes("reject") || msg.includes("4001")) {
+      throw new WalletError("Connection rejected in MetaMask", "USER_REJECTED");
+    }
+    throw new WalletError(msg || "MetaMask connection failed", "CONNECT_FAILED");
+  }
 }
 
 async function getActiveProvider(): Promise<Eip1193Provider> {

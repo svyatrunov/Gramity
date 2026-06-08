@@ -7,6 +7,7 @@ import {
   isInsideTelegramMiniApp,
   openMetaMaskLink,
   resolveMetaMaskSessionOpenUrl,
+  requestFreshMetaMaskAccounts,
 } from "./lib/metamaskConnect";
 
 declare global {
@@ -20,6 +21,7 @@ declare global {
       openLink: typeof openMetaMaskLink;
       openExternalBrowser: typeof openGramityExternalUrl;
       resolveSessionOpenUrl: typeof resolveMetaMaskSessionOpenUrl;
+      requestFreshAccounts: typeof requestFreshMetaMaskAccounts;
     };
   }
 }
@@ -33,6 +35,7 @@ window.GramityMetaMask = {
   openLink: openMetaMaskLink,
   openExternalBrowser: openGramityExternalUrl,
   resolveSessionOpenUrl: resolveMetaMaskSessionOpenUrl,
+  requestFreshAccounts: requestFreshMetaMaskAccounts,
 };
 
 window.dispatchEvent(new Event("gramity-metamask-ready"));

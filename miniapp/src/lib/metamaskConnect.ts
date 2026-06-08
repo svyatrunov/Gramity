@@ -217,7 +217,44 @@ export function getBrowserExtensionProvider(): Eip1193Provider | null {
   return null;
 }
 
-interface Eip1193Provider {
+export interface Eip1193Provider {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
   isMetaMask?: boolean;
+}
+
+/**
+ * Force MetaMask connect popup — clears stale site permission then re-requests accounts.
+ * eth_requestAccounts alone returns the first authorized account without a popup.
+ */
+export async function requestFreshMetaMaskAccounts(
+  provider: Eip1193Provider,
+  options: { revokeFirst?: boolean } = { revokeFirst: true }
+): Promise<string[]> {
+  if (options.revokeFirst) {
+    try {
+      await provider.request({
+        method: "wallet_revokePermissions",
+        params: [{ eth_accounts: {} }],
+      });
+    } catch {
+      /* site was not connected yet */
+    }
+  }
+
+  try {
+    await provider.request({
+      method: "wallet_requestPermissions",
+      params: [{ eth_accounts: {} }],
+    });
+  } catch (err: unknown) {
+    const e = err as { code?: number; message?: string };
+    if (e.code === 4001) throw new Error("Connection rejected in MetaMask");
+    throw err;
+  }
+
+  const accounts = (await provider.request({ method: "eth_accounts" })) as string[];
+  if (!accounts?.length) {
+    throw new Error("MetaMask returned no accounts");
+  }
+  return accounts;
 }

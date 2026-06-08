@@ -2857,29 +2857,30 @@
         return null;
       }
 
+      function requestFreshAccounts(provider) {
+        if (window.GramityMetaMask && window.GramityMetaMask.requestFreshAccounts) {
+          return window.GramityMetaMask.requestFreshAccounts(provider);
+        }
+        return provider.request({ method: 'wallet_revokePermissions', params: [{ eth_accounts: {} }] })
+          .catch(function () {})
+          .then(function () {
+            return provider.request({ method: 'wallet_requestPermissions', params: [{ eth_accounts: {} }] });
+          })
+          .then(function () {
+            return provider.request({ method: 'eth_accounts' });
+          })
+          .then(function (accounts) {
+            if (!accounts || !accounts.length) throw new Error('no_accounts');
+            return accounts;
+          });
+      }
+
       function connectViaExtension(btn) {
         var mmProvider = getExtensionProvider();
         if (!mmProvider) return Promise.reject(new Error('no_extension'));
-        return mmProvider.request({ method: 'eth_requestAccounts' }).then(function (accounts) {
+        return requestFreshAccounts(mmProvider).then(function (accounts) {
           return { accounts: accounts, provider: mmProvider };
         });
-      }
-
-      function connectViaMwp(btn) {
-        if (!window.GramityMetaMask || !window.GramityMetaMask.connect) {
-          return Promise.reject(new Error('sdk_loading'));
-        }
-        return window.GramityMetaMask.connect().then(function (result) {
-          if (!result.accounts || !result.accounts.length) {
-            throw new Error('no_accounts');
-          }
-          return { accounts: result.accounts, provider: null };
-        });
-      }
-
-      function isAppBrowserTimeout(err) {
-        var msg = String(err && err.message || '');
-        return msg.indexOf('timeout') !== -1 || msg.indexOf('return to Telegram') !== -1;
       }
 
       function pollEvmWalletSession(token, btn, labelEl, hintEl) {
@@ -3040,16 +3041,11 @@
         btn.style.borderColor = '';
 
         var attempt;
-        if (hasExt) {
+        if (isInsideTelegramMiniApp()) {
+          // Telegram WebView: always open browser tab — never silent extension/MWP relay
+          attempt = connectViaMetaMaskApp(btn);
+        } else if (hasExt) {
           attempt = connectViaExtension(btn);
-        } else if (mobile) {
-          attempt = connectViaMetaMaskApp(btn).catch(function (err) {
-            if (isAppBrowserTimeout(err) && isInsideTelegramMiniApp() && window.GramityMetaMask && window.GramityMetaMask.connect) {
-              console.warn('[MetaMask] App browser failed, falling back to extension relay');
-              return connectViaMwp(btn);
-            }
-            throw err;
-          });
         } else {
           attempt = connectViaMetaMaskApp(btn);
         }

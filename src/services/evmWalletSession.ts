@@ -314,7 +314,7 @@ export async function connectEvmWalletSession(
     };
   }
 
-  if (session.status !== "pending" && session.status !== "opened") {
+  if (session.status !== "opened") {
     throw new Error(`Session not open for connect (status=${session.status})`);
   }
 
