@@ -4,7 +4,7 @@
   "description": "Gramity — TON DCA liquidity bot",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc && npm --prefix miniapp run build",
+    "build": "tsc && npm ci --prefix miniapp --include=dev && npm --prefix miniapp run build",
     "start": "node dist/index.js",
     "start:engine": "node dist/main.js",
     "dev": "ts-node src/index.ts",

@@ -1,1 +1,1 @@
-import{n as e,p as a,m as t,l as i}from"./metamaskConnect-7CdJvi1S.js";window.GramityMetaMask={connect:i,getProvider:t,isMobileDevice:a,isInsideTelegramMiniApp:e};window.dispatchEvent(new Event("gramity-metamask-ready"));
+import{n as e,p as a,m as t,l as i}from"./metamaskConnect-DGZA-ZQt.js";window.GramityMetaMask={connect:i,getProvider:t,isMobileDevice:a,isInsideTelegramMiniApp:e};window.dispatchEvent(new Event("gramity-metamask-ready"));
