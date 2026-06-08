@@ -83,7 +83,7 @@ app.get("/api/example-tx", async (_req, res) => {
     }
     res.json({
       hash: null,
-      message: "No mainnet swap yet. Fund agent wallet and run /test in @GramityBot.",
+      message: "No mainnet swap yet. Fund DCA wallet and run /test in @GramityBot.",
     });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -655,7 +655,7 @@ async function notifyDepositOrderUpdate(
       telegramId,
       `✅ *Cross-chain order completed*\n\n` +
         `Quote: \`${shortId}\`\n` +
-        `${message ?? "USDT is on the way to your agent wallet."}\n\n` +
+        `${message ?? "USDT is on the way to your DCA wallet."}\n\n` +
         `_Balance updates within a few minutes._`,
       { parse_mode: "Markdown" }
     );
@@ -866,7 +866,7 @@ async function handleCreatePlan(
           `Interval: ${freqLabel}\n` +
           withdrawalLine +
           `━━━━━━━━━━━━━━━━━━━━\n` +
-          `*FUND YOUR AGENT WALLET*\n` +
+          `*FUND YOUR DCA WALLET*\n` +
           `Send USDT here to start:\n\n` +
           `\`${depositAddress}\`\n\n` +
           `First cycle runs shortly after deposit.\n` +
@@ -882,7 +882,7 @@ async function handleCreatePlan(
           `Est. APY:  ~5.4%\n\n` +
           withdrawalLine +
           `━━━━━━━━━━━━━━━━━━━━\n` +
-          `*FUND YOUR AGENT WALLET*\n` +
+          `*FUND YOUR DCA WALLET*\n` +
           `Send USDT here to start:\n\n` +
           `\`${depositAddress}\`\n\n` +
           `First cycle runs within 24h of deposit.\n\n` +
