@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createHmac } from "crypto";
 import { getPlanByTelegramId } from "../db/index.js";
 import {
@@ -7,7 +7,12 @@ import {
 } from "./context.js";
 import { buildMiraPortfolio } from "./portfolio.js";
 import { handleMcpRequest, getMcpManifest } from "./tools.js";
-import { sanitizeForMira } from "./utils.js";
+import {
+  sanitizeForMira,
+  parseTelegramId,
+  buildMiraBotDeeplink,
+  strategyModeToSlug,
+} from "./utils.js";
 
 function validateInitData(initDataStr: string): number | null {
   try {
@@ -42,10 +47,9 @@ function validateInitData(initDataStr: string): number | null {
 
 function resolveTelegramId(req: Request): number | null {
   const devBypass = process.env.MIRA_DEV_BYPASS === "true";
-  const bodyId = req.body?.telegram_id;
+  const bodyId = req.body?.telegram_id ?? req.body?.telegramId;
   if (devBypass && bodyId != null) {
-    const id = Number(bodyId);
-    if (id && !isNaN(id)) return id;
+    return parseTelegramId(bodyId);
   }
 
   const initData =
@@ -55,6 +59,45 @@ function resolveTelegramId(req: Request): number | null {
   return validateInitData(initData);
 }
 
+function mcpCors(req: Request, res: Response, next: NextFunction): void {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") {
+    res.status(200).end();
+    return;
+  }
+  next();
+}
+
+async function buildMiraContext(telegramId: number) {
+  const plan = await getPlanByTelegramId(telegramId);
+  const telegram_id = String(telegramId);
+  const deeplink = buildMiraBotDeeplink(telegram_id);
+
+  if (!plan) {
+    return {
+      telegram_id,
+      has_strategy: false,
+      amount_usdt: 0,
+      frequency: null as string | null,
+      strategy: null as string | null,
+      cycles_completed: 0,
+      deeplink,
+    };
+  }
+
+  return {
+    telegram_id,
+    has_strategy: true,
+    amount_usdt: Number(plan.usdt_amount),
+    frequency: plan.frequency,
+    strategy: strategyModeToSlug(plan.strategy_mode),
+    cycles_completed: plan.cycles_completed,
+    deeplink,
+  };
+}
+
 export function registerMiraRoutes(app: Express): void {
   app.get("/.well-known/mcp.json", (_req, res) => {
     res.json(getMcpManifest());
@@ -62,6 +105,23 @@ export function registerMiraRoutes(app: Express): void {
 
   app.post("/api/mira/create-context", async (req, res) => {
     try {
+      const bodyTelegramId = req.body?.telegramId ?? req.body?.telegram_id;
+      const hasInitData = Boolean(
+        req.headers["x-telegram-init-data"] ?? req.body?.initData
+      );
+
+      // Mira server: explicit telegramId in body without Mini App auth
+      if (bodyTelegramId != null && !hasInitData) {
+        const telegramId = parseTelegramId(bodyTelegramId);
+        if (telegramId === null) {
+          res.status(400).json({ error: "telegramId required" });
+          return;
+        }
+        res.json(await buildMiraContext(telegramId));
+        return;
+      }
+
+      // Mini App handoff: validate Telegram initData, issue one-time token
       const telegramId = resolveTelegramId(req);
       if (!telegramId) {
         res.status(401).json({ error: "Unauthorized" });
@@ -70,7 +130,7 @@ export function registerMiraRoutes(app: Express): void {
 
       const plan = await getPlanByTelegramId(telegramId);
       if (!plan) {
-        res.status(404).json({ error: "User not found" });
+        res.json(await buildMiraContext(telegramId));
         return;
       }
 
@@ -106,9 +166,18 @@ export function registerMiraRoutes(app: Express): void {
     }
   });
 
-  app.post("/mcp", async (req, res) => {
-    const response = await handleMcpRequest(req.body ?? {});
-    res.json(response);
+  app.options("/mcp", mcpCors);
+  app.post("/mcp", mcpCors, async (req, res) => {
+    try {
+      const response = await handleMcpRequest(req.body ?? {});
+      res.json(response);
+    } catch (err) {
+      res.status(500).json({
+        jsonrpc: "2.0",
+        id: req.body?.id ?? null,
+        error: { code: -32603, message: (err as Error).message },
+      });
+    }
   });
 }
 

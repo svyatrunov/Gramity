@@ -93,3 +93,25 @@ export function newContextJti(): string {
 export function buildMiraDeeplink(token: string): string {
   return `tg://resolve?domain=mira&start=gramity_${token}`;
 }
+
+export function buildMiraBotDeeplink(telegramId: number | string): string {
+  return `https://t.me/MiraBot?start=gramity_${telegramId}`;
+}
+
+export function parseTelegramId(raw: unknown): number | null {
+  if (raw == null || raw === "") return null;
+  const str = String(raw).trim();
+  if (!/^\d+$/.test(str)) return null;
+  const id = Number(str);
+  if (isNaN(id)) return null;
+  return id;
+}
+
+export function strategyModeToSlug(mode: string): string {
+  const map: Record<string, string> = {
+    full: "ton-lp",
+    stake_only: "ton",
+    accumulate: "ston",
+  };
+  return map[mode] ?? "ton-lp";
+}

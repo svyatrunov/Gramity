@@ -44,6 +44,17 @@
           "telegram_id": { "type": "string" }
         }
       }
+    },
+    {
+      "name": "resume_strategy",
+      "description": "Resume a paused DCA strategy for a user.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["telegram_id"],
+        "properties": {
+          "telegram_id": { "type": "string" }
+        }
+      }
     }
   ]
 }

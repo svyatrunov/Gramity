@@ -7,7 +7,7 @@ import { MIN_DCA_USDT } from "../constants/dca.js";
 import { createUserWallet } from "../services/userWallet.js";
 import { RAILWAY_PUBLIC_URL } from "../config.js";
 import { buildMiraPortfolio } from "./portfolio.js";
-import { sanitizeForMira, maskAddress } from "./utils.js";
+import { sanitizeForMira, maskAddress, parseTelegramId } from "./utils.js";
 
 type FreqType = "weekly" | "biweekly" | "monthly" | "daily";
 
@@ -16,12 +16,6 @@ const STRATEGY_MAP: Record<string, "full" | "stake_only" | "accumulate"> = {
   TON: "stake_only",
   STON: "accumulate",
 };
-
-function parseTelegramId(raw: unknown): number | null {
-  const id = Number(raw);
-  if (!id || isNaN(id)) return null;
-  return id;
-}
 
 function getNextExecutionDate(frequency: FreqType): Date {
   const next = new Date();
@@ -34,7 +28,18 @@ function getNextExecutionDate(frequency: FreqType): Date {
 
 export async function toolGetPortfolio(args: Record<string, unknown>) {
   const telegramId = parseTelegramId(args.telegram_id);
-  if (!telegramId) throw new Error("telegram_id required");
+  if (telegramId === null) throw new Error("telegram_id required");
+
+  const plan = await getPlanByTelegramId(telegramId);
+  if (!plan) {
+    return sanitizeForMira({
+      telegram_id: String(telegramId),
+      has_strategy: false,
+      message:
+        "No strategy found. Complete onboarding at https://t.me/GramityBot",
+      onboarding_url: "https://t.me/GramityBot",
+    });
+  }
 
   const data = await buildMiraPortfolio(telegramId);
   return sanitizeForMira(data);
@@ -42,7 +47,7 @@ export async function toolGetPortfolio(args: Record<string, unknown>) {
 
 export async function toolCreateStrategy(args: Record<string, unknown>) {
   const telegramId = parseTelegramId(args.telegram_id);
-  if (!telegramId) throw new Error("telegram_id required");
+  if (telegramId === null) throw new Error("telegram_id required");
 
   const amount = Number(args.amount_usdt);
   if (!amount || isNaN(amount) || amount < MIN_DCA_USDT) {
@@ -118,7 +123,7 @@ export async function toolCreateStrategy(args: Record<string, unknown>) {
 
 export async function toolPauseStrategy(args: Record<string, unknown>) {
   const telegramId = parseTelegramId(args.telegram_id);
-  if (!telegramId) throw new Error("telegram_id required");
+  if (telegramId === null) throw new Error("telegram_id required");
 
   const plan = await getPlanByTelegramId(telegramId);
   if (!plan) throw new Error("No plan found");
@@ -136,6 +141,39 @@ export async function toolPauseStrategy(args: Record<string, unknown>) {
     ok: true,
     telegram_id: telegramId,
     status: "paused",
+  });
+}
+
+export async function toolResumeStrategy(args: Record<string, unknown>) {
+  const telegramId = parseTelegramId(args.telegram_id);
+  if (telegramId === null) throw new Error("telegram_id required");
+
+  const plan = await getPlanByTelegramId(telegramId);
+  if (!plan) throw new Error("No plan found");
+
+  if (plan.active) {
+    return sanitizeForMira({
+      resumed: true,
+      next_cycle: plan.next_execution_at,
+    });
+  }
+
+  const nextCycle = getNextExecutionDate(plan.frequency as FreqType);
+  await updatePlan(telegramId, {
+    active: true,
+    next_execution_at: nextCycle.toISOString(),
+  });
+
+  const { bot } = await import("../bot/index.js");
+  await bot.api.sendMessage(
+    telegramId,
+    `▶️ *Strategy resumed via Mira*\n\nNext cycle scheduled.\n/status — view position`,
+    { parse_mode: "Markdown" }
+  );
+
+  return sanitizeForMira({
+    resumed: true,
+    next_cycle: nextCycle.toISOString(),
   });
 }
 
@@ -190,6 +228,15 @@ export function getMcpManifest() {
           properties: { telegram_id: { type: "string" } },
         },
       },
+      {
+        name: "resume_strategy",
+        description: "Resume a paused DCA strategy.",
+        inputSchema: {
+          type: "object",
+          required: ["telegram_id"],
+          properties: { telegram_id: { type: "string" } },
+        },
+      },
     ],
   };
 }
@@ -201,7 +248,19 @@ const TOOL_HANDLERS: Record<
   get_portfolio: toolGetPortfolio,
   create_strategy: toolCreateStrategy,
   pause_strategy: toolPauseStrategy,
+  resume_strategy: toolResumeStrategy,
 };
+
+function wrapToolResult(data: unknown) {
+  return {
+    content: [
+      {
+        type: "text",
+        text: typeof data === "string" ? data : JSON.stringify(data),
+      },
+    ],
+  };
+}
 
 export async function handleMcpRequest(body: {
   jsonrpc?: string;
@@ -246,7 +305,7 @@ export async function handleMcpRequest(body: {
 
   try {
     const result = await TOOL_HANDLERS[toolName](toolArgs);
-    return { jsonrpc: "2.0", id, result };
+    return { jsonrpc: "2.0", id, result: wrapToolResult(result) };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return {
