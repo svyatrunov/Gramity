@@ -246,6 +246,48 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+    }
+
+    .card-icon svg,
+    .logo-circle svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .logo-circle {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-circle-lg {
+      width: 28px;
+      height: 28px;
+    }
+
+    .partner-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.04);
+    }
+
+    .partner-icon svg {
+      width: 100%;
+      height: 100%;
+      display: block;
     }
 
     .card-body h3 { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
@@ -857,7 +899,8 @@
     }
     .connect-hint-btns { display: flex; gap: 8px; }
     .hint-connect-btn {
-      flex: 1; background: rgba(74,138,255,0.15);
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+      background: rgba(74,138,255,0.15);
       border: 1px solid rgba(74,138,255,0.3); border-radius: 8px;
       color: var(--accent); padding: 6px; font-size: 11px; cursor: pointer;
     }
@@ -1095,41 +1138,113 @@
       transition: color 0.2s;
     }
     .skip-link:hover { color: var(--text-primary); }
+
+    /* ── Telegram auth gate (no initData) ── */
+    .auth-gate {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: rgba(7, 7, 14, 0.98);
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .auth-gate.visible { display: flex; }
+    .auth-gate-card {
+      max-width: 340px;
+      padding: 28px 22px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(74,138,255,0.25);
+      border-radius: var(--radius);
+    }
+    .auth-gate-card h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .auth-gate-card p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+    .auth-gate-card strong { color: var(--accent); }
+    .app.auth-locked { pointer-events: none; user-select: none; filter: blur(5px); }
   </style>
 </head>
 <body>
 
+  <!-- Shown when opened outside Telegram (no initData) -->
+  <div id="authGate" class="auth-gate" aria-hidden="true">
+    <div class="auth-gate-card">
+      <h1>Sign in via Telegram</h1>
+      <p>Gramity works only inside Telegram.<br>Open <strong>@GramityBot</strong>, tap <em>Start</em>, then launch the app from the bot.</p>
+      <button type="button" class="btn btn-primary" id="btnOpenBot" style="width:100%">Open @GramityBot</button>
+    </div>
+  </div>
+
   <!-- ── Inline SVG symbols (logos) ── -->
   <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
     <defs>
-      <!-- Real logos served from /app/logos/ -->
+      <!-- Circular raster logos (clip + slice like Tonstakers) -->
       <symbol id="logo-ton" viewBox="0 0 40 40">
-        <image href="/app/logos/ton.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+        <clipPath id="cp-ton"><circle cx="20" cy="20" r="20"/></clipPath>
+        <g clip-path="url(#cp-ton)">
+          <image href="/app/logos/ton.png" x="0" y="0" width="40" height="40" preserveAspectRatio="xMidYMid slice"/>
+        </g>
       </symbol>
 
       <symbol id="logo-ston" viewBox="0 0 40 40">
-        <image href="/app/logos/ston.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+        <clipPath id="cp-ston"><circle cx="20" cy="20" r="20"/></clipPath>
+        <g clip-path="url(#cp-ston)">
+          <image href="/app/logos/ston.png" x="0" y="0" width="40" height="40" preserveAspectRatio="xMidYMid slice"/>
+        </g>
       </symbol>
 
-      <!-- tsTON liquid staking token (Tonstakers) -->
       <symbol id="logo-tston" viewBox="0 0 40 40">
-        <image href="/app/logos/tston.svg" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+        <clipPath id="cp-tston"><circle cx="20" cy="20" r="20"/></clipPath>
+        <g clip-path="url(#cp-tston)">
+          <image href="/app/logos/tston.svg" x="0" y="0" width="40" height="40" preserveAspectRatio="xMidYMid slice"/>
+        </g>
       </symbol>
 
       <symbol id="logo-omniston" viewBox="0 0 40 40">
-        <image href="/app/logos/ston.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+        <clipPath id="cp-omni-s"><circle cx="20" cy="20" r="20"/></clipPath>
+        <g clip-path="url(#cp-omni-s)">
+          <image href="/app/logos/omniston.png" x="0" y="0" width="40" height="40" preserveAspectRatio="xMidYMid slice"/>
+        </g>
       </symbol>
 
       <symbol id="logo-tonstakers" viewBox="0 0 40 40">
-        <image href="/app/logos/tston.svg" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+        <clipPath id="cp-ts"><circle cx="20" cy="20" r="20"/></clipPath>
+        <g clip-path="url(#cp-ts)">
+          <image href="/app/logos/tston.svg" x="0" y="0" width="40" height="40" preserveAspectRatio="xMidYMid slice"/>
+        </g>
       </symbol>
 
-      <symbol id="logo-metamask" viewBox="0 0 40 40">
-        <image href="/app/logos/metamask.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+      <!-- Inline SVG — external &lt;image&gt; breaks inside &lt;use&gt; in Telegram WebView -->
+      <symbol id="logo-metamask" viewBox="0 0 24 24">
+        <path fill="#E17726" d="M21.315 2 13.294 8.018l1.522-3.601L21.315 2zM2.685 2l7.955 6.06-1.449-3.643L2.685 2z"/>
+        <path fill="#E27625" d="M18.507 15.71l-2.134 3.267 4.566 1.257 1.312-4.457-3.744-.067zM5.753 15.777l1.302 4.457 4.556-1.257-2.124-3.267-3.734.067z"/>
+        <path fill="#E27625" d="M11.34 10.21 9.925 12.45l4.523.206-.16-4.862-2.948 2.415zM12.65 10.21l2.98 2.448-.19-4.874-2.79 2.426z"/>
+        <path fill="#D5BFB2" d="M5.753 15.777 9.925 12.45l-1.302-2.24-3.87 5.567zM14.075 12.45l4.172 3.327-1.302-2.24-2.87 5.567z"/>
+        <path fill="#233447" d="M5.753 15.777l.472 3.667-3.225-2.692 2.753-5.567zM18.507 15.71l-.472 3.667 3.225-2.692-2.753-5.567z"/>
+        <path fill="#CD6116" d="M21.315 2 18.507 15.71l2.134-3.267L21.315 2zM2.685 2l2.808 13.71 2.134 3.267L2.685 2z"/>
+        <path fill="#E4751F" d="M9.925 12.45 11.34 10.21 12.65 10.21 14.075 12.45 14.075 15.777 9.925 15.777z"/>
+        <path fill="#F6851B" d="M2.685 2 9.925 12.45 7.221 16.499 2.685 2zM21.315 2 16.779 16.499 14.075 12.45 21.315 2z"/>
+        <path fill="#C0AD9E" d="M7.221 16.499 9.925 15.777 9.247 19.444 7.221 16.499zM14.075 15.777l2.704.722-.678 3.667-2.704-.722z"/>
+        <path fill="#161616" d="M18.507 15.71 19.444 19.377 16.779 16.499 18.507 15.71zM5.753 15.777 7.481 16.499 4.816 19.377 5.753 15.777z"/>
+        <path fill="#763D16" d="M2.685 2 7.221 16.499 4.816 19.377 2.685 2zM21.315 2 19.184 19.377 16.779 16.499 21.315 2z"/>
+        <path fill="#F6851B" d="M14.075 12.45 16.779 16.499 18.507 15.71 14.075 12.45zM9.925 12.45 5.493 15.71 7.221 16.499 9.925 12.45z"/>
       </symbol>
 
-      <symbol id="logo-phantom" viewBox="0 0 40 40">
-        <image href="/app/logos/phantom.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+      <symbol id="logo-phantom" viewBox="0 0 128 128">
+        <circle cx="64" cy="64" r="64" fill="#AB9FF2"/>
+        <path fill="#fff" d="M110.5 64.5c0-3.5-0.3-6.9-0.8-10.2-5.8-1.2-22.5-4.5-40.7-4.5-18.2 0-34.9 3.3-40.7 4.5-0.5 3.3-0.8 6.7-0.8 10.2 0 19.3 11.7 35.8 28.3 42.9h25.4C98.8 100.3 110.5 83.8 110.5 64.5z"/>
+        <circle cx="46" cy="58" r="8" fill="#AB9FF2"/>
+        <circle cx="82" cy="58" r="8" fill="#AB9FF2"/>
       </symbol>
 
       <symbol id="logo-eth" viewBox="0 0 40 40">
@@ -1149,7 +1264,10 @@
       </symbol>
 
       <symbol id="logo-usdt" viewBox="0 0 40 40">
-        <image href="/app/logos/usdt.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+        <clipPath id="cp-usdt"><circle cx="20" cy="20" r="20"/></clipPath>
+        <g clip-path="url(#cp-usdt)">
+          <image href="/app/logos/usdt.png" x="0" y="0" width="40" height="40" preserveAspectRatio="xMidYMid slice"/>
+        </g>
       </symbol>
 
       <!-- Wallet: generic icon (no official logo needed) -->
@@ -1223,7 +1341,7 @@
           <div class="cards">
             <div class="card anim-item">
               <div class="card-icon">
-                <svg width="26" height="26"><use href="#logo-usdt"/></svg>
+                <svg width="40" height="40"><use href="#logo-usdt"/></svg>
               </div>
               <div class="card-body">
                 <h3>Deposit once</h3>
@@ -1239,7 +1357,7 @@
             </div>
             <div class="card anim-item">
               <div class="card-icon">
-                <svg width="26" height="26"><use href="#logo-ston"/></svg>
+                <svg width="40" height="40"><use href="#logo-ston"/></svg>
               </div>
               <div class="card-body">
                 <h3>Earn LP yield</h3>
@@ -1253,15 +1371,15 @@
             <div class="wallet-strip-label">Connect to preview your balance</div>
             <div class="wallet-strip-btns">
               <button class="wstrip-btn ton" id="btnConnectTonStrip">
-                <svg width="18" height="18"><use href="#logo-ton"/></svg>
+                <span class="logo-circle"><svg width="22" height="22"><use href="#logo-ton"/></svg></span>
                 TON Connect
               </button>
               <button class="wstrip-btn mm" id="btnConnectMMStrip">
-                <svg width="18" height="18"><use href="#logo-metamask"/></svg>
+                <span class="logo-circle"><svg width="22" height="22"><use href="#logo-metamask"/></svg></span>
                 MetaMask
               </button>
               <button class="wstrip-btn coming" title="Coming soon">
-                <svg width="18" height="18"><use href="#logo-phantom"/></svg>
+                <span class="logo-circle"><svg width="22" height="22"><use href="#logo-phantom"/></svg></span>
                 Phantom
               </button>
             </div>
@@ -1457,23 +1575,19 @@
               <div class="stat-label">One deposit, endless DCA</div>
             </div>
           </div>
-          <p class="stat-footnote anim-item">*Gas only + ~0.1% DEX routing fee via Omniston<br>LP tokens go <strong style="color:#fff">directly to your wallet</strong> — Gramity never holds them</p>
+          <p class="stat-footnote anim-item">*Gas only + ~0.1% DEX routing fee<br>LP tokens go <strong style="color:#fff">directly to your wallet</strong> — Gramity never holds them</p>
 
           <div class="partners">
             <div class="partner-badge anim-item">
-              <svg width="20" height="20"><use href="#logo-ton"/></svg>
+              <span class="partner-icon"><svg width="28" height="28"><use href="#logo-ton"/></svg></span>
               TON
             </div>
             <div class="partner-badge anim-item">
-              <svg width="20" height="20"><use href="#logo-omniston"/></svg>
-              Omniston
-            </div>
-            <div class="partner-badge anim-item">
-              <svg width="20" height="20"><use href="#logo-tonstakers"/></svg>
+              <span class="partner-icon"><svg width="28" height="28"><use href="#logo-tonstakers"/></svg></span>
               Tonstakers
             </div>
             <div class="partner-badge anim-item">
-              <svg width="20" height="20"><use href="#logo-ston"/></svg>
+              <span class="partner-icon"><svg width="28" height="28"><use href="#logo-ston"/></svg></span>
               STON.fi
             </div>
           </div>
@@ -1542,7 +1656,7 @@
           <div class="connect-section anim-item">
             <!-- TonConnect primary -->
             <button class="connect-btn primary-ton" id="btnConnectTon">
-              <svg width="28" height="28"><use href="#logo-ton"/></svg>
+              <span class="logo-circle logo-circle-lg"><svg width="28" height="28"><use href="#logo-ton"/></svg></span>
               <div style="flex:1;text-align:left">
                 <div>Connect TON Wallet</div>
                 <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">TonConnect · Tonkeeper · TON Space</div>
@@ -1552,7 +1666,7 @@
 
             <!-- MetaMask secondary -->
             <button class="connect-btn" id="btnConnectMM">
-              <svg width="28" height="28"><use href="#logo-metamask"/></svg>
+              <span class="logo-circle logo-circle-lg"><svg width="28" height="28"><use href="#logo-metamask"/></svg></span>
               <div style="flex:1;text-align:left">
                 <div>Connect MetaMask</div>
                 <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">ETH · Base · BNB · Polygon</div>
@@ -1561,7 +1675,7 @@
 
             <!-- Phantom coming soon -->
             <button class="connect-btn disabled">
-              <svg width="28" height="28"><use href="#logo-phantom"/></svg>
+              <span class="logo-circle logo-circle-lg"><svg width="28" height="28"><use href="#logo-phantom"/></svg></span>
               <div style="flex:1;text-align:left">
                 <div>Phantom</div>
                 <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Solana deposits</div>
@@ -1672,7 +1786,7 @@
               $0 invested · +$0 yield
             </div>
             <div style="font-size:10px;color:rgba(255,255,255,0.3);line-height:1.4" id="projTonDisclaimer">
-              Assuming TON stays at ~$3.50 · if price unchanged
+              Fetching live TON/USD rate…
             </div>
           </div>
 
@@ -1680,8 +1794,14 @@
           <div class="connect-hint-card anim-item" id="connectHintCard">
             <span>💡 Connect wallet to see your real balance</span>
             <div class="connect-hint-btns">
-              <button class="hint-connect-btn" id="hintConnectTon">TON Wallet</button>
-              <button class="hint-connect-btn" id="hintConnectMM">MetaMask</button>
+              <button class="hint-connect-btn" id="hintConnectTon">
+                <span class="logo-circle"><svg width="18" height="18"><use href="#logo-ton"/></svg></span>
+                TON Wallet
+              </button>
+              <button class="hint-connect-btn" id="hintConnectMM">
+                <span class="logo-circle"><svg width="18" height="18"><use href="#logo-metamask"/></svg></span>
+                MetaMask
+              </button>
             </div>
           </div>
         </div>
@@ -1957,13 +2077,52 @@
     (function () {
       'use strict';
 
-      /* ── Telegram WebApp ── */
+      /* ── Telegram WebApp + auth gate ── */
       var tg = window.Telegram && window.Telegram.WebApp;
+      var BOT_AUTH_URL = 'https://t.me/GramityBot';
+      var initData = (tg && tg.initData) || '';
+      var HAS_TG_AUTH = initData.indexOf('hash=') !== -1;
+
       if (tg) {
         tg.ready();
         tg.expand();
         if (tg.setHeaderColor)     tg.setHeaderColor('#07070e');
         if (tg.setBackgroundColor) tg.setBackgroundColor('#07070e');
+      }
+
+      function openBotForAuth() {
+        try {
+          if (tg && tg.openTelegramLink) tg.openTelegramLink(BOT_AUTH_URL);
+          else if (tg && tg.openLink) tg.openLink(BOT_AUTH_URL);
+          else window.location.replace(BOT_AUTH_URL);
+        } catch (e) {
+          window.location.replace(BOT_AUTH_URL);
+        }
+      }
+
+      function enforceAuthGate() {
+        var gate = document.getElementById('authGate');
+        var app  = document.getElementById('app');
+        if (gate) {
+          gate.classList.add('visible');
+          gate.setAttribute('aria-hidden', 'false');
+        }
+        if (app) app.classList.add('auth-locked');
+        openBotForAuth();
+      }
+
+      if (!HAS_TG_AUTH) {
+        enforceAuthGate();
+        var openBotBtn = document.getElementById('btnOpenBot');
+        if (openBotBtn) openBotBtn.addEventListener('click', openBotForAuth);
+      }
+
+      function assertAuth() {
+        if (!HAS_TG_AUTH) {
+          enforceAuthGate();
+          return false;
+        }
+        return true;
       }
 
       /* ── Constants ── */
@@ -2023,6 +2182,7 @@
       function getOffset() { return -(current * (100 / TOTAL)); }
 
       function goTo(index) {
+        if (!assertAuth()) return;
         if (animating || index === current || index < 0 || index >= TOTAL) return;
         animating = true;
         var prev = current;
@@ -2288,21 +2448,37 @@
 
       /* ── TON/USD price cache ── */
       var TON_USD_PRICE = null;
+      var TON_PRICE_FETCHED_AT = 0;
+      var TON_PRICE_TTL_MS = 60 * 1000;
 
-      function fetchTonPrice() {
-        if (TON_USD_PRICE !== null) return Promise.resolve(TON_USD_PRICE);
-        return fetch('https://tonapi.io/v2/rates?tokens=ton&currencies=usd', { signal: AbortSignal.timeout(5000) })
+      function fetchTonPrice(forceRefresh) {
+        var now = Date.now();
+        if (!forceRefresh && TON_USD_PRICE !== null && (now - TON_PRICE_FETCHED_AT) < TON_PRICE_TTL_MS) {
+          return Promise.resolve(TON_USD_PRICE);
+        }
+        return fetch('https://tonapi.io/v2/rates?tokens=ton&currencies=usd', { signal: AbortSignal.timeout(8000) })
           .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (d) {
-            if (d && d.rates && d.rates.TON && d.rates.TON.prices && d.rates.TON.prices.USD) {
-              TON_USD_PRICE = parseFloat(d.rates.TON.prices.USD);
+            var price = null;
+            if (d && d.rates) {
+              var tonRate = d.rates.TON || d.rates.ton;
+              if (tonRate && tonRate.prices && tonRate.prices.USD) {
+                price = parseFloat(tonRate.prices.USD);
+              }
+            }
+            if (price && price > 0) {
+              TON_USD_PRICE = price;
+              TON_PRICE_FETCHED_AT = now;
+              return TON_USD_PRICE;
             }
             return TON_USD_PRICE || 3.5;
-          }).catch(function () { return 3.5; });
+          }).catch(function () { return TON_USD_PRICE || 3.5; });
       }
 
-      // Prefetch price on page load so it's ready when user connects
-      fetchTonPrice();
+      // Prefetch price on page load; refresh projection when ready
+      fetchTonPrice(true).then(function () {
+        if (typeof refreshProjectionCard === 'function') refreshProjectionCard();
+      });
 
       /* ── tonapi balance ── */
       function fetchTonBal(address) {
@@ -2618,31 +2794,38 @@
       }
 
       function refreshProjectionCard() {
-        var val      = parseInt(sliderEl.value, 10) || 500;
-        var freq     = wiz.frequency;
-        var n        = cyclesPerYear(freq);
-        var invested = val * n;
-        var yieldAmt = invested * APY * 0.87;
-        var afterYear = invested + yieldAmt;
-        var tonPrice = TON_USD_PRICE || 3.5;
-        var tonAmount = Math.round(afterYear / tonPrice);
+        var slider = document.getElementById('amountSlider');
+        if (!slider) return;
+        var val  = parseInt(slider.value, 10) || 500;
+        var freq = wiz.frequency;
 
-        var bigTonEl = document.getElementById('projBigTon');
-        if (bigTonEl) bigTonEl.textContent = '≈ ' + tonAmount.toLocaleString() + ' TON';
+        fetchTonPrice(false).then(function (tonPrice) {
+          if (!tonPrice || tonPrice <= 0) tonPrice = 3.5;
 
-        var brkEl = document.getElementById('projBreakdown');
-        if (brkEl) brkEl.textContent =
-          '$' + Math.round(invested).toLocaleString() + ' invested · +$' + Math.round(yieldAmt).toLocaleString() + ' yield';
+          var p = calcProjection(val, freq, APY);
+          /* USDT invested each cycle → swapped to TON at live rate; yield compounds in USD */
+          var tonFromDca = p.invested / tonPrice;
+          var tonTotal   = p.total / tonPrice;
 
-        var disclaimerEl = document.getElementById('projTonDisclaimer');
-        if (disclaimerEl) disclaimerEl.textContent =
-          'Assuming TON stays at ~$' + tonPrice.toFixed(2) + ' · if price unchanged';
+          var bigTonEl = document.getElementById('projBigTon');
+          if (bigTonEl) bigTonEl.textContent = '≈ ' + Math.round(tonTotal).toLocaleString() + ' TON';
 
-        var zl = document.getElementById('zoneLabel');
-        if (val < 200) {
-          zl.textContent = '⚠️ Amount < $200 — high slippage risk';
-          zl.style.color  = '#ef4444';
-        }
+          var brkEl = document.getElementById('projBreakdown');
+          if (brkEl) brkEl.textContent =
+            '$' + Math.round(p.invested).toLocaleString() + ' USDT invested · ' +
+            Math.round(tonFromDca).toLocaleString() + ' TON bought · +$' +
+            Math.round(p.yieldVal).toLocaleString() + ' yield';
+
+          var disclaimerEl = document.getElementById('projTonDisclaimer');
+          if (disclaimerEl) disclaimerEl.textContent =
+            'Live TON/USD: $' + tonPrice.toFixed(2) + ' (TonAPI) · each cycle USDT→TON at market rate';
+
+          var zl = document.getElementById('zoneLabel');
+          if (val < 200) {
+            zl.textContent = '⚠️ Amount < $200 — high slippage risk';
+            zl.style.color  = '#ef4444';
+          }
+        });
       }
 
       function refreshPctButtons() {
@@ -2868,6 +3051,7 @@
       document.getElementById('btnWizardBack10').addEventListener('click', function () { goTo(9); });
 
       document.getElementById('btnCreateDCA').addEventListener('click', async function () {
+        if (!assertAuth()) return;
         var btn = this;
         btn.disabled = true;
         btn.textContent = '⏳ Creating strategy…';
@@ -2894,7 +3078,7 @@
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'X-Telegram-Init-Data': (tg && tg.initData) || '',
+              'X-Telegram-Init-Data': initData,
             },
             body: JSON.stringify({
               ton_address:  tonAddr,

@@ -93,9 +93,27 @@
       opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;z-index:100;
     }
     .toast.show{opacity:1}
+
+    .auth-gate{display:none;position:fixed;inset:0;z-index:9999;background:rgba(13,13,15,.98);align-items:center;justify-content:center;padding:24px;text-align:center}
+    .auth-gate.visible{display:flex}
+    .auth-gate-card{max-width:340px;padding:28px 22px;background:var(--surface2);border:1px solid var(--border);border-radius:16px}
+    .auth-gate-card h1{font-size:22px;margin-bottom:10px}
+    .auth-gate-card p{font-size:14px;color:var(--muted);line-height:1.5;margin-bottom:20px}
+    .auth-gate-card strong{color:var(--accent2)}
+    body.auth-locked #mainContent{pointer-events:none;filter:blur(5px)}
   </style>
 </head>
 <body>
+
+<div id="authGate" class="auth-gate" aria-hidden="true">
+  <div class="auth-gate-card">
+    <h1>Sign in via Telegram</h1>
+    <p>Open <strong>@GramityBot</strong>, tap <em>Start</em>, then launch deposit from the bot.</p>
+    <button type="button" class="copy-btn" id="btnOpenBot" style="width:100%;margin-top:0">Open @GramityBot</button>
+  </div>
+</div>
+
+<div id="mainContent">
 
 <div class="header">
   <div class="header-row">
@@ -169,6 +187,7 @@
   </div>
 
 </div>
+</div><!-- /mainContent -->
 
 <div class="toast" id="toast">✅ Address copied!</div>
 
@@ -183,6 +202,25 @@
   }
 
   var initData = (tg && tg.initData) || '';
+  var HAS_TG_AUTH = initData.indexOf('hash=') !== -1;
+  var BOT_AUTH_URL = 'https://t.me/GramityBot';
+
+  function openBotForAuth() {
+    try {
+      if (tg && tg.openTelegramLink) tg.openTelegramLink(BOT_AUTH_URL);
+      else if (tg && tg.openLink) tg.openLink(BOT_AUTH_URL);
+      else window.location.replace(BOT_AUTH_URL);
+    } catch (e) { window.location.replace(BOT_AUTH_URL); }
+  }
+
+  if (!HAS_TG_AUTH) {
+    document.getElementById('authGate').classList.add('visible');
+    document.body.classList.add('auth-locked');
+    var ob = document.getElementById('btnOpenBot');
+    if (ob) ob.addEventListener('click', openBotForAuth);
+    openBotForAuth();
+    return;
+  }
 
   // Parse ?wallet=... from URL
   var params = new URLSearchParams(window.location.search);
