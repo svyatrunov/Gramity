@@ -462,6 +462,8 @@ app.get("/api/evm-wallet/status", async (req, res) => {
       status: session.status,
       evmAddress: session.evmAddress ?? null,
       chainId: session.chainId ?? null,
+      balanceStatus: session.balanceStatus ?? null,
+      walletBalance: session.walletBalance ?? null,
       expiresAt: session.expiresAt,
     });
   } catch (err) {
@@ -493,11 +495,17 @@ app.post("/api/evm-wallet/connected", async (req, res) => {
       status: "connected",
       evmAddress: address,
       chainId: chainId != null ? Number(chainId) : undefined,
+      balanceStatus: "pending",
     });
 
     console.log(
       `[EVM-WALLET] Connected user=${resolved.telegramId} address=${address.slice(0, 10)}…`
     );
+
+    const { fetchAndStoreEvmWalletBalances } =
+      await import("./services/evmWalletSession.js");
+    void fetchAndStoreEvmWalletBalances(resolved.session.id, address);
+
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });

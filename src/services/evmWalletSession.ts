@@ -3,6 +3,25 @@ import { RAILWAY_PUBLIC_URL } from "../config.js";
 import { signDepositToken, verifyDepositToken } from "./evmDepositSession.js";
 
 export type EvmWalletSessionStatus = "pending" | "opened" | "connected" | "failed";
+export type EvmWalletBalanceStatus = "pending" | "ready" | "failed";
+
+export interface EvmWalletToken {
+  symbol: string;
+  name: string;
+  balance: string;
+  balanceUsd: number;
+  type: "NATIVE" | "ERC20";
+  icon: string;
+}
+
+export interface EvmWalletBalancePayload {
+  type: "wallet_balance";
+  sessionId: string;
+  address: string;
+  chain: string;
+  tokens: EvmWalletToken[];
+  totalUsd: number;
+}
 
 export interface EvmWalletSession {
   id: string;
@@ -10,6 +29,8 @@ export interface EvmWalletSession {
   status: EvmWalletSessionStatus;
   evmAddress?: string;
   chainId?: number;
+  balanceStatus?: EvmWalletBalanceStatus;
+  walletBalance?: EvmWalletBalancePayload;
   createdAt: number;
   expiresAt: number;
 }
@@ -17,10 +38,28 @@ export interface EvmWalletSession {
 const SESSION_TTL_MS = 30 * 60 * 1000;
 const sessions = new Map<string, EvmWalletSession>();
 
+interface AnkrAsset {
+  tokenName?: string;
+  tokenSymbol?: string;
+  balance?: string;
+  balanceUsd?: string;
+  tokenType?: string;
+  thumbnail?: string;
+}
+
 function purgeExpiredSessions(): void {
   const now = Date.now();
   for (const [id, session] of sessions) {
     if (session.expiresAt <= now) sessions.delete(id);
+  }
+}
+
+function replaceExistingSession(telegramId: number): void {
+  for (const [id, session] of sessions) {
+    if (session.telegramId === telegramId) {
+      sessions.delete(id);
+      console.log(`[EVM-WALLET] Replaced session for user=${telegramId}`);
+    }
   }
 }
 
@@ -36,7 +75,12 @@ export function getEvmWalletSession(sessionId: string): EvmWalletSession | null 
 
 export function updateEvmWalletSession(
   sessionId: string,
-  patch: Partial<Pick<EvmWalletSession, "status" | "evmAddress" | "chainId">>
+  patch: Partial<
+    Pick<
+      EvmWalletSession,
+      "status" | "evmAddress" | "chainId" | "balanceStatus" | "walletBalance"
+    >
+  >
 ): EvmWalletSession | null {
   const session = getEvmWalletSession(sessionId);
   if (!session) return null;
@@ -61,6 +105,8 @@ export function createEvmWalletSession(telegramId: number): {
   expiresAt: number;
 } {
   purgeExpiredSessions();
+  replaceExistingSession(telegramId);
+
   const sessionId = randomUUID();
   const expiresAt = Date.now() + SESSION_TTL_MS;
   const expSec = Math.floor(expiresAt / 1000);
@@ -87,4 +133,100 @@ export function resolveWalletToken(
   const session = getEvmWalletSession(verified.sessionId);
   if (!session || session.telegramId !== verified.telegramId) return null;
   return { session, telegramId: verified.telegramId };
+}
+
+function parseAnkrAssets(
+  sessionId: string,
+  address: string,
+  assets: AnkrAsset[]
+): EvmWalletBalancePayload {
+  const tokens: EvmWalletToken[] = assets
+    .map((asset) => {
+      const balance = asset.balance ?? "0";
+      const balanceUsd = parseFloat(asset.balanceUsd ?? "0") || 0;
+      const tokenType = asset.tokenType === "NATIVE" ? "NATIVE" : "ERC20";
+      return {
+        symbol: asset.tokenSymbol ?? "?",
+        name: asset.tokenName ?? asset.tokenSymbol ?? "?",
+        balance,
+        balanceUsd,
+        type: tokenType as "NATIVE" | "ERC20",
+        icon: asset.thumbnail ?? "",
+      };
+    })
+    .filter((t) => parseFloat(t.balance) > 0)
+    .sort((a, b) => {
+      if (a.type === "NATIVE" && b.type !== "NATIVE") return -1;
+      if (b.type === "NATIVE" && a.type !== "NATIVE") return 1;
+      return b.balanceUsd - a.balanceUsd;
+    });
+
+  const totalUsd = tokens.reduce((sum, t) => sum + t.balanceUsd, 0);
+
+  return {
+    type: "wallet_balance",
+    sessionId,
+    address,
+    chain: "bsc",
+    tokens,
+    totalUsd,
+  };
+}
+
+export async function fetchAndStoreEvmWalletBalances(
+  sessionId: string,
+  address: string
+): Promise<EvmWalletBalancePayload | null> {
+  const session = getEvmWalletSession(sessionId);
+  if (!session) return null;
+
+  updateEvmWalletSession(sessionId, { balanceStatus: "pending" });
+  console.log(`[EVM-WALLET] Fetching balances... address=${address.slice(0, 10)}…`);
+
+  try {
+    const res = await fetch("https://rpc.ankr.com/multichain", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "ankr_getAccountBalance",
+        params: {
+          walletAddress: address,
+          blockchain: ["bsc"],
+          onlyWhitelisted: false,
+        },
+        id: 1,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Ankr HTTP ${res.status}`);
+    }
+
+    const data = (await res.json()) as {
+      error?: { message?: string };
+      result?: { assets?: AnkrAsset[] };
+    };
+
+    if (data.error) {
+      throw new Error(data.error.message ?? "Ankr RPC error");
+    }
+
+    const assets = data.result?.assets ?? [];
+    const walletBalance = parseAnkrAssets(sessionId, address, assets);
+
+    updateEvmWalletSession(sessionId, {
+      balanceStatus: "ready",
+      walletBalance,
+    });
+
+    console.log(
+      `[EVM-WALLET] Balances loaded tokens=${walletBalance.tokens.length} totalUsd=${walletBalance.totalUsd.toFixed(2)}`
+    );
+    return walletBalance;
+  } catch (err) {
+    updateEvmWalletSession(sessionId, { balanceStatus: "failed" });
+    console.error("[EVM-WALLET] Balance fetch failed:", (err as Error).message);
+    return null;
+  }
 }

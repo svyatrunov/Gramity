@@ -2479,6 +2479,8 @@
 
       function syncGramityWalletBalance() {
         window.gramityState.walletBalance = wiz.usdtBalance || 0;
+        window.gramityState.step3 = window.gramityState.step3 || {};
+        window.gramityState.step3.walletBalance = wiz.totalUsdBalance || 0;
       }
 
       /* ── TonConnect UI ── */
@@ -2826,6 +2828,56 @@
         return { items: filtered, totalUsd: totalUsd, usdtBalance: usdtBal };
       }
 
+      /* ── EVM wallet balances from server (Ankr via session poll) ── */
+      function showEvmWalletBalances(payload) {
+        var box = document.getElementById('scanResults');
+        var listEl = document.getElementById('scanAssetsList');
+        var totalEl = document.getElementById('scanTotalValue');
+        if (!box || !listEl || !totalEl) return;
+
+        var tokens = (payload.tokens || []).filter(function (t) {
+          return parseFloat(t.balance) > 0;
+        });
+
+        tokens.sort(function (a, b) {
+          if (a.type === 'NATIVE' && b.type !== 'NATIVE') return -1;
+          if (b.type === 'NATIVE' && a.type !== 'NATIVE') return 1;
+          return (b.balanceUsd || 0) - (a.balanceUsd || 0);
+        });
+
+        var totalUsd = payload.totalUsd != null ? payload.totalUsd : tokens.reduce(function (s, t) {
+          return s + (t.balanceUsd || 0);
+        }, 0);
+
+        box.style.display = 'block';
+        totalEl.textContent = 'Total: $' + totalUsd.toFixed(2);
+
+        if (!tokens.length) {
+          listEl.innerHTML = renderEmpty('No assets found');
+        } else {
+          listEl.innerHTML = tokens.map(function (t) {
+            var usdPart = t.balanceUsd != null && t.balanceUsd > 0
+              ? ' ($' + t.balanceUsd.toFixed(2) + ')'
+              : '';
+            var iconHtml = t.icon
+              ? '<div class="bal-icon"><img src="' + t.icon + '" alt="" width="22" height="22"/></div>'
+              : renderBalIcon('logo-metamask', null);
+            return '<div class="balance-row">' +
+              '<div class="bal-left">' + iconHtml +
+              '<div><div class="bal-name">' + t.symbol + '</div><div class="bal-chain">' + (payload.chain || 'bsc').toUpperCase() + '</div></div>' +
+              '</div>' +
+              '<div class="bal-right">' +
+              '<div class="bal-amount">' + t.symbol + ': ' + t.balance + usdPart + '</div>' +
+              '</div></div>';
+          }).join('');
+        }
+
+        wiz.totalUsdBalance = totalUsd;
+        wiz.usdtBalance = totalUsd;
+        syncGramityWalletBalance();
+        if (typeof initSlider7 === 'function') initSlider7();
+      }
+
       /* ── Shared: show scan results on step 1 ── */
       function showScanResults(items) {
         var result = applyBalanceFilters(items);
@@ -2992,16 +3044,29 @@
               .then(function (r) { return r.ok ? r.json() : null; })
               .then(function (data) {
                 if (data && data.status === 'connected' && data.evmAddress) {
-                  cleanup();
-                  resolve({ accounts: [data.evmAddress], provider: null });
-                  return;
+                  if (data.walletBalance && data.walletBalance.tokens) {
+                    cleanup();
+                    resolve({
+                      accounts: [data.evmAddress],
+                      provider: null,
+                      walletBalance: data.walletBalance,
+                    });
+                    return;
+                  }
+                  if (data.balanceStatus === 'failed') {
+                    cleanup();
+                    resolve({ accounts: [data.evmAddress], provider: null, walletBalance: null });
+                    return;
+                  }
+                  if (labelEl) labelEl.textContent = 'Loading balances…';
+                  if (hintEl) hintEl.textContent = 'Fetching all tokens from BSC…';
                 }
                 if (attempts >= maxAttempts) {
                   cleanup();
                   reject(new Error('MetaMask connect timeout — approve in MetaMask and return to Telegram'));
                   return;
                 }
-                if (labelEl && attempts % 4 === 0) {
+                if (labelEl && attempts % 4 === 0 && data && data.status !== 'connected') {
                   labelEl.textContent = 'Waiting for MetaMask…';
                 }
               })
@@ -3027,7 +3092,7 @@
         return !getExtensionProvider() && isMobileDevice();
       }
 
-      function handleMetaMaskAccounts(btn, accounts, provider) {
+      function handleMetaMaskAccounts(btn, accounts, provider, walletBalance) {
         if (!accounts || !accounts.length) return;
         wiz.evmAddress   = accounts[0];
         wiz.evmConnected = true;
@@ -3041,6 +3106,11 @@
         var short = accounts[0].slice(0, 6) + '…' + accounts[0].slice(-4);
         btn.querySelector('div').children[0].textContent = 'Connected: ' + short;
         btn.style.borderColor = '';
+
+        if (walletBalance) {
+          showEvmWalletBalances(walletBalance);
+          return;
+        }
 
         Promise.all(EVM_CHAINS.map(function (ch) { return fetchEvmChain(ch, accounts[0]); }))
           .then(function (results) {
@@ -3075,7 +3145,7 @@
 
         attempt.then(function (res) {
           btn.disabled = false;
-          handleMetaMaskAccounts(btn, res.accounts, res.provider);
+          handleMetaMaskAccounts(btn, res.accounts, res.provider, res.walletBalance);
         }).catch(function (err) {
           btn.disabled = false;
           console.error('[MetaMask]', err);
