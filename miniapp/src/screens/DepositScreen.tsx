@@ -705,7 +705,7 @@ export function DepositScreen({
             ))}
           </select>
 
-          <div style={S.label}>Сумма</div>
+          <div style={S.label}>Amount</div>
           <input
             style={S.input}
             type="number"
@@ -718,13 +718,13 @@ export function DepositScreen({
 
           {quoteLoading && (
             <div style={{ fontSize: 13, color: "var(--tg-theme-hint-color,#888)" }}>
-              Получаю котировку…
+              Fetching quote…
             </div>
           )}
           {quoteErr && <div style={S.error}>{quoteErr}</div>}
           {quote && !quoteLoading && (
             <div style={{ fontSize: 14, marginBottom: 8 }}>
-              <strong>Вы получите ≈ {formatOutputUsdt(quote)} USDT</strong> на TON
+              <strong>You will receive ≈ {formatOutputUsdt(quote)} USDT</strong> on TON
               {gasInfo && (
                 <div style={{ fontSize: 12, color: "var(--tg-theme-hint-color,#888)", marginTop: 4 }}>
                   Gas estimate: {gasInfo}
@@ -733,8 +733,8 @@ export function DepositScreen({
             </div>
           )}
 
-          <div style={S.label}>Адрес назначения (TON — ваш агентский кошелёк)</div>
-          <div style={S.dest} onClick={copyDestination} title="Нажмите чтобы скопировать">
+          <div style={S.label}>Destination (TON — your agent wallet)</div>
+          <div style={S.dest} onClick={copyDestination} title="Tap to copy">
             <span style={S.mono}>{depositAddress}</span>
             <span style={{ fontSize: 12, color: "var(--tg-theme-link-color,#2481cc)" }}>
               {copied ? "✓" : "Copy"}
@@ -743,7 +743,7 @@ export function DepositScreen({
 
           {amount && quote && (
             <button style={S.btn} onClick={() => setStep(3)}>
-              Продолжить →
+              Continue →
             </button>
           )}
         </div>
@@ -752,10 +752,10 @@ export function DepositScreen({
       {/* ── Step 3: Execute ── */}
       {step >= 3 && quote && (
         <div style={S.card}>
-          <div style={{ fontWeight: 600, marginBottom: 10 }}>3. Подтвердить</div>
+          <div style={{ fontWeight: 600, marginBottom: 10 }}>3. Confirm</div>
 
           <p style={{ fontSize: 13, marginBottom: 12 }}>
-            Отправка {amount} {token.symbol} → ≈{formatOutputUsdt(quote)} USDT на TON
+            Sending {amount} {token.symbol} → ≈{formatOutputUsdt(quote)} USDT on TON
           </p>
 
           {!allowanceOk && (
@@ -773,7 +773,7 @@ export function DepositScreen({
               </button>
               {approveStatus === "pending" && (
                 <div style={{ fontSize: 12, marginTop: 6, color: "var(--tg-theme-hint-color,#888)" }}>
-                  Статус: pending…
+                  Status: pending…
                 </div>
               )}
               {approveStatus === "confirmed" && approveHash && (
@@ -800,27 +800,27 @@ export function DepositScreen({
                 disabled={sendStatus === "pending"}
               >
                 {sendStatus === "pending"
-                  ? "Отправка…"
+                  ? "Sending…"
                   : sendStatus === "confirmed"
-                    ? "✅ Отправлено"
+                    ? "✅ Sent"
                     : "Send"}
               </button>
               {sendStatus === "pending" && (
                 <div style={{ fontSize: 12, marginTop: 6, color: "var(--tg-theme-hint-color,#888)" }}>
-                  Статус: pending…
+                  Status: pending…
                 </div>
               )}
               {sendStatus === "confirmed" && (
                 <div style={{ ...S.success, marginTop: 8 }}>
-                  Ордер зарегистрирован. ID: {sendHash}
+                  Order registered. ID: {sendHash}
                   <div style={{ marginTop: 6, fontSize: 12 }}>
-                    Бот уведомлён — средства поступят после исполнения маршрута.
+                    Bot notified — funds arrive after the route settles.
                   </div>
                   {orderTrack && (
                     <div style={{ marginTop: 8, fontSize: 12 }}>
                       Omniston: {orderTrack.message}
-                      {orderTrack.phase === "disclosing" && " · раскрытие HTLC secret…"}
-                      {orderTrack.phase === "completed" && " · готово"}
+                      {orderTrack.phase === "disclosing" && " · disclosing HTLC secret…"}
+                      {orderTrack.phase === "completed" && " · done"}
                     </div>
                   )}
                   {orderTrackErr && (

@@ -77,7 +77,7 @@ export function fetchQuote(
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       sub.unsubscribe();
-      reject(new Error("Котировка не получена за 30 сек"));
+      reject(new Error("Quote not received within 30 seconds"));
     }, timeoutMs);
 
     const sub = omniston.requestForQuote(request).subscribe({
@@ -91,7 +91,7 @@ export function fetchQuote(
         } else if (event?.$case === "noQuote") {
           clearTimeout(timeout);
           sub.unsubscribe();
-          reject(new Error("Нет доступных маршрутов для этой пары"));
+          reject(new Error("No routes available for this pair"));
         }
       },
       error: (err) => {
