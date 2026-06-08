@@ -307,24 +307,6 @@
       line-height: 1.5;
       margin: 0;
     }
-    .hero-meta .mira-accent { color: rgba(167, 139, 250, 0.85); }
-
-    .mira-slide-center { text-align: center; max-width: 320px; margin: 0 auto; }
-    .mira-slide-title  { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
-    .mira-slide-desc   { font-size: 13px; color: var(--text-secondary); line-height: 1.68; margin-bottom: 16px; }
-    .mira-examples {
-      text-align: left; padding: 14px 16px; margin-bottom: 16px;
-      background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.25);
-      border-radius: var(--radius); font-size: 13px; line-height: 1.75; color: rgba(255,255,255,0.85);
-    }
-    .mira-examples div { font-style: italic; opacity: 0.9; }
-    .mira-tagline { font-size: 13px; font-weight: 600; margin-bottom: 14px; }
-    .btn-mira-purple {
-      background: transparent; color: #a78bfa;
-      border: 1px solid #a78bfa; padding: 14px 28px;
-      width: 100%; max-width: 320px; font-size: 15px; font-weight: 600;
-    }
-
     .deposit-step-card {
       background: rgba(74,255,140,0.06); border: 1px solid rgba(74,255,140,0.2);
       border-radius: var(--radius); padding: 16px; margin-bottom: 14px;
@@ -663,17 +645,6 @@
     .fund-simple-node strong { font-size: 12px; font-weight: 600; }
     .fund-simple-node span   { font-size: 10px; color: var(--text-secondary); line-height: 1.68; }
     .fund-simple-arrow { color: var(--accent); font-size: 18px; font-weight: 700; flex-shrink: 0; }
-
-    .mira-section { width: 100%; max-width: 320px; margin-top: 14px; text-align: center; }
-    .mira-divider {
-      display: flex; align-items: center; gap: 10px;
-      color: var(--text-secondary); font-size: 12px; margin-bottom: 12px;
-    }
-    .mira-divider::before, .mira-divider::after {
-      content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.12);
-    }
-    .mira-section-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-    .mira-section-desc  { font-size: 11px; color: var(--text-secondary); line-height: 1.68; margin-bottom: 10px; }
 
     .deposit-success-card {
       width: 100%; max-width: 320px; margin-top: 12px; padding: 14px;
@@ -1504,16 +1475,6 @@
       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
       animation: shimmer-btn 3.5s ease-in-out infinite;
     }
-    .btn-mira-ghost {
-      background: transparent;
-      color: #a78bfa;
-      border: 1px solid #a78bfa;
-      padding: 14px 28px;
-      width: 100%;
-      max-width: 320px;
-      font-size: 15px;
-      font-weight: 600;
-    }
     .btn-create-dca.success {
       background: rgba(74, 255, 140, 0.15);
       color: var(--green);
@@ -1636,28 +1597,6 @@
       font-size: 10px; display: none; align-items: center; justify-content: center;
     }
     .strategy-card.selected .strategy-check { display: flex; }
-
-    .mira-perks {
-      font-size: 12px;
-      color: var(--text-secondary);
-      line-height: 1.6;
-      text-align: left;
-      margin: 12px 0;
-      list-style: none;
-      padding: 0;
-    }
-    .mira-perks li {
-      margin-bottom: 6px;
-      padding-left: 14px;
-      position: relative;
-    }
-    .mira-perks li::before {
-      content: '·';
-      position: absolute;
-      left: 0;
-      color: #a78bfa;
-      font-weight: 700;
-    }
 
     @keyframes gramHubPulse {
       0%, 100% { opacity: 1; }
@@ -2387,7 +2326,7 @@
       </section>
 
       <!-- ═══════════════════════════════════════════
-           WIZARD — Step 4 of 4: Confirm or Mira
+           WIZARD — Step 4 of 4: Confirm strategy
       ═══════════════════════════════════════════ -->
       <section class="slide slide-wizard" data-slide="8">
         <div class="wizard-header anim-item">
@@ -2456,7 +2395,7 @@
                      placeholder="EQ... or UQ..." autocomplete="off" spellcheck="false" style="flex:1"/>
               <span class="addr-valid-check" id="withdrawLaterCheck">✓</span>
             </div>
-            <button class="btn btn-mira-ghost anim-item" id="btnSaveWithdrawLater" type="button"
+            <button class="btn btn-ghost anim-item" id="btnSaveWithdrawLater" type="button"
                     style="margin-top:12px;width:100%;opacity:0.4" disabled>Save withdrawal address</button>
           </div>
         </div>
@@ -2464,7 +2403,7 @@
           <div class="deposit-actions">
             <button class="btn btn-primary anim-item" id="btnOpenDashboard">View Dashboard →</button>
             <button class="btn btn-ghost anim-item" id="btnTrackInBot">Track in Bot →</button>
-            <button class="btn btn-mira-ghost anim-item" id="btnOpenEvmDeposit">Deposit from EVM chains →</button>
+            <button class="btn btn-ghost anim-item" id="btnOpenEvmDeposit">Deposit from EVM chains →</button>
           </div>
         </div>
       </section>

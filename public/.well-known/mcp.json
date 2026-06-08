@@ -1,12 +1,12 @@
 {
   "name": "gramity",
   "version": "1.0.0",
-  "description": "Gramity — custodial DCA executor on TON mainnet. Post-onboarding control plane via Mira; onboarding must be completed in Mini App first. Withdrawal address is optional at onboarding and can be set later via set_withdrawal_address or Mini App; once set it is locked. No funds flow through Mira.",
+  "description": "Gramity — custodial DCA executor on TON mainnet. Onboarding must be completed in Mini App first. Withdrawal address is optional at onboarding and can be set later via set_withdrawal_address or Mini App; once set it is locked.",
   "endpoint": "https://gramity-production.up.railway.app/mcp",
   "constraints": {
     "mainnet": true,
     "custodial": true,
-    "no_funds_via_mira": true,
+    "no_external_funds_routing": true,
     "standard_min_amount_usdt": 10,
     "quick_min_amount_usdt": 2,
     "quick_intervals": ["10s", "30s", "60s"],
