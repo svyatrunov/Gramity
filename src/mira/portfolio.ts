@@ -4,7 +4,7 @@ import {
   getLastExecutions,
   getTotalInvested,
 } from "../db/index.js";
-import { GAS_RESERVE_TON } from "../constants/dca.js";
+import { GAS_RESERVE_TON, formatPlanFrequency } from "../constants/dca.js";
 import { preflightCheck } from "../execution/preflight.js";
 import {
   getTonPriceUsd,
@@ -22,13 +22,6 @@ const STRATEGY_LABELS: Record<string, string> = {
   accumulate: "STON",
 };
 
-const FREQ_LABELS: Record<string, string> = {
-  daily: "daily",
-  weekly: "weekly",
-  biweekly: "biweekly",
-  monthly: "monthly",
-};
-
 function mapStrategyMode(mode: string): string {
   return STRATEGY_LABELS[mode] ?? "TON+LP";
 }
@@ -38,7 +31,10 @@ function planToStrategy(plan: Plan) {
     id: plan.id,
     amount_usdt: Number(plan.usdt_amount),
     frequency: plan.frequency,
-    frequency_label: FREQ_LABELS[plan.frequency] ?? plan.frequency,
+    frequency_label: formatPlanFrequency(plan.frequency, plan.demo_mode),
+    quick_mode: plan.demo_mode,
+    demo_mode: plan.demo_mode,
+    max_cycles: plan.max_cycles,
     strategy: mapStrategyMode(plan.strategy_mode),
     status: plan.active ? "active" : "paused",
     cycles_done: plan.cycles_completed,
@@ -110,6 +106,9 @@ export async function buildMiraPortfolio(telegramId: number) {
     next_cycle_at: plan.next_execution_at,
     withdrawal_address_masked: maskAddress(plan.ton_address),
     agent_wallet_address: depositAddress,
+    quick_mode: plan.demo_mode,
+    demo_mode: plan.demo_mode,
+    max_cycles: plan.max_cycles,
     strategies: [planToStrategy(plan)],
     recent_executions: executions.map((e) => ({
       executed_at: e.executed_at,

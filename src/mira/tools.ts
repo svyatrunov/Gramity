@@ -3,13 +3,20 @@ import {
   updatePlan,
   getPool,
 } from "../db/index.js";
-import { MIN_DCA_USDT } from "../constants/dca.js";
+import {
+  MIN_DCA_USDT,
+  QUICK_MIN_USDT,
+  QUICK_INTERVAL_KEYS,
+  STANDARD_FREQUENCIES,
+  validatePlanAmount,
+  normalizePlanFrequency,
+  getNextPlanExecutionDate,
+  formatPlanFrequency,
+} from "../constants/dca.js";
 import { createUserWallet } from "../services/userWallet.js";
 import { RAILWAY_PUBLIC_URL } from "../config.js";
 import { buildMiraPortfolio } from "./portfolio.js";
 import { sanitizeForMira, maskAddress, parseTelegramId } from "./utils.js";
-
-type FreqType = "weekly" | "biweekly" | "monthly" | "daily";
 
 const STRATEGY_MAP: Record<string, "full" | "stake_only" | "accumulate"> = {
   "TON+LP": "full",
@@ -17,13 +24,10 @@ const STRATEGY_MAP: Record<string, "full" | "stake_only" | "accumulate"> = {
   STON: "accumulate",
 };
 
-function getNextExecutionDate(frequency: FreqType): Date {
-  const next = new Date();
-  if (frequency === "daily") next.setDate(next.getDate() + 1);
-  else if (frequency === "monthly") next.setMonth(next.getMonth() + 1);
-  else if (frequency === "biweekly") next.setDate(next.getDate() + 14);
-  else next.setDate(next.getDate() + 7);
-  return next;
+function parseQuickMode(args: Record<string, unknown>): boolean {
+  if (args.quick_mode === true || args.demo_mode === true) return true;
+  const mode = String(args.mode ?? "").toLowerCase();
+  return mode === "quick" || mode === "quick_start";
 }
 
 export async function toolGetPortfolio(args: Record<string, unknown>) {
@@ -49,16 +53,19 @@ export async function toolCreateStrategy(args: Record<string, unknown>) {
   const telegramId = parseTelegramId(args.telegram_id);
   if (telegramId === null) throw new Error("telegram_id required");
 
+  const isQuickMode = parseQuickMode(args);
   const amount = Number(args.amount_usdt);
-  if (!amount || isNaN(amount) || amount < MIN_DCA_USDT) {
+  const amountError = validatePlanAmount(amount, isQuickMode);
+  if (amountError) {
     throw new Error(
-      `amount_usdt must be >= ${MIN_DCA_USDT}: завершите онбординг в Mini App или пополните agent wallet`
+      `${amountError}: завершите онбординг в Mini App или пополните agent wallet`
     );
   }
 
-  const frequency = String(args.frequency ?? "weekly") as FreqType;
-  const validFreqs: FreqType[] = ["daily", "weekly", "biweekly", "monthly"];
-  const normalizedFreq = validFreqs.includes(frequency) ? frequency : "weekly";
+  const normalizedFreq = normalizePlanFrequency(
+    String(args.frequency ?? ""),
+    isQuickMode
+  );
 
   const strategyLabel = String(args.strategy ?? "TON+LP");
   const strategyMode = STRATEGY_MAP[strategyLabel] ?? "full";
@@ -74,7 +81,10 @@ export async function toolCreateStrategy(args: Record<string, unknown>) {
   }
 
   const originalWithdrawal = existing.ton_address;
-  const nextExec = getNextExecutionDate(normalizedFreq);
+  const nextExec = getNextPlanExecutionDate({
+    frequency: normalizedFreq,
+    demo_mode: isQuickMode,
+  });
 
   await getPool().query(
     `UPDATE plans SET
@@ -82,27 +92,34 @@ export async function toolCreateStrategy(args: Record<string, unknown>) {
        frequency = $3,
        strategy_mode = $4,
        active = true,
-       next_execution_at = $5
+       next_execution_at = $5,
+       demo_mode = $6,
+       max_cycles = $7
      WHERE telegram_id = $1`,
-    [telegramId, amount, normalizedFreq, strategyMode, nextExec.toISOString()]
+    [
+      telegramId,
+      amount,
+      normalizedFreq,
+      strategyMode,
+      nextExec.toISOString(),
+      isQuickMode,
+      isQuickMode ? 2 : null,
+    ]
   );
 
   const agentWallet = await createUserWallet(telegramId).catch(() => "");
 
   const { bot } = await import("../bot/index.js");
-  const FREQ_LABELS: Record<string, string> = {
-    daily: "daily",
-    weekly: "weekly",
-    biweekly: "every 2 weeks",
-    monthly: "monthly",
-  };
+  const freqLabel = formatPlanFrequency(normalizedFreq, isQuickMode);
+  const modeLabel = isQuickMode ? "Quick Start" : "Standard";
 
   await bot.api.sendMessage(
     telegramId,
     `✅ *Strategy updated via Mira*\n\n` +
+      `Mode: ${modeLabel}\n` +
       `Strategy: ${strategyLabel}\n` +
       `Amount: $${amount.toFixed(0)} USDT / cycle\n` +
-      `Frequency: ${FREQ_LABELS[normalizedFreq] ?? normalizedFreq}\n` +
+      `Frequency: ${freqLabel}\n` +
       `Withdrawal: \`${maskAddress(originalWithdrawal)}\` _(locked)_\n\n` +
       `Deposit to agent wallet:\n\`${agentWallet}\`\n\n` +
       `/status — check position`,
@@ -114,7 +131,11 @@ export async function toolCreateStrategy(args: Record<string, unknown>) {
     telegram_id: telegramId,
     amount_usdt: amount,
     frequency: normalizedFreq,
+    frequency_label: freqLabel,
     strategy: strategyLabel,
+    quick_mode: isQuickMode,
+    demo_mode: isQuickMode,
+    max_cycles: isQuickMode ? 2 : null,
     withdrawal_address_masked: maskAddress(originalWithdrawal),
     agent_wallet_address: agentWallet,
     withdrawal_address_unchanged: true,
@@ -158,7 +179,10 @@ export async function toolResumeStrategy(args: Record<string, unknown>) {
     });
   }
 
-  const nextCycle = getNextExecutionDate(plan.frequency as FreqType);
+  const nextCycle = getNextPlanExecutionDate({
+    frequency: plan.frequency,
+    demo_mode: plan.demo_mode,
+  });
   await updatePlan(telegramId, {
     active: true,
     next_execution_at: nextCycle.toISOString(),
@@ -189,15 +213,17 @@ export function getMcpManifest() {
       mainnet: true,
       custodial: true,
       no_funds_via_mira: true,
-      min_amount_usdt: MIN_DCA_USDT,
-      demo_available: true,
+      standard_min_amount_usdt: MIN_DCA_USDT,
+      quick_min_amount_usdt: QUICK_MIN_USDT,
+      quick_intervals: QUICK_INTERVAL_KEYS,
+      standard_frequencies: STANDARD_FREQUENCIES,
       onboarding_required: true,
     },
     tools: [
       {
         name: "get_portfolio",
         description:
-          "Returns portfolio summary, usdt_balance, can_run_next_cycle, next_cycle_requires_usdt, and masked withdrawal address. Use top_up_hint when can_run_next_cycle is false.",
+          "Returns portfolio summary, usdt_balance, can_run_next_cycle, next_cycle_requires_usdt, quick_mode flag, and masked withdrawal address. Use top_up_hint when can_run_next_cycle is false.",
         inputSchema: {
           type: "object",
           required: ["telegram_id"],
@@ -207,15 +233,32 @@ export function getMcpManifest() {
       {
         name: "create_strategy",
         description:
-          `Update an existing DCA strategy (min $${MIN_DCA_USDT} USDT/cycle). Requires completed Mini App onboarding — cannot create plans or change withdrawal address via Mira.`,
+          `Update an existing DCA strategy. Standard mode: min $${MIN_DCA_USDT}, frequencies daily/weekly/biweekly/monthly. Quick Start: min $${QUICK_MIN_USDT}, intervals 10s/30s/60s, 2 cycles on mainnet. Set quick_mode=true (or demo_mode=true) to switch user to Quick Start.`,
         inputSchema: {
           type: "object",
           required: ["telegram_id", "amount_usdt", "frequency", "strategy"],
           properties: {
             telegram_id: { type: "string" },
-            amount_usdt: { type: "number", minimum: MIN_DCA_USDT },
-            frequency: { type: "string" },
-            strategy: { type: "string" },
+            amount_usdt: { type: "number", minimum: QUICK_MIN_USDT },
+            frequency: {
+              type: "string",
+              description:
+                "Standard: daily|weekly|biweekly|monthly. Quick Start: 10s|30s|60s",
+            },
+            strategy: { type: "string", enum: ["TON+LP", "TON", "STON"] },
+            quick_mode: {
+              type: "boolean",
+              description: "true = Quick Start (2 cycles, short interval)",
+            },
+            demo_mode: {
+              type: "boolean",
+              description: "Alias for quick_mode",
+            },
+            mode: {
+              type: "string",
+              enum: ["standard", "quick", "quick_start"],
+              description: "Alternative to quick_mode boolean",
+            },
           },
         },
       },

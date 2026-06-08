@@ -6,12 +6,16 @@
   "constraints": {
     "mainnet": true,
     "custodial": true,
-    "no_funds_via_mira": true
+    "no_funds_via_mira": true,
+    "standard_min_amount_usdt": 10,
+    "quick_min_amount_usdt": 2,
+    "quick_intervals": ["10s", "30s", "60s"],
+    "standard_frequencies": ["daily", "weekly", "biweekly", "monthly"]
   },
   "tools": [
     {
       "name": "get_portfolio",
-      "description": "Returns portfolio summary, active strategies, and masked withdrawal address for a Gramity user.",
+      "description": "Returns portfolio summary, active strategies, quick_mode flag, and masked withdrawal address for a Gramity user.",
       "inputSchema": {
         "type": "object",
         "required": ["telegram_id"],
@@ -22,15 +26,18 @@
     },
     {
       "name": "create_strategy",
-      "description": "Create or update a DCA strategy. Withdrawal address is locked at onboarding and cannot be changed via Mira.",
+      "description": "Update DCA strategy. Standard: min $10, daily/weekly/biweekly/monthly. Quick Start: min $2, intervals 10s/30s/60s, 2 cycles on mainnet. Use quick_mode=true to switch.",
       "inputSchema": {
         "type": "object",
         "required": ["telegram_id", "amount_usdt", "frequency", "strategy"],
         "properties": {
           "telegram_id": { "type": "string" },
-          "amount_usdt": { "type": "number" },
-          "frequency": { "type": "string", "enum": ["daily", "weekly", "biweekly", "monthly"] },
-          "strategy": { "type": "string", "enum": ["TON+LP", "TON", "STON"] }
+          "amount_usdt": { "type": "number", "minimum": 2 },
+          "frequency": { "type": "string" },
+          "strategy": { "type": "string", "enum": ["TON+LP", "TON", "STON"] },
+          "quick_mode": { "type": "boolean" },
+          "demo_mode": { "type": "boolean" },
+          "mode": { "type": "string", "enum": ["standard", "quick", "quick_start"] }
         }
       }
     },

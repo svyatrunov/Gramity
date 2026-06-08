@@ -23,6 +23,7 @@ import {
 import { executeStrategy, InsufficientFundsError, type ExecutionResult } from "../execution/index.js";
 import { preflightCheck } from "../execution/preflight.js";
 import type { Plan } from "../db/index.js";
+import { getNextPlanExecutionDate, isQuickPlan } from "../constants/dca.js";
 
 const AUTO_PAUSE_THRESHOLD = 3;
 
@@ -46,24 +47,15 @@ export function setNotifyAllComplete(fn: NotifyAllCompleteFn) { notifyAllComplet
 // ── Scheduler state ───────────────────────────────────────────────────────────
 
 const IS_DEMO_MODE = process.env.DEMO_MODE === "true";
-const DEMO_CYCLE_INTERVAL_MS = 5_000;
+const DEV_DEMO_CYCLE_INTERVAL_MS = 5_000;
 
 function getNextExecutionDate(plan: Plan): Date {
-  const next = new Date();
-  const frequency = plan.frequency;
-
-  if (IS_DEMO_MODE || frequency === "demo") {
-    next.setTime(next.getTime() + DEMO_CYCLE_INTERVAL_MS);
+  if (IS_DEMO_MODE) {
+    const next = new Date();
+    next.setTime(next.getTime() + DEV_DEMO_CYCLE_INTERVAL_MS);
     return next;
   }
-  if (frequency === "minutely")  next.setMinutes(next.getMinutes() + 1);
-  else if (frequency === "hourly")   next.setHours(next.getHours() + 1);
-  else if (frequency === "daily")    next.setDate(next.getDate() + 1);
-  else if (frequency === "weekly")   next.setDate(next.getDate() + 7);
-  else if (frequency === "biweekly") next.setDate(next.getDate() + 14);
-  else if (frequency === "monthly")  next.setMonth(next.getMonth() + 1);
-  else next.setDate(next.getDate() + 7);
-  return next;
+  return getNextPlanExecutionDate(plan);
 }
 
 /** Plans currently executing — prevents double-runs across cron ticks. */
@@ -197,7 +189,7 @@ async function checkAndExecute() {
         await resetConsecutiveFailures(plan.id).catch(() => {});
 
         // ── 5. Demo / max_cycles handling ────────────────────────────────────
-        if (plan.demo_mode || plan.frequency === "demo") {
+        if (isQuickPlan(plan.demo_mode, plan.frequency)) {
           const completed = await incrementCyclesCompleted(plan.id);
           console.log(
             `[SCHEDULER] Demo plan ${plan.id}: cycle ${completed}/${plan.max_cycles ?? "∞"}`
@@ -264,8 +256,8 @@ async function checkAndExecute() {
 
 export function startScheduler() {
   if (IS_DEMO_MODE) {
-    setInterval(checkAndExecute, DEMO_CYCLE_INTERVAL_MS);
-    console.log(`[SCHEDULER] DEMO MODE — checking every ${DEMO_CYCLE_INTERVAL_MS / 1000}s`);
+    setInterval(checkAndExecute, DEV_DEMO_CYCLE_INTERVAL_MS);
+    console.log(`[SCHEDULER] DEMO MODE — checking every ${DEV_DEMO_CYCLE_INTERVAL_MS / 1000}s`);
     return;
   }
 

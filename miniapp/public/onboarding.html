@@ -1848,36 +1848,43 @@
           <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:6px">Invest into DCA</h2>
           <p class="subtitle anim-item" style="font-size:13px;margin-bottom:16px">How much USDT per cycle?</p>
 
-          <!-- Demo / Live mode toggle -->
+          <!-- Quick Start / Standard mode toggle -->
           <div class="mode-tabs anim-item" id="dcaModeTabs">
-            <button type="button" class="mode-tab active" data-mode="demo" id="modeTabDemo">Demo $5</button>
-            <button type="button" class="mode-tab" data-mode="live" id="modeTabLive">Live</button>
+            <button type="button" class="mode-tab active" data-mode="demo" id="modeTabDemo">Quick Start</button>
+            <button type="button" class="mode-tab" data-mode="live" id="modeTabLive">Standard</button>
           </div>
 
-          <div class="dca-min-banner anim-item" id="dcaMinBanner">⚠️ Min $10 USDT on TON wallet required</div>
+          <div class="dca-min-banner anim-item" id="dcaMinBanner">⚠️ Min $10 USDT on TON wallet required for Standard</div>
 
-          <!-- Frequency -->
-          <div class="freq-tabs anim-item" id="freqTabs">
+          <!-- Quick Start intervals -->
+          <div class="freq-tabs anim-item" id="freqTabsQuick">
+            <button type="button" class="freq-tab active" data-freq="10s">10 sec</button>
+            <button type="button" class="freq-tab" data-freq="30s">30 sec</button>
+            <button type="button" class="freq-tab" data-freq="60s">1 min</button>
+          </div>
+
+          <!-- Standard intervals -->
+          <div class="freq-tabs anim-item" id="freqTabsStandard" style="display:none">
             <button type="button" class="freq-tab" data-freq="daily">Daily</button>
             <button type="button" class="freq-tab active" data-freq="weekly">Weekly</button>
             <button type="button" class="freq-tab" data-freq="monthly">Monthly</button>
           </div>
 
-          <!-- Amount block (Live mode only) -->
-          <div id="dcaAmountSection" style="display:none">
-            <p class="param-label anim-item">Amount per cycle</p>
+          <!-- Amount per cycle -->
+          <div id="dcaAmountSection">
+            <p class="param-label anim-item" id="dcaAmountLabel">Amount per cycle</p>
             <div class="amount-row anim-item">
               <span class="amount-prefix">$</span>
               <input class="amount-input" id="amountInput" type="number"
-                     inputmode="decimal" min="10" max="2000" step="5" value="500"/>
+                     inputmode="decimal" min="2" max="2000" step="1" value="2"/>
               <span class="amount-suffix">USDT</span>
             </div>
 
             <div class="slider-wrap anim-item">
               <input type="range" class="dca-slider" id="amountSlider"
-                     min="10" max="2000" step="5" value="500"/>
+                     min="2" max="2000" step="1" value="2"/>
               <div class="slider-ticks">
-                <span>$10</span>
+                <span id="amountSliderMin">$2</span>
                 <span>$2,000</span>
               </div>
             </div>
@@ -1890,9 +1897,9 @@
             </div>
           </div>
 
-          <!-- 1-year projection -->
+          <!-- Projection -->
           <div class="proj-big-card anim-item" id="projBigCard">
-            <div style="font-size:10px;color:var(--text-secondary);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">After 1 year</div>
+            <div style="font-size:10px;color:var(--text-secondary);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px" id="projBigTitle">After 2 cycles</div>
             <div style="font-size:26px;font-weight:800;color:var(--text-secondary);line-height:1;margin-bottom:6px" id="projBigTon">≈ — TON</div>
             <div class="proj-breakdown" id="projBreakdown" style="margin-bottom:5px">$0 invested · +$0 yield (~5.4% APY)</div>
             <div style="font-size:10px;color:rgba(255,255,255,0.35);line-height:1.4" id="projTonDisclaimer">Fetching rate…</div>
@@ -2528,7 +2535,7 @@
         totalUsdBalance: 0,
         usdtBalance:    0,
         demoMode:       false,
-        frequency:      'weekly',
+        frequency:      '10s',
         amountPerCycle: 500,
         selectedToken:  'ton',
         sameWallet:     true,
@@ -3320,14 +3327,17 @@
          WIZARD STEP 2 — Invest into DCA
       ══════════════════════════════════════════════════════ */
 
-      var MIN_DCA          = 10;
-      var AMOUNT_MAX       = 2000;
-      var AMOUNT_STEP      = 5;
-      var DEMO_AMOUNT      = 5;
-      var LIVE_DEFAULT     = 500;
+      var QUICK_MIN          = 2;
+      var STANDARD_MIN       = 10;
+      var AMOUNT_MAX         = 2000;
+      var AMOUNT_STEP_STD    = 5;
+      var QUICK_DEFAULT      = 2;
+      var LIVE_DEFAULT       = 500;
+      var QUICK_FREQS        = { '10s': 1, '30s': 1, '60s': 1 };
+      var STANDARD_FREQS     = { daily: 365, weekly: 52, monthly: 12 };
 
-      var step2Mode        = 'demo';
-      var step2Amount      = LIVE_DEFAULT;
+      var step2Mode          = 'demo';
+      var step2Amount        = QUICK_DEFAULT;
       var sliderEl         = document.getElementById('amountSlider');
       var amountInputEl    = document.getElementById('amountInput');
 
@@ -3338,27 +3348,60 @@
         return wiz.usdtBalance || 0;
       }
 
+      function getStep2Min() {
+        return step2Mode === 'demo' ? QUICK_MIN : STANDARD_MIN;
+      }
+
+      function getStep2Step() {
+        return step2Mode === 'demo' ? 1 : AMOUNT_STEP_STD;
+      }
+
       function cyclesPerYear(freq) {
-        return { daily: 365, weekly: 52, monthly: 12 }[freq] || 52;
+        if (step2Mode === 'demo') return 2;
+        return STANDARD_FREQS[freq] || 52;
       }
 
       function snapAmount(val) {
-        var n = Math.round(parseFloat(val) / AMOUNT_STEP) * AMOUNT_STEP;
-        return Math.max(MIN_DCA, Math.min(AMOUNT_MAX, n));
+        var min = getStep2Min();
+        var step = getStep2Step();
+        var n = Math.round(parseFloat(val) / step) * step;
+        return Math.max(min, Math.min(AMOUNT_MAX, n));
       }
 
       function getStep2Amount() {
-        return step2Mode === 'demo' ? DEMO_AMOUNT : step2Amount;
+        return step2Amount;
       }
 
       function calcStep2Projection(amount, freq, tonPrice) {
-        var totalInvested = amount * cyclesPerYear(freq);
+        var cycles = cyclesPerYear(freq);
+        var totalInvested = amount * cycles;
         var yieldUSD = totalInvested * 0.054;
         var tonAmount = null;
         if (tonPrice && tonPrice > 0) {
           tonAmount = (totalInvested + yieldUSD) / tonPrice;
         }
-        return { totalInvested: totalInvested, yieldUSD: yieldUSD, tonAmount: tonAmount };
+        return { totalInvested: totalInvested, yieldUSD: yieldUSD, tonAmount: tonAmount, cycles: cycles };
+      }
+
+      function updateAmountControlsForMode() {
+        var min = getStep2Min();
+        var step = getStep2Step();
+        if (sliderEl) {
+          sliderEl.min = String(min);
+          sliderEl.step = String(step);
+        }
+        if (amountInputEl) {
+          amountInputEl.min = String(min);
+          amountInputEl.step = String(step);
+        }
+        var minTick = document.getElementById('amountSliderMin');
+        if (minTick) minTick.textContent = '$' + min;
+        var label = document.getElementById('dcaAmountLabel');
+        if (label) {
+          label.textContent = step2Mode === 'demo'
+            ? 'Amount per cycle (min $' + QUICK_MIN + ', 2 cycles on mainnet)'
+            : 'Amount per cycle (min $' + STANDARD_MIN + ')';
+        }
       }
 
       function setStep2Mode(mode) {
@@ -3368,19 +3411,28 @@
         document.getElementById('modeTabDemo').classList.toggle('active', mode === 'demo');
         document.getElementById('modeTabLive').classList.toggle('active', mode === 'live');
 
-        var amountSection = document.getElementById('dcaAmountSection');
         var banner = document.getElementById('dcaMinBanner');
         var bal = getWalletBalance();
+        var freqQuick = document.getElementById('freqTabsQuick');
+        var freqStandard = document.getElementById('freqTabsStandard');
+        var projTitle = document.getElementById('projBigTitle');
+
+        if (freqQuick) freqQuick.style.display = mode === 'demo' ? 'flex' : 'none';
+        if (freqStandard) freqStandard.style.display = mode === 'demo' ? 'none' : 'flex';
+        if (projTitle) projTitle.textContent = mode === 'demo' ? 'After 2 cycles' : 'After 1 year';
 
         if (mode === 'demo') {
-          amountSection.style.display = 'none';
           banner.style.display = 'none';
+          if (!QUICK_FREQS[wiz.frequency]) setStep2Frequency('10s');
+          if (step2Amount < QUICK_MIN) step2Amount = QUICK_DEFAULT;
         } else {
-          amountSection.style.display = 'block';
-          banner.style.display = bal < MIN_DCA ? 'block' : 'none';
+          banner.style.display = bal < STANDARD_MIN ? 'block' : 'none';
+          if (!STANDARD_FREQS[wiz.frequency]) setStep2Frequency('weekly');
+          if (step2Amount < STANDARD_MIN) step2Amount = LIVE_DEFAULT;
         }
 
-        updateStep2UI();
+        updateAmountControlsForMode();
+        setStep2Amount(step2Amount);
       }
 
       function setStep2Amount(val) {
@@ -3397,7 +3449,7 @@
       function refreshStep2SliderTrack() {
         if (!sliderEl) return;
         var val = step2Amount;
-        var pct = ((val - MIN_DCA) / (AMOUNT_MAX - MIN_DCA)) * 100;
+        var pct = ((val - getStep2Min()) / (AMOUNT_MAX - getStep2Min())) * 100;
         sliderEl.style.background =
           'linear-gradient(to right, var(--accent) 0%, var(--accent) ' + pct.toFixed(1) +
           '%, rgba(255,255,255,0.12) ' + pct.toFixed(1) + '%)';
@@ -3409,7 +3461,7 @@
         var base = bal > 0 ? bal : AMOUNT_MAX;
         document.querySelectorAll('#sliderPcts .pct-btn').forEach(function (btn) {
           var target = snapAmount(parseInt(btn.dataset.pct, 10) / 100 * base);
-          btn.classList.toggle('pct-active', Math.abs(step2Amount - target) < AMOUNT_STEP);
+          btn.classList.toggle('pct-active', Math.abs(step2Amount - target) < getStep2Step());
         });
       }
 
@@ -3429,9 +3481,10 @@
             : '≈ — TON';
         }
         if (brkEl) {
+          var cycleLabel = p.cycles === 2 ? '2 cycles' : '1 year';
           brkEl.textContent =
             '$' + Math.round(p.totalInvested).toLocaleString() + ' invested · +$' +
-            Math.round(p.yieldUSD).toLocaleString() + ' yield (~5.4% APY)';
+            Math.round(p.yieldUSD).toLocaleString() + ' yield (~5.4% APY · ' + cycleLabel + ')';
         }
         if (priceEl) {
           if (tonPrice && tonPrice > 0) {
@@ -3445,12 +3498,8 @@
       function updateContinueBtn7() {
         var btn = document.getElementById('btnWizardNext7');
         if (!btn) return;
-        var can = false;
-        if (step2Mode === 'demo') {
-          can = true;
-        } else {
-          can = step2Amount >= MIN_DCA;
-        }
+        var min = getStep2Min();
+        var can = step2Amount >= min;
         btn.disabled = !can;
         btn.style.opacity = can ? '1' : '0.4';
         btn.style.pointerEvents = can ? 'auto' : 'none';
@@ -3466,7 +3515,7 @@
 
       function setStep2Frequency(freq) {
         wiz.frequency = freq;
-        document.querySelectorAll('#freqTabs .freq-tab').forEach(function (tab) {
+        document.querySelectorAll('#freqTabsQuick .freq-tab, #freqTabsStandard .freq-tab').forEach(function (tab) {
           tab.classList.toggle('active', tab.dataset.freq === freq);
         });
         updateStep2UI();
@@ -3476,9 +3525,10 @@
         var saved = window.gramityState.step2;
         if (!saved) return false;
 
-        setStep2Frequency(saved.frequency || 'weekly');
-        var savedAmt = saved.amount != null ? saved.amount : LIVE_DEFAULT;
-        step2Amount = savedAmt >= MIN_DCA ? snapAmount(savedAmt) : LIVE_DEFAULT;
+        setStep2Frequency(saved.frequency || (saved.mode === 'live' ? 'weekly' : '10s'));
+        var savedAmt = saved.amount != null ? saved.amount : (saved.mode === 'live' ? LIVE_DEFAULT : QUICK_DEFAULT);
+        var min = saved.mode === 'live' ? STANDARD_MIN : QUICK_MIN;
+        step2Amount = savedAmt >= min ? snapAmount(savedAmt) : (saved.mode === 'live' ? LIVE_DEFAULT : QUICK_DEFAULT);
         if (sliderEl) sliderEl.value = String(step2Amount);
         if (amountInputEl) amountInputEl.value = String(step2Amount);
         setStep2Mode(saved.mode === 'live' ? 'live' : 'demo');
@@ -3498,10 +3548,10 @@
         if (restoreStep2FromState()) return;
 
         var bal = getWalletBalance();
-        var initialMode = bal >= MIN_DCA ? 'live' : 'demo';
+        var initialMode = bal >= STANDARD_MIN ? 'live' : 'demo';
 
-        setStep2Frequency('weekly');
-        step2Amount = LIVE_DEFAULT;
+        setStep2Frequency('10s');
+        step2Amount = QUICK_DEFAULT;
         if (sliderEl) sliderEl.value = String(step2Amount);
         if (amountInputEl) amountInputEl.value = String(step2Amount);
         setStep2Mode(initialMode);
@@ -3540,7 +3590,7 @@
         setStep2Mode('live');
       });
 
-      document.querySelectorAll('#freqTabs .freq-tab').forEach(function (tab) {
+      document.querySelectorAll('#freqTabsQuick .freq-tab, #freqTabsStandard .freq-tab').forEach(function (tab) {
         tab.addEventListener('click', function () {
           setStep2Frequency(tab.dataset.freq);
         });
@@ -3558,7 +3608,7 @@
           if (!isNaN(raw)) setStep2Amount(raw);
         });
         amountInputEl.addEventListener('blur', function () {
-          setStep2Amount(amountInputEl.value || MIN_DCA);
+          setStep2Amount(amountInputEl.value || getStep2Min());
         });
       }
 
@@ -3784,6 +3834,7 @@
               amount_usdt:  wiz.amountPerCycle,
               frequency:    wiz.frequency,
               strategy:     wiz.selectedToken,
+              demo_mode:    wiz.demoMode,
             }),
           });
 
@@ -3825,14 +3876,22 @@
       function buildSummary() {
         var stratLabels = { ton: 'TON + Stake + LP', ston: 'STON swap' };
         var apyLabels   = { ton: '~5.4%', ston: 'market' };
-        var freqLabels  = { daily: 'daily', weekly: 'weekly', monthly: 'monthly' };
+        var freqLabels  = {
+          '10s': 'every 10 sec',
+          '30s': 'every 30 sec',
+          '60s': 'every 1 min',
+          daily: 'daily',
+          weekly: 'weekly',
+          monthly: 'monthly'
+        };
+        var modePrefix = wiz.demoMode ? 'Quick Start · ' : '';
 
         document.getElementById('summaryStrategy').textContent =
           stratLabels[wiz.selectedToken] || 'TON + Stake + LP';
         document.getElementById('summaryApy').textContent =
           apyLabels[wiz.selectedToken] || '~5.4%';
         document.getElementById('summaryAmount').textContent =
-          '$' + wiz.amountPerCycle + ' USDT / ' + (freqLabels[wiz.frequency] || 'weekly');
+          modePrefix + '$' + wiz.amountPerCycle + ' USDT / ' + (freqLabels[wiz.frequency] || 'weekly');
         document.getElementById('summaryWithdraw').textContent =
           wiz.sameWallet ? 'Connected wallet'
           : (wiz.withdrawAddress.slice(0, 8) + '…' + wiz.withdrawAddress.slice(-6));

@@ -29,12 +29,17 @@ import { registerMiraRoutes } from "./mira/routes.js";
 import {
   MIN_DCA_USDT,
   MIN_SCAN_USD,
+  QUICK_MIN_USDT,
   DEMO_MIN_USDT,
   GAS_RESERVE_TON,
   ECONOMICS_HINT_THRESHOLD_USDT,
+  QUICK_INTERVAL_KEYS,
   minPlanAmountUsdt,
   validatePlanAmount,
   buildEconomicsHint,
+  normalizePlanFrequency,
+  getNextPlanExecutionDate,
+  formatPlanFrequency,
 } from "./constants/dca.js";
 
 // ─── Express app ──────────────────────────────────────────────────────────────
@@ -574,7 +579,9 @@ app.get("/api/dca/limits", (_req, res) => {
   res.json({
     min_dca_usdt: MIN_DCA_USDT,
     min_scan_usd: MIN_SCAN_USD,
+    quick_min_usdt: QUICK_MIN_USDT,
     demo_min_usdt: DEMO_MIN_USDT,
+    quick_intervals: QUICK_INTERVAL_KEYS,
     gas_reserve_ton: GAS_RESERVE_TON,
     economics_hint_threshold_usdt: ECONOMICS_HINT_THRESHOLD_USDT,
   });
@@ -590,34 +597,24 @@ app.post("/api/plans", tgAuth, async (req, res) => {
       res.status(400).json({ error: "ton_address is required" });
       return;
     }
-    const isDemoMode = demo_mode === true || demo_mode === "true";
+    const isQuickMode = demo_mode === true || demo_mode === "true";
     const amount = Number(amount_usdt);
-    const amountError = validatePlanAmount(amount, isDemoMode);
+    const amountError = validatePlanAmount(amount, isQuickMode);
     if (amountError) {
       res.status(400).json({
         error: amountError,
-        min_usdt: minPlanAmountUsdt(isDemoMode),
-        demo_mode: isDemoMode,
+        min_usdt: minPlanAmountUsdt(isQuickMode),
+        quick_mode: isQuickMode,
+        demo_mode: isQuickMode,
       });
       return;
     }
 
-    type FreqType = "weekly" | "biweekly" | "monthly" | "daily" | "minutely" | "hourly" | "demo";
-    const VALID_FREQS: FreqType[] = ["daily", "weekly", "biweekly", "monthly", "minutely", "hourly", "demo"];
-    const rawFreq = String(frequency);
-    const normalizedFreq: FreqType =
-      isDemoMode ? "demo"
-      : VALID_FREQS.includes(rawFreq as FreqType) ? (rawFreq as FreqType)
-      : "weekly";
-
-    const nextExec = new Date();
-    if (normalizedFreq === "demo")          nextExec.setTime(nextExec.getTime() + 5_000);
-    else if (normalizedFreq === "daily")    nextExec.setDate(nextExec.getDate() + 1);
-    else if (normalizedFreq === "monthly")  nextExec.setMonth(nextExec.getMonth() + 1);
-    else if (normalizedFreq === "biweekly") nextExec.setDate(nextExec.getDate() + 14);
-    else if (normalizedFreq === "minutely") nextExec.setMinutes(nextExec.getMinutes() + 1);
-    else if (normalizedFreq === "hourly")   nextExec.setHours(nextExec.getHours() + 1);
-    else                                    nextExec.setDate(nextExec.getDate() + 7);
+    const normalizedFreq = normalizePlanFrequency(String(frequency ?? ""), isQuickMode);
+    const nextExec = getNextPlanExecutionDate({
+      frequency: normalizedFreq,
+      demo_mode: isQuickMode,
+    });
 
     const { upsertPlan } = await import("./db/index.js");
     const plan = await upsertPlan({
@@ -629,9 +626,9 @@ app.post("/api/plans", tgAuth, async (req, res) => {
       strategy_mode:     "full",
       active:            true,
       next_execution_at: nextExec.toISOString(),
-      demo_mode:         isDemoMode,
+      demo_mode:         isQuickMode,
       cycles_completed:  0,
-      max_cycles:        isDemoMode ? 2 : null,
+      max_cycles:        isQuickMode ? 2 : null,
     });
 
     const depositAddress = await createUserWallet(telegramId);
@@ -639,11 +636,6 @@ app.post("/api/plans", tgAuth, async (req, res) => {
     const { startDepositPoller } = await import("./bot/depositPoller.js");
     startDepositPoller(telegramId, depositAddress);
 
-    const FREQ_LABELS: Record<string, string> = {
-      daily: "daily", weekly: "weekly", biweekly: "every 2 weeks",
-      monthly: "monthly", minutely: "every minute", hourly: "every hour",
-      demo: "demo (5s)",
-    };
     const STRATEGY_LABELS: Record<string, string> = {
       ton: "TON + Stake + LP",
       ston: "STON accumulation",
@@ -653,25 +645,26 @@ app.post("/api/plans", tgAuth, async (req, res) => {
     const { InlineKeyboard } = await import("grammy");
     const { RAILWAY_PUBLIC_URL } = await import("./config.js");
     const depositUrl = `${RAILWAY_PUBLIC_URL}/app/deposit.html?wallet=${encodeURIComponent(depositAddress)}`;
+
     const strategyLabel = STRATEGY_LABELS[String(strategy)] ?? "TON + Stake + LP";
-    const freqLabel = FREQ_LABELS[normalizedFreq] ?? normalizedFreq;
+    const freqLabel = formatPlanFrequency(normalizedFreq, isQuickMode);
     const planKb = new InlineKeyboard()
       .text("📊 Track Status", "status_check")
       .row()
       .url("🤖 Manage with Mira", "https://t.me/mira");
 
-    if (isDemoMode) {
+    if (isQuickMode) {
       await bot.api.sendMessage(
         telegramId,
-        `🎬 *Demo Strategy Created*\n\n` +
+        `🚀 *Quick Start activated*\n\n` +
           `2 cycles × $${amount.toFixed(0)} USDT\n` +
-          `Interval: 5 seconds\n` +
+          `Interval: ${freqLabel}\n` +
           `Withdrawal: \`${String(ton_address).slice(0, 8)}…${String(ton_address).slice(-6)}\`\n\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `*FUND YOUR AGENT WALLET*\n` +
           `Send USDT here to start:\n\n` +
           `\`${depositAddress}\`\n\n` +
-          `Starting in 5 seconds...\n` +
+          `First cycle runs shortly after deposit.\n` +
           `━━━━━━━━━━━━━━━━━━━━`,
         { parse_mode: "Markdown", reply_markup: planKb }
       );
@@ -692,20 +685,22 @@ app.post("/api/plans", tgAuth, async (req, res) => {
       );
     }
 
-    console.log(`[API/plans] Strategy created user=${telegramId} amount=${amount} freq=${normalizedFreq} demo=${isDemoMode}`);
+    console.log(`[API/plans] Strategy created user=${telegramId} amount=${amount} freq=${normalizedFreq} quick=${isQuickMode}`);
 
     const { getTonPriceUsd } = await import("./services/tonapi.js");
     const tonPrice = await getTonPriceUsd().catch(() => 5);
-    const economics_hint = buildEconomicsHint(amount, tonPrice);
+    const economics_hint = isQuickMode ? undefined : buildEconomicsHint(amount, tonPrice);
 
     res.json({
       ok: true,
-      message: isDemoMode ? "Demo strategy created" : "Strategy created successfully",
+      message: isQuickMode ? "Quick Start strategy created" : "Strategy created successfully",
       plan_id: plan.id,
       agent_wallet_address: depositAddress,
       amount_usdt: amount,
       deposit_address: depositAddress,
       deposit_url: depositUrl,
+      quick_mode: isQuickMode,
+      demo_mode: isQuickMode,
       ...(economics_hint ? { economics_hint } : {}),
     });
   } catch (err) {

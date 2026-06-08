@@ -87,6 +87,7 @@ bot.command("demo", async (ctx) => {
   try {
     const { getPlanByTelegramId, upsertPlan } = await import("../db/index.js");
     const { createUserWallet } = await import("../services/userWallet.js");
+    const { getNextPlanExecutionDate, formatPlanFrequency } = await import("../constants/dca.js");
 
     const existingPlan = await getPlanByTelegramId(telegramId).catch(() => null);
     if (!existingPlan?.ton_address) {
@@ -98,15 +99,16 @@ bot.command("demo", async (ctx) => {
       return;
     }
 
-    const nextExec = new Date();
-    nextExec.setTime(nextExec.getTime() + 5_000);
+    const frequency = "10s";
+    const nextExec = getNextPlanExecutionDate({ frequency, demo_mode: true });
+    const amount = 2;
 
     await upsertPlan({
       telegram_id:       telegramId,
       ton_address:       existingPlan.ton_address,
       agent_wallet:      null,
-      usdt_amount:       7,
-      frequency:         "demo",
+      usdt_amount:       amount,
+      frequency,
       strategy_mode:     "full",
       active:            true,
       next_execution_at: nextExec.toISOString(),
@@ -117,19 +119,20 @@ bot.command("demo", async (ctx) => {
 
     await createUserWallet(telegramId);
 
+    const freqLabel = formatPlanFrequency(frequency, true);
     await ctx.reply(
-      "🎬 *Demo mode activated!*\n\n" +
-        "2 cycles × $7 USDT\n" +
-        "Interval: 5 seconds\n" +
+      "🚀 *Quick Start activated*\n\n" +
+        `2 cycles × $${amount} USDT\n` +
+        `Interval: ${freqLabel}\n` +
         `Withdrawal: \`${existingPlan.ton_address.slice(0, 8)}…${existingPlan.ton_address.slice(-6)}\`\n\n` +
-        "Starting in 5 seconds...",
+        "Fund your agent wallet to begin.",
       { parse_mode: "Markdown" }
     );
 
-    console.log(`[BOT] Demo plan created for user ${telegramId}`);
+    console.log(`[BOT] Quick Start plan created for user ${telegramId}`);
   } catch (err) {
     console.error("[BOT] /demo error:", err);
-    await ctx.reply("❌ Failed to start demo: " + (err instanceof Error ? err.message : "unknown error"));
+    await ctx.reply("❌ Failed to start Quick Start: " + (err instanceof Error ? err.message : "unknown error"));
   }
 });
 
