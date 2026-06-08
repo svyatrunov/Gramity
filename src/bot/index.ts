@@ -15,17 +15,14 @@ import {
   handleWithdrawAllConfirm,
   handleWithdrawLpConfirm,
 } from "./handlers/withdraw.js";
-import { handleReset, handleResetCallback } from "./handlers/reset.js";
 import { handleSettings, handleSettingsCallback } from "./handlers/settings.js";
-import { handleHistory } from "./handlers/history.js";
-import { handleTestCommand, handleTestRun } from "./handlers/test.js";
 import {
   setNotifyUser,
   setNotifyInsufficientFunds,
   setNotifyAutoPaused,
   setNotifyAllComplete,
 } from "../scheduler/index.js";
-import { setPollerSender, stopDepositPoller } from "./depositPoller.js";
+import { setPollerSender } from "./depositPoller.js";
 import { setGasNotifier } from "../execution/index.js";
 import { BOT_TOKEN, RAILWAY_PUBLIC_URL } from "../config.js";
 import type { ExecutionResult } from "../execution/index.js";
@@ -53,103 +50,17 @@ bot.command("status", handleStatus);
 bot.command("pause", handlePause);
 bot.command("resume", handleResume);
 bot.command("withdraw", handleWithdrawMenu);
-bot.command("reset", handleReset);
 bot.command("settings", handleSettings);
-bot.command("history", handleHistory);
 
-bot.command("cancel", async (ctx) => {
-  const telegramId = ctx.from?.id;
-  if (telegramId) stopDepositPoller(telegramId);
-
-  const wasOnboarding = ctx.session.step !== "idle";
-  ctx.session.step = "idle";
-
+bot.command("help", async (ctx) => {
   await ctx.reply(
-    wasOnboarding
-      ? "❌ Setup cancelled.\n\nTap /start when you're ready."
-      : "Nothing active to cancel."
-  );
-});
-
-bot.command("dev", async (ctx) => {
-  ctx.session.devMode = !ctx.session.devMode;
-  await ctx.reply(
-    ctx.session.devMode
-      ? "🔧 Dev mode ON — test intervals enabled in frequency menu."
-      : "🔧 Dev mode OFF — test intervals hidden."
-  );
-});
-
-bot.command("demo", async (ctx) => {
-  const telegramId = ctx.from?.id;
-  if (!telegramId) return;
-
-  try {
-    const { getPlanByTelegramId, upsertPlan } = await import("../db/index.js");
-    const { createUserWallet } = await import("../services/userWallet.js");
-    const { getNextPlanExecutionDate, formatPlanFrequency } = await import("../constants/dca.js");
-    const { hasWithdrawalAddress } = await import("../utils/tonAddress.js");
-
-    const existingPlan = await getPlanByTelegramId(telegramId).catch(() => null);
-    if (!existingPlan || !hasWithdrawalAddress(existingPlan.ton_address)) {
-      await ctx.reply(
-        "⚠️ *No withdrawal address set*\n\n" +
-          "Please complete onboarding first via /start to set your TON address.",
-        { parse_mode: "Markdown" }
-      );
-      return;
-    }
-    const withdrawalAddress = existingPlan.ton_address;
-
-    const frequency = "10s";
-    const nextExec = getNextPlanExecutionDate({ frequency, demo_mode: true });
-    const amount = 2;
-
-    await upsertPlan({
-      telegram_id:       telegramId,
-      ton_address:       withdrawalAddress,
-      agent_wallet:      null,
-      usdt_amount:       amount,
-      frequency,
-      strategy_mode:     "full",
-      active:            true,
-      next_execution_at: nextExec.toISOString(),
-      demo_mode:         true,
-      cycles_completed:  0,
-      max_cycles:        2,
-    });
-
-    await createUserWallet(telegramId);
-
-    const freqLabel = formatPlanFrequency(frequency, true);
-    await ctx.reply(
-      "🚀 *Quick Start activated*\n\n" +
-        `2 cycles × $${amount} USDT\n` +
-        `Interval: ${freqLabel}\n` +
-        `Withdrawal: \`${withdrawalAddress.slice(0, 8)}…${withdrawalAddress.slice(-6)}\`\n\n` +
-        "Fund your agent wallet to begin.",
-      { parse_mode: "Markdown" }
-    );
-
-    console.log(`[BOT] Quick Start plan created for user ${telegramId}`);
-  } catch (err) {
-    console.error("[BOT] /demo error:", err);
-    await ctx.reply("❌ Failed to start Quick Start: " + (err instanceof Error ? err.message : "unknown error"));
-  }
-});
-
-bot.command("test", handleTestCommand);
-
-bot.command("help", async (ctx) => {  await ctx.reply(
-    "📋 *Gramity Commands*\n\n" +
-      "/start — setup or main menu\n" +
-      "/status — current position\n" +
-      "/test — 🧪 run 3 real DCA cycles immediately\n" +
-      "/pause — pause strategy\n" +
-      "/resume — resume strategy\n" +
-      "/reset — delete strategy\n" +
-      "/withdraw — withdraw funds\n" +
-      "/cancel — cancel current action",
+    "📋 *Gramity*\n\n" +
+      "/start — open Mini App\n" +
+      "/status — portfolio & next cycle\n" +
+      "/settings — amount, frequency, mode\n" +
+      "/pause · /resume — control DCA\n" +
+      "/withdraw — exit positions\n\n" +
+      "_Run a cycle now from the Dashboard in the Mini App._",
     { parse_mode: "Markdown" }
   );
 });
@@ -204,32 +115,6 @@ bot.on("callback_query:data", async (ctx) => {
     await handleStatus(ctx);
     return;
   }
-  if (data === "confirm_reset") {
-    await ctx.answerCallbackQuery();
-    await handleResetCallback(ctx, "confirm");
-    return;
-  }
-  if (data === "cancel_reset") {
-    await ctx.answerCallbackQuery();
-    await handleResetCallback(ctx, "cancel");
-    return;
-  }
-  if (data === "test_run_confirm") {
-    await ctx.answerCallbackQuery();
-    const telegramId = ctx.from?.id;
-    if (!telegramId) return;
-    await handleTestRun(
-      telegramId,
-      (text, extra) => ctx.reply(text, extra as object).then(() => {})
-    );
-    return;
-  }
-  if (data === "test_cancel") {
-    await ctx.answerCallbackQuery();
-    await ctx.reply("Test cancelled.");
-    return;
-  }
-
   // /start onboarding flow callbacks
   await handleCallbackQuery(ctx);
 });
@@ -471,18 +356,13 @@ setGasNotifier(async (telegramId, msg) => {
 
 export async function startBot() {
   await bot.api.setMyCommands([
-    { command: "start",    description: "Setup or main menu" },
-    { command: "status",   description: "Current position" },
-    { command: "test",     description: "🧪 Run 3 real DCA cycles immediately" },
-    { command: "demo",     description: "🎬 Run live demo (2 cycles × $7)" },
-    { command: "pause",    description: "Pause strategy" },
-    { command: "resume",   description: "Resume strategy" },
-    { command: "settings", description: "Strategy settings" },
+    { command: "start",    description: "Open Mini App" },
+    { command: "status",   description: "Portfolio & next cycle" },
+    { command: "settings", description: "Amount, frequency, mode" },
+    { command: "pause",    description: "Pause DCA" },
+    { command: "resume",   description: "Resume DCA" },
     { command: "withdraw", description: "Withdraw funds" },
-    { command: "reset",    description: "Delete strategy" },
-    { command: "cancel",   description: "Cancel current action" },
-    { command: "history",  description: "Last 5 cycle history" },
-    { command: "help",     description: "Help" },
+    { command: "help",     description: "Commands" },
   ]);
 
   bot.start({

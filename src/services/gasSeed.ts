@@ -16,8 +16,8 @@ import { GAS_RESERVE_TON } from "../constants/dca.js";
 import { createWallet } from "../wallet.js";
 import { getTonBalance } from "./tonapi.js";
 
-/** TON sent once when agent wallet has no gas buffer */
-export const GAS_SEED_TON = Number(process.env.GAS_SEED_TON ?? "0.6");
+/** TON sent once when agent wallet has no gas buffer (must meet GAS_RESERVE_TON) */
+export const GAS_SEED_TON = Number(process.env.GAS_SEED_TON ?? String(GAS_RESERVE_TON));
 
 type TransferContract = OpenedContract<WalletContractV4> & {
   getSeqno(): Promise<number>;

@@ -101,7 +101,7 @@ export async function handleStart(ctx: GramityContext) {
           ? `Last run: ${new Date(lastExec.executed_at).toLocaleDateString("en-US")}\n`
           : "") +
         `Next: ${nextDate}\n\n` +
-        `Commands: /status · /pause · /withdraw`,
+      `/settings — amount & frequency · Dashboard — run cycle now`,
       { parse_mode: "Markdown", reply_markup: kb }
     );
     ctx.session.step = "idle";
@@ -141,6 +141,9 @@ export async function handleText(ctx: GramityContext) {
     await handleDepositConfirm(ctx);
   } else if (step === "waiting_custom_amount") {
     await handleCustomAmount(ctx, text);
+  } else if (step === "waiting_settings_amount") {
+    const { handleSettingsAmountInput } = await import("./settings.js");
+    await handleSettingsAmountInput(ctx, text);
   }
 }
 
@@ -341,7 +344,7 @@ async function showFrequencyKeyboard(ctx: GramityContext) {
     .row()
     .text("📆 Monthly",       "freq_monthly");
 
-  if (ctx.session.devMode || process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production") {
     kb.row()
       .text("⚡ 1 min (test)", "freq_minutely")
       .text("🕐 1 hour (test)", "freq_hourly");

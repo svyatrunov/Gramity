@@ -6,6 +6,7 @@ export type OnboardingStep =
   | "waiting_deposit_confirm"
   | "waiting_amount"
   | "waiting_custom_amount"
+  | "waiting_settings_amount"
   | "waiting_frequency"
   | "confirming";
 
@@ -17,7 +18,7 @@ export interface UserSession {
   usdtBalance?: number;
   amount?: number;
   frequency?: "weekly" | "biweekly" | "monthly" | "daily" | "minutely" | "hourly";
-  /** Enabled via /dev — shows test frequencies in prod */
+  /** @deprecated use NODE_ENV !== production for dev intervals */
   devMode?: boolean;
 }
 

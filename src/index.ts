@@ -83,7 +83,7 @@ app.get("/api/example-tx", async (_req, res) => {
     }
     res.json({
       hash: null,
-      message: "No mainnet swap yet. Fund DCA wallet and run /test in @GramityBot.",
+      message: "No mainnet swap yet. Fund DCA wallet and run a cycle from the Dashboard.",
     });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -660,13 +660,6 @@ app.post("/api/evm-wallet/connected", async (req, res) => {
   }
 });
 
-app.post("/api/debug-log", tgAuth, (req, res) => {
-  const telegramId = (req as express.Request & { telegramId: number }).telegramId;
-  const { tag, message, data } = req.body ?? {};
-  console.log(`[CLIENT ${telegramId}] ${tag ?? "log"}: ${message ?? ""}`, data ?? "");
-  res.json({ ok: true });
-});
-
 async function notifyDepositOrderUpdate(
   telegramId: number,
   body: {
@@ -1023,24 +1016,24 @@ app.post("/api/plans/withdrawal-address", tgAuth, async (req, res) => {
   }
 });
 
-// Kick off up to 3 DCA test cycles immediately — no scheduler touch
-app.post("/api/test-run", tgAuth, async (req, res) => {
+// Kick off 1–3 DCA cycles immediately — no scheduler
+app.post("/api/run-now", tgAuth, async (req, res) => {
   try {
     const telegramId = (req as express.Request & { telegramId: number }).telegramId;
     const cycles = Math.min(Math.max(parseInt(String(req.body?.cycles ?? 3)), 1), 3);
 
-    const { handleTestRun } = await import("./bot/handlers/test.js");
+    const { handleRunNow } = await import("./bot/handlers/runNow.js");
     const { bot } = await import("./bot/index.js");
 
     // Respond immediately — test runs async
-    res.json({ ok: true, message: `Starting ${cycles} test cycles. Watch your Telegram for results.` });
+    res.json({ ok: true, message: `Starting ${cycles} cycle(s). Watch Telegram for results.` });
 
     // Fire and forget
-    handleTestRun(
+    handleRunNow(
       telegramId,
       async (text, extra) => { await bot.api.sendMessage(telegramId, text, extra as object); },
       cycles
-    ).catch((err) => console.error("[TEST_RUN] Error:", err));
+    ).catch((err) => console.error("[RUN_NOW] Error:", err));
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

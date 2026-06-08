@@ -5,6 +5,7 @@
 import { InlineKeyboard } from "grammy";
 import type { GramityContext } from "../session.js";
 import { getPlanByTelegramId, updatePlan, type Plan } from "../../db/index.js";
+import { getNextPlanExecutionDate, MIN_DCA_USDT } from "../../constants/dca.js";
 
 const MODE_LABELS: Record<string, string> = {
   full:       "Full (swap + staking + LP)",
@@ -110,9 +111,9 @@ export async function handleSettingsCallback(ctx: GramityContext, action: string
   }
 
   if (action === "amount") {
-    ctx.session.step = "waiting_custom_amount";
+    ctx.session.step = "waiting_settings_amount";
     await ctx.reply(
-      `💰 Enter new amount per cycle in USDT (e.g. \`50\`)`,
+      `💰 Enter new amount per cycle in USDT (min $${MIN_DCA_USDT}, e.g. \`50\`)`,
       { parse_mode: "Markdown" }
     );
     return;
@@ -128,7 +129,7 @@ export async function handleSettingsCallback(ctx: GramityContext, action: string
       .row()
       .text("← Back", "settings_back");
 
-    if (ctx.session.devMode || process.env.NODE_ENV !== "production") {
+    if (process.env.NODE_ENV !== "production") {
       kb.row()
         .text("⚡ 1 min (test)",  "settings_set_freq_minutely")
         .text("🕐 1 hour (test)", "settings_set_freq_hourly");
@@ -140,9 +141,14 @@ export async function handleSettingsCallback(ctx: GramityContext, action: string
 
   if (action.startsWith("set_freq_")) {
     const newFreq = action.replace("set_freq_", "") as Plan["frequency"];
-    await updatePlan(telegramId, { frequency: newFreq });
+    const next = getNextPlanExecutionDate({ ...plan, frequency: newFreq });
+    await updatePlan(telegramId, {
+      frequency: newFreq,
+      next_execution_at: next.toISOString(),
+    });
     await ctx.reply(
-      `✅ Frequency changed to: *${FREQ_LABELS[newFreq] ?? newFreq}*`,
+      `✅ Frequency changed to: *${FREQ_LABELS[newFreq] ?? newFreq}*\n\n` +
+        `Next scheduled cycle: ${next.toUTCString()}`,
       { parse_mode: "Markdown" }
     );
     return;
@@ -151,4 +157,34 @@ export async function handleSettingsCallback(ctx: GramityContext, action: string
   if (action === "back") {
     await showSettingsMenu(ctx, plan);
   }
+}
+
+export async function handleSettingsAmountInput(ctx: GramityContext, text: string) {
+  const telegramId = ctx.from?.id;
+  if (!telegramId) return;
+
+  const plan = await getPlanByTelegramId(telegramId).catch(() => null);
+  if (!plan) {
+    ctx.session.step = "idle";
+    await ctx.reply("⚠️ Strategy not found.");
+    return;
+  }
+
+  const amount = parseFloat(text.replace(",", ".").replace(/[^0-9.]/g, ""));
+  if (isNaN(amount) || amount < MIN_DCA_USDT) {
+    await ctx.reply(`❌ Minimum per cycle is $${MIN_DCA_USDT} USDT. Try again:`, {
+      parse_mode: "Markdown",
+    });
+    return;
+  }
+
+  await updatePlan(telegramId, { usdt_amount: amount });
+  ctx.session.step = "idle";
+
+  await ctx.reply(
+    `✅ Amount updated to *$${amount}* per cycle.\n\n` +
+      `Takes effect on the next cycle.\n` +
+      `Run a cycle from the Dashboard in the Mini App.`,
+    { parse_mode: "Markdown" }
+  );
 }

@@ -403,16 +403,17 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="testModal">
+<div class="modal-overlay" id="runModal">
   <div class="modal-sheet">
-    <div class="modal-title">🧪 Run 3 Test Cycles</div>
+    <div class="modal-title">⚡ Run DCA now</div>
     <div class="modal-body">
-      This runs <strong>3 real DCA cycles immediately</strong> — no scheduler, regular schedule unchanged.<br><br>
-      ⚠️ <strong>Real mainnet.</strong> Check Telegram for results after the test.
+      Executes <strong>real mainnet cycles</strong> immediately. Your schedule stays unchanged.<br><br>
+      Results appear in Telegram with tonviewer links.
     </div>
     <div class="modal-row">
-      <button class="btn btn-ghost" id="testCancelBtn" style="flex:0.6">Cancel</button>
-      <button class="btn btn-primary" id="testConfirmBtn" style="flex:1">▶️ Run 3 cycles</button>
+      <button class="btn btn-ghost" id="runCancelBtn" style="flex:0.6">Cancel</button>
+      <button class="btn btn-primary" id="runOneBtn" style="flex:1">▶️ 1 cycle</button>
+      <button class="btn btn-warn" id="runThreeBtn" style="flex:1">▶️ 3 cycles</button>
     </div>
   </div>
 </div>
@@ -635,7 +636,7 @@
         pauseBtn.disabled = true;
         apiPost('/plan/' + action)
           .then(function () {
-            showToast(plan.active ? 'Strategy paused' : 'Strategy resumed', 'ok');
+            showToast(action === 'pause' ? 'Strategy paused' : 'Strategy resumed', 'ok');
             return reloadPortfolio();
           })
           .catch(function (err) {
@@ -691,37 +692,50 @@
 
       stack.appendChild(withdrawCard);
 
-      var testBtn = el('button', { class: 'btn btn-warn' });
-      testBtn.textContent = '🧪 Run test (3 cycles)';
-      testBtn.addEventListener('click', function () {
-        document.getElementById('testModal').classList.add('open');
+      var runBtn = el('button', { class: 'btn btn-warn' });
+      runBtn.textContent = '⚡ Run DCA now';
+      runBtn.addEventListener('click', function () {
+        document.getElementById('runModal').classList.add('open');
       });
-      stack.appendChild(testBtn);
+      stack.appendChild(runBtn);
     }
 
     body.appendChild(stack);
   }
 
-  document.getElementById('testCancelBtn').addEventListener('click', function () {
-    document.getElementById('testModal').classList.remove('open');
+  document.getElementById('runCancelBtn').addEventListener('click', function () {
+    document.getElementById('runModal').classList.remove('open');
   });
 
-  document.getElementById('testConfirmBtn').addEventListener('click', function () {
-    var btn = this;
-    btn.disabled = true;
-    btn.textContent = '⏳ Starting…';
-    apiPost('/test-run', { cycles: 3 })
+  function runCycles(count) {
+    var oneBtn = document.getElementById('runOneBtn');
+    var threeBtn = document.getElementById('runThreeBtn');
+    oneBtn.disabled = true;
+    threeBtn.disabled = true;
+    oneBtn.textContent = '⏳…';
+    threeBtn.textContent = '⏳…';
+    apiPost('/run-now', { cycles: count })
       .then(function () {
-        document.getElementById('testModal').classList.remove('open');
-        showToast('Test started — watch Telegram', 'ok');
+        document.getElementById('runModal').classList.remove('open');
+        showToast(count + ' cycle(s) started — watch Telegram', 'ok');
       })
       .catch(function (err) {
-        showToast(err.message || 'Test failed', 'err');
+        showToast(err.message || 'Failed', 'err');
       })
       .finally(function () {
-        btn.disabled = false;
-        btn.textContent = '▶️ Run 3 cycles';
+        oneBtn.disabled = false;
+        threeBtn.disabled = false;
+        oneBtn.textContent = '▶️ 1 cycle';
+        threeBtn.textContent = '▶️ 3 cycles';
       });
+  }
+
+  document.getElementById('runOneBtn').addEventListener('click', function () {
+    runCycles(1);
+  });
+
+  document.getElementById('runThreeBtn').addEventListener('click', function () {
+    runCycles(3);
   });
 
   document.getElementById('withdrawCancelBtn').addEventListener('click', function () {
@@ -748,7 +762,7 @@
       });
   });
 
-  document.getElementById('testModal').addEventListener('click', function (e) {
+  document.getElementById('runModal').addEventListener('click', function (e) {
     if (e.target === this) this.classList.remove('open');
   });
   document.getElementById('withdrawModal').addEventListener('click', function (e) {

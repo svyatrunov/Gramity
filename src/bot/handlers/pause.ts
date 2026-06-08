@@ -1,5 +1,6 @@
 import type { GramityContext } from "../session.js";
 import { getPlanByTelegramId, updatePlan } from "../../db/index.js";
+import { getNextPlanExecutionDate } from "../../constants/dca.js";
 
 export async function handlePause(ctx: GramityContext) {
   const telegramId = ctx.from?.id;
@@ -52,11 +53,7 @@ export async function handleResume(ctx: GramityContext) {
     return;
   }
 
-  const next = new Date();
-  if (plan.frequency === "weekly")        next.setDate(next.getDate() + 7);
-  else if (plan.frequency === "biweekly") next.setDate(next.getDate() + 14);
-  else if (plan.frequency === "daily")    next.setDate(next.getDate() + 1);
-  else                                    next.setMonth(next.getMonth() + 1);
+  const next = getNextPlanExecutionDate(plan);
 
   await updatePlan(telegramId, {
     active: true,
