@@ -423,6 +423,39 @@ app.post("/api/evm-deposit/deposit-initiated", async (req, res) => {
   }
 });
 
+app.post("/api/evm-deposit/order-update", async (req, res) => {
+  try {
+    const { token, quoteId, orderStatus, phase, message } = req.body ?? {};
+    if (!token || typeof token !== "string") {
+      res.status(400).json({ error: "token required" });
+      return;
+    }
+
+    const { resolveDepositToken } = await import("./services/evmDepositSession.js");
+    const resolved = resolveDepositToken(token);
+    if (!resolved) {
+      res.status(401).json({ error: "Invalid or expired session token" });
+      return;
+    }
+
+    const telegramId = resolved.telegramId;
+    console.log(
+      `[DEPOSIT] EVM order update user=${telegramId} quote=${quoteId ?? "?"} status=${orderStatus ?? "?"} phase=${phase ?? "?"}`
+    );
+
+    await notifyDepositOrderUpdate(telegramId, {
+      quoteId,
+      orderStatus,
+      phase,
+      message,
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 // EVM wallet connect session — MetaMask in-app browser (no MWP relay in Telegram WebView)
 app.post("/api/evm-wallet/session", tgAuth, async (req, res) => {
   try {
@@ -538,6 +571,83 @@ app.post("/api/debug-log", tgAuth, (req, res) => {
   const { tag, message, data } = req.body ?? {};
   console.log(`[CLIENT ${telegramId}] ${tag ?? "log"}: ${message ?? ""}`, data ?? "");
   res.json({ ok: true });
+});
+
+async function notifyDepositOrderUpdate(
+  telegramId: number,
+  body: {
+    quoteId?: string;
+    orderStatus?: string;
+    phase?: string;
+    message?: string;
+  }
+): Promise<void> {
+  const { quoteId, orderStatus, phase, message } = body;
+  if (!orderStatus || !phase) return;
+
+  const isTerminal =
+    orderStatus === "TRADE_STATUS_FULLY_FILLED" ||
+    orderStatus === "TRADE_STATUS_PARTIALLY_FILLED" ||
+    orderStatus === "TRADE_STATUS_CANCELLED" ||
+    orderStatus === "TRADE_STATUS_FAILED";
+  if (!isTerminal) return;
+
+  const { bot } = await import("./bot/index.js");
+  const shortId = quoteId ? `${quoteId.slice(0, 8)}…` : "?";
+
+  if (orderStatus === "TRADE_STATUS_FULLY_FILLED") {
+    await bot.api.sendMessage(
+      telegramId,
+      `✅ *Cross-chain order completed*\n\n` +
+        `Quote: \`${shortId}\`\n` +
+        `${message ?? "USDT is on the way to your agent wallet."}\n\n` +
+        `_Balance updates within a few minutes._`,
+      { parse_mode: "Markdown" }
+    );
+    return;
+  }
+
+  if (orderStatus === "TRADE_STATUS_PARTIALLY_FILLED") {
+    await bot.api.sendMessage(
+      telegramId,
+      `⚠️ *Cross-chain order partially filled*\n\n` +
+        `Quote: \`${shortId}\`\n` +
+        `${message ?? "Part of the deposit was settled."}`,
+      { parse_mode: "Markdown" }
+    );
+    return;
+  }
+
+  await bot.api.sendMessage(
+    telegramId,
+    `❌ *Cross-chain order ${phase}*\n\n` +
+      `Quote: \`${shortId}\`\n` +
+      `${message ?? orderStatus}`,
+    { parse_mode: "Markdown" }
+  );
+}
+
+// Omniston orderTrack terminal status (after orderRegisterSignedOrder)
+app.post("/api/deposit-order-update", tgAuth, async (req, res) => {
+  try {
+    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const { quoteId, orderStatus, phase, message } = req.body ?? {};
+
+    console.log(
+      `[DEPOSIT] Order update user=${telegramId} quote=${quoteId ?? "?"} status=${orderStatus ?? "?"} phase=${phase ?? "?"}`
+    );
+
+    await notifyDepositOrderUpdate(telegramId, {
+      quoteId,
+      orderStatus,
+      phase,
+      message,
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
 });
 
 // Notify bot after cross-chain deposit tx confirmed

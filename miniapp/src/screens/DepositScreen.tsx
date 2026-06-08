@@ -33,6 +33,10 @@ import {
   parseWalletError,
 } from "../lib/evmWallet";
 import {
+  trackCrossChainOrder,
+  type OrderTrackState,
+} from "../lib/orderTracker";
+import {
   getBrowserExtensionProvider,
   openMetaMaskLink,
   resolveMetaMaskSessionOpenUrl,
@@ -197,9 +201,12 @@ export function DepositScreen({
   const [actionErr, setActionErr] = useState("");
   const [copied, setCopied] = useState(false);
   const [allowanceOk, setAllowanceOk] = useState(false);
+  const [orderTrack, setOrderTrack] = useState<OrderTrackState | null>(null);
+  const [orderTrackErr, setOrderTrackErr] = useState("");
 
   const quoteDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const orderTrackStop = useRef<(() => void) | null>(null);
   const activeSessionToken = useRef<string | null>(sessionToken ?? null);
 
   useEffect(() => {
@@ -207,7 +214,7 @@ export function DepositScreen({
 
     if (isTokenMode) {
       if (!sessionToken) {
-        setConfigErr("Сессия недействительна — откройте депозит из Telegram заново.");
+        setConfigErr("Session expired — open deposit from Telegram again.");
         return;
       }
       activeSessionToken.current = sessionToken;
@@ -235,8 +242,84 @@ export function DepositScreen({
   useEffect(() => {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      orderTrackStop.current?.();
+      orderTrackStop.current = null;
     };
   }, []);
+
+  const notifyOrderUpdate = useCallback(
+    async (state: OrderTrackState) => {
+      const body = {
+        quoteId: quote?.quoteId ?? "",
+        orderStatus: state.tradeStatus,
+        phase: state.phase,
+        message: state.message,
+      };
+      if (!body.quoteId) return;
+      try {
+        if (isTokenMode && activeSessionToken.current) {
+          await api.evmDepositOrderUpdate(activeSessionToken.current, body);
+        } else {
+          await api.depositOrderUpdate(body);
+        }
+      } catch {
+        /* best-effort backend notification */
+      }
+    },
+    [quote?.quoteId, isTokenMode]
+  );
+
+  const startOrderTracking = useCallback(
+    (quoteId: string, secrets: Uint8Array[]) => {
+      if (!omnistonWs || !walletAddress) return;
+
+      orderTrackStop.current?.();
+      setOrderTrackErr("");
+      setOrderTrack({
+        phase: "tracking",
+        tradeStatus: "TRADE_STATUS_IN_PROGRESS",
+        message: "Tracking order…",
+      });
+
+      orderTrackStop.current = trackCrossChainOrder(
+        omnistonWs,
+        quoteId,
+        chainKey,
+        walletAddress,
+        secrets,
+        {
+          onUpdate: (state) => {
+            setOrderTrack(state);
+          },
+          onComplete: (order) => {
+            const state: OrderTrackState = {
+              phase: "completed",
+              tradeStatus: order.status,
+              message: "Order filled — USDT is on the way to your agent wallet",
+              order,
+            };
+            setOrderTrack(state);
+            void notifyOrderUpdate(state);
+          },
+          onFailed: (order, message) => {
+            const state: OrderTrackState = {
+              phase: order.status.includes("CANCELLED") ? "cancelled" : "failed",
+              tradeStatus: order.status,
+              message,
+              order,
+            };
+            setOrderTrack(state);
+            setOrderTrackErr(message);
+            void notifyOrderUpdate(state);
+          },
+          onError: (err) => {
+            setOrderTrackErr(err.message);
+          },
+        }
+      );
+    },
+    [omnistonWs, walletAddress, chainKey, notifyOrderUpdate]
+  );
 
   useEffect(() => {
     const tokens = TOKENS_BY_CHAIN[chainKey];
@@ -318,7 +401,7 @@ export function DepositScreen({
     setConnectErr("");
     try {
       if (!hasMetaMask() && !isTokenMode) {
-        throw new Error("MetaMask не установлен");
+        throw new Error("MetaMask is not installed");
       }
       const conn = isTokenMode
         ? await connectNativeEthereum()
@@ -391,7 +474,7 @@ export function DepositScreen({
     if (!provider || !quote) return;
     const spender = getProtocolSpender(quote);
     if (!spender) {
-      setActionErr("Не удалось определить контракт для approve");
+      setActionErr("Could not resolve approve spender contract");
       return;
     }
 
@@ -426,7 +509,7 @@ export function DepositScreen({
         setWalletChainId(chain.chainId);
       }
       const signer = await provider.getSigner();
-      await registerCrossChainOrder(
+      const { htlcSecrets } = await registerCrossChainOrder(
         omnistonWs,
         quote,
         chainKey,
@@ -438,6 +521,7 @@ export function DepositScreen({
       const pseudoHash = `order-${quote.quoteId.slice(0, 16)}`;
       setSendHash(pseudoHash);
       setSendStatus("confirmed");
+      startOrderTracking(quote.quoteId, htlcSecrets);
 
       await (isTokenMode && activeSessionToken.current
         ? api.evmDepositInitiated(activeSessionToken.current, {
@@ -473,24 +557,24 @@ export function DepositScreen({
   }
 
   if (!depositAddress) {
-    return <div style={S.root}>Загрузка конфигурации…</div>;
+    return <div style={S.root}>Loading configuration…</div>;
   }
 
   return (
     <div style={S.root}>
-      <h2 style={{ marginBottom: 4, fontSize: 20 }}>Cross-chain депозит</h2>
+      <h2 style={{ marginBottom: 4, fontSize: 20 }}>Cross-chain deposit</h2>
       <p style={{ fontSize: 13, color: "var(--tg-theme-hint-color,#888)", marginBottom: 16 }}>
         {isTokenMode
-          ? "Подтверждение в MetaMask · ETH · Base · BNB · Polygon"
-          : "Пополнение USDT на TON через MetaMask"}
+          ? "Confirm in MetaMask · ETH · Base · BNB · Polygon"
+          : "Fund USDT on TON via MetaMask"}
       </p>
 
       {useMetaMaskRedirect && (
         <div style={S.card}>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Депозит через MetaMask</div>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Deposit via MetaMask</div>
           <p style={{ fontSize: 13, color: "var(--tg-theme-hint-color,#888)", marginBottom: 12 }}>
-            В Telegram подключение MetaMask ненадёжно. Откройте депозит во встроенном браузере
-            MetaMask — там approve и sign работают нативно.
+            MetaMask connection is unreliable inside Telegram. Open deposit in the MetaMask
+            in-app browser — approve and sign work natively there.
           </p>
           <button
             style={
@@ -502,12 +586,12 @@ export function DepositScreen({
             disabled={openingMetaMask}
           >
             {!openingMetaMask && <WalletIcon icon={metamaskIcon} size={20} color="#fff" />}
-            {openingMetaMask ? "Открываю MetaMask…" : "Open in MetaMask"}
+            {openingMetaMask ? "Opening MetaMask…" : "Open in MetaMask"}
           </button>
           {sessionPollStatus && (
             <div style={{ fontSize: 12, marginTop: 10, color: "var(--tg-theme-hint-color,#888)" }}>
-              Статус сессии: {sessionPollStatus}
-              {sessionPollStatus === "completed" && " — вернитесь в Telegram"}
+              Session status: {sessionPollStatus}
+              {sessionPollStatus === "completed" && " — return to Telegram"}
             </div>
           )}
           {connectErr && <div style={{ ...S.error, marginTop: 10 }}>{connectErr}</div>}
@@ -529,7 +613,7 @@ export function DepositScreen({
       {step >= 1 && (
         <div style={S.card}>
           <div style={{ fontWeight: 600, marginBottom: 10 }}>
-            {step > 1 ? "✅" : "1."} Подключить кошелёк
+            {step > 1 ? "✅" : "1."} Connect wallet
           </div>
 
           {!walletAddress ? (
@@ -540,7 +624,7 @@ export function DepositScreen({
                 disabled={connecting}
               >
                 {!connecting && <WalletIcon icon={metamaskIcon} size={20} color="#fff" />}
-                {connecting ? "Подключение…" : "Connect MetaMask"}
+                {connecting ? "Connecting…" : "Connect MetaMask"}
               </button>
               {connectErr && <div style={{ ...S.error, marginTop: 10 }}>{connectErr}</div>}
             </>
@@ -549,13 +633,13 @@ export function DepositScreen({
               <div>{shortAddress(walletAddress)}</div>
               {currentChain && (
                 <div style={{ color: "var(--tg-theme-hint-color,#888)", marginTop: 4 }}>
-                  Сеть: {currentChain.label}
-                  {tokenBalance && ` · Баланс ${token.symbol}: ${tokenBalance}`}
+                  Network: {currentChain.label}
+                  {tokenBalance && ` · Balance ${token.symbol}: ${tokenBalance}`}
                 </div>
               )}
               {unsupportedNetwork && (
                 <div style={{ ...S.warn, marginTop: 8 }}>
-                  ⚠️ Сеть не поддерживается. Выберите Ethereum, Base, BNB или Polygon.
+                  ⚠️ Unsupported network. Choose Ethereum, Base, BNB, or Polygon.
                 </div>
               )}
             </div>
@@ -566,9 +650,9 @@ export function DepositScreen({
       {/* ── Step 2: Configure ── */}
       {step >= 2 && walletAddress && (
         <div style={S.card}>
-          <div style={{ fontWeight: 600, marginBottom: 10 }}>2. Настроить перевод</div>
+          <div style={{ fontWeight: 600, marginBottom: 10 }}>2. Configure transfer</div>
 
-          <div style={S.label}>Сеть источника</div>
+          <div style={S.label}>Source network</div>
           <select
             style={S.select}
             value={chainKey}
@@ -586,7 +670,7 @@ export function DepositScreen({
 
           {networkMismatch && (
             <div style={S.warn}>
-              ⚠️ MetaMask на другой сети.{" "}
+              ⚠️ MetaMask is on a different network.{" "}
               <button
                 type="button"
                 onClick={handleSwitchNetwork}
@@ -600,12 +684,12 @@ export function DepositScreen({
                   fontSize: 13,
                 }}
               >
-                Переключить на {CHAINS[chainKey].label}
+                Switch to {CHAINS[chainKey].label}
               </button>
             </div>
           )}
 
-          <div style={S.label}>Токен</div>
+          <div style={S.label}>Token</div>
           <select
             style={S.select}
             value={token.address}
@@ -732,6 +816,16 @@ export function DepositScreen({
                   <div style={{ marginTop: 6, fontSize: 12 }}>
                     Бот уведомлён — средства поступят после исполнения маршрута.
                   </div>
+                  {orderTrack && (
+                    <div style={{ marginTop: 8, fontSize: 12 }}>
+                      Omniston: {orderTrack.message}
+                      {orderTrack.phase === "disclosing" && " · раскрытие HTLC secret…"}
+                      {orderTrack.phase === "completed" && " · готово"}
+                    </div>
+                  )}
+                  {orderTrackErr && (
+                    <div style={{ ...S.error, marginTop: 8 }}>{orderTrackErr}</div>
+                  )}
                 </div>
               )}
             </>

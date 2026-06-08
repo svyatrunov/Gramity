@@ -56,22 +56,22 @@ export async function connectMetaMask(): Promise<{
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.toLowerCase().includes("reject") || msg.includes("4001")) {
-        throw new WalletError("Подключение отклонено", "USER_REJECTED");
+        throw new WalletError("Connection rejected", "USER_REJECTED");
       }
       if (msg.includes("-32002") || msg.toLowerCase().includes("pending")) {
         throw new WalletError(
-          "Подтвердите подключение в MetaMask и вернитесь в Telegram",
+          "Approve the connection in MetaMask, then return to Telegram",
           "CONNECT_PENDING"
         );
       }
       if (msg.toLowerCase().includes("timeout")) {
         throw new WalletError(
-          "Подтвердите подключение в MetaMask и вернитесь в Telegram",
+          "Approve the connection in MetaMask, then return to Telegram",
           "CONNECT_TIMEOUT"
         );
       }
       throw new WalletError(
-        "Не удалось подключить MetaMask. Подтвердите запрос в приложении и вернитесь в Telegram.",
+        "Could not connect MetaMask. Approve the request in the app and return to Telegram.",
         "CONNECT_FAILED"
       );
     }
@@ -79,7 +79,7 @@ export async function connectMetaMask(): Promise<{
 
   if (!eip1193) {
     throw new WalletError(
-      "MetaMask недоступен. Установите приложение или откройте Gramity в браузере с расширением."
+      "MetaMask is unavailable. Install the app or open Gramity in a browser with the extension."
     );
   }
 
@@ -100,7 +100,7 @@ export async function connectNativeEthereum(): Promise<{
   const eip1193 = getBrowserExtensionProvider();
   if (!eip1193) {
     throw new WalletError(
-      "Откройте эту страницу во встроенном браузере MetaMask.",
+      "Open this page in the MetaMask in-app browser.",
       "NO_PROVIDER"
     );
   }
@@ -132,14 +132,14 @@ export async function switchChain(chain: ChainConfig): Promise<void> {
     const e = err as { code?: number; message?: string };
     if (e.code === 4902) {
       throw new WalletError(
-        `Сеть ${chain.label} не добавлена в MetaMask. Добавьте её вручную (chainId ${chain.chainId}).`,
+        `Network ${chain.label} is not added in MetaMask. Add it manually (chainId ${chain.chainId}).`,
         "CHAIN_NOT_ADDED"
       );
     }
     if (e.code === 4001) {
-      throw new WalletError("Смена сети отклонена", "USER_REJECTED");
+      throw new WalletError("Network switch rejected", "USER_REJECTED");
     }
-    throw new WalletError(e.message ?? "Не удалось переключить сеть");
+    throw new WalletError(e.message ?? "Failed to switch network");
   }
 }
 
@@ -179,10 +179,10 @@ export async function approveToken(
   } catch (err: unknown) {
     const e = err as { code?: string; message?: string; reason?: string };
     if (e.code === "ACTION_REJECTED" || e.code === "4001") {
-      throw new WalletError("Approve отклонён", "USER_REJECTED");
+      throw new WalletError("Approve rejected", "USER_REJECTED");
     }
     if (e.message?.includes("insufficient funds")) {
-      throw new WalletError("Недостаточно газа для approve", "INSUFFICIENT_GAS");
+      throw new WalletError("Insufficient gas for approve", "INSUFFICIENT_GAS");
     }
     throw new WalletError(e.reason ?? e.message ?? "Approve failed");
   }
@@ -191,7 +191,7 @@ export async function approveToken(
 export async function waitTx(provider: BrowserProvider, hash: string): Promise<void> {
   const receipt = await provider.waitForTransaction(hash);
   if (!receipt || receipt.status === 0) {
-    throw new WalletError("Транзакция не прошла (reverted)", "TX_FAILED");
+    throw new WalletError("Transaction reverted", "TX_FAILED");
   }
 }
 
@@ -240,6 +240,10 @@ function encodeCompactSignature(signatureHex: string): Uint8Array {
   return getBytes(sig.compactSerialized);
 }
 
+export interface RegisterCrossChainOrderResult {
+  htlcSecrets: Uint8Array[];
+}
+
 export async function registerCrossChainOrder(
   wsUrl: string,
   quote: Quote,
@@ -247,9 +251,9 @@ export async function registerCrossChainOrder(
   evmWalletAddress: string,
   destinationTonAddress: string,
   signer: Signer
-): Promise<void> {
+): Promise<RegisterCrossChainOrderResult> {
   if (!isHtlcOrderQuote(quote)) {
-    throw new WalletError("Ожидалась cross-chain котировка (order/HTLC)");
+    throw new WalletError("Expected a cross-chain quote (order/HTLC)");
   }
 
   const omniston = getOmniston(wsUrl);
@@ -293,6 +297,8 @@ export async function registerCrossChainOrder(
     },
     serializedOrderDetails: orderPayload.serializedOrderDetails,
   });
+
+  return { htlcSecrets };
 }
 
 export function shortAddress(addr: string): string {
@@ -303,10 +309,10 @@ export function parseWalletError(err: unknown): string {
   if (err instanceof WalletError) return err.message;
   const e = err as { code?: string; message?: string; reason?: string };
   if (e.code === "ACTION_REJECTED" || e.code === "4001") {
-    return "Транзакция отклонена в кошельке";
+    return "Transaction rejected in wallet";
   }
   if (e.message?.includes("insufficient funds")) {
-    return "Недостаточно газа на кошельке";
+    return "Insufficient gas in wallet";
   }
-  return e.reason ?? e.message ?? "Неизвестная ошибка";
+  return e.reason ?? e.message ?? "Unknown error";
 }

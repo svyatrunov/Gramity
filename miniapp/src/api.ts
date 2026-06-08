@@ -162,4 +162,34 @@ export const api = {
       }
       return res.json() as Promise<{ ok: boolean }>;
     }),
+  depositOrderUpdate: (body: {
+    quoteId: string;
+    orderStatus: string;
+    phase: string;
+    message?: string;
+  }) =>
+    apiFetch<{ ok: boolean }>("/deposit-order-update", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  evmDepositOrderUpdate: (
+    token: string,
+    body: {
+      quoteId: string;
+      orderStatus: string;
+      phase: string;
+      message?: string;
+    }
+  ) =>
+    fetch(`${BASE}/evm-deposit/order-update`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, ...body }),
+    }).then(async (res) => {
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`API /evm-deposit/order-update: ${res.status} ${text}`);
+      }
+      return res.json() as Promise<{ ok: boolean }>;
+    }),
 };
