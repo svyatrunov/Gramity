@@ -135,6 +135,31 @@ async function getActiveProvider(): Promise<Eip1193Provider> {
   return (await getMetaMaskConnectProvider()) as Eip1193Provider;
 }
 
+type Eip1193EventProvider = Eip1193Provider & {
+  on?: (event: string, handler: (...args: unknown[]) => void) => void;
+  removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
+};
+
+async function addChain(ethereum: Eip1193Provider, chain: ChainConfig): Promise<void> {
+  const hexId = "0x" + chain.chainId.toString(16);
+  await ethereum.request({
+    method: "wallet_addEthereumChain",
+    params: [
+      {
+        chainId: hexId,
+        chainName: chain.label,
+        rpcUrls: [chain.rpcUrl],
+        nativeCurrency: {
+          name: chain.nativeSymbol,
+          symbol: chain.nativeSymbol,
+          decimals: 18,
+        },
+        blockExplorerUrls: [chain.blockExplorerUrl],
+      },
+    ],
+  });
+}
+
 export async function switchChain(chain: ChainConfig): Promise<void> {
   const ethereum = await getActiveProvider();
 
@@ -148,16 +173,99 @@ export async function switchChain(chain: ChainConfig): Promise<void> {
   } catch (err: unknown) {
     const e = err as { code?: number; message?: string };
     if (e.code === 4902) {
-      throw new WalletError(
-        `Network ${chain.label} is not added in MetaMask. Add it manually (chainId ${chain.chainId}).`,
-        "CHAIN_NOT_ADDED"
-      );
+      try {
+        await addChain(ethereum, chain);
+      } catch (addErr: unknown) {
+        const ae = addErr as { code?: number; message?: string };
+        if (ae.code === 4001) {
+          throw new WalletError("Network add rejected", "USER_REJECTED");
+        }
+        throw new WalletError(
+          `Network ${chain.label} is not added in MetaMask. Add it manually (chainId ${chain.chainId}).`,
+          "CHAIN_NOT_ADDED"
+        );
+      }
+      return;
     }
     if (e.code === 4001) {
       throw new WalletError("Network switch rejected", "USER_REJECTED");
     }
     throw new WalletError(e.message ?? "Failed to switch network");
   }
+}
+
+/** Recreate ethers BrowserProvider after wallet_switchEthereumChain — stale instances throw NETWORK_ERROR. */
+export async function refreshBrowserProvider(preferredAddress?: string): Promise<{
+  provider: BrowserProvider;
+  signer: Signer;
+  address: string;
+  chainId: number;
+}> {
+  const eip1193 = await getActiveProvider();
+  const provider = new BrowserProvider(eip1193);
+  const accounts = (await eip1193.request({ method: "eth_accounts" })) as string[];
+  if (!accounts?.length) {
+    throw new WalletError("Wallet is not connected", "NOT_CONNECTED");
+  }
+  const address =
+    preferredAddress && accounts.some((a) => a.toLowerCase() === preferredAddress.toLowerCase())
+      ? preferredAddress
+      : accounts[0];
+  const signer = await provider.getSigner(address);
+  const network = await provider.getNetwork();
+  return {
+    provider,
+    signer,
+    address,
+    chainId: Number(network.chainId),
+  };
+}
+
+export async function ensureWalletOnChain(
+  chain: ChainConfig,
+  preferredAddress?: string
+): Promise<{
+  provider: BrowserProvider;
+  signer: Signer;
+  address: string;
+  chainId: number;
+}> {
+  const current = await refreshBrowserProvider(preferredAddress);
+  if (current.chainId !== chain.chainId) {
+    await switchChain(chain);
+    return refreshBrowserProvider(preferredAddress ?? current.address);
+  }
+  return current;
+}
+
+export function subscribeWalletChainChanged(
+  onChainId: (chainId: number) => void
+): () => void {
+  let active = true;
+  let ethereum: Eip1193EventProvider | null = null;
+
+  function handleChainChanged(hexId: unknown) {
+    const chainId = typeof hexId === "string" ? parseInt(hexId, 16) : Number(hexId);
+    if (!Number.isNaN(chainId)) onChainId(chainId);
+  }
+
+  function attach(provider: Eip1193EventProvider) {
+    if (!active) return;
+    ethereum = provider;
+    ethereum.on?.("chainChanged", handleChainChanged);
+  }
+
+  const ext = getBrowserExtensionProvider();
+  if (ext) {
+    attach(ext);
+  } else {
+    void getMetaMaskConnectProvider().then((p) => attach(p as Eip1193EventProvider));
+  }
+
+  return () => {
+    active = false;
+    ethereum?.removeListener?.("chainChanged", handleChainChanged);
+  };
 }
 
 export async function readTokenBalance(
@@ -328,6 +436,9 @@ export function parseWalletError(err: unknown): string {
   const e = err as { code?: string; message?: string; reason?: string };
   if (e.code === "ACTION_REJECTED" || e.code === "4001") {
     return "Transaction rejected in wallet";
+  }
+  if (e.code === "NETWORK_ERROR" || e.message?.includes("network changed")) {
+    return "Network changed in MetaMask. Try again — the app will reconnect.";
   }
   if (e.message?.includes("insufficient funds")) {
     return "Insufficient gas in wallet";

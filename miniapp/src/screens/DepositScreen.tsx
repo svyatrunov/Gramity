@@ -21,7 +21,9 @@ import {
 import {
   connectMetaMask,
   connectNativeEthereum,
-  switchChain,
+  ensureWalletOnChain,
+  refreshBrowserProvider,
+  subscribeWalletChainChanged,
   readTokenBalance,
   readAllowance,
   approveToken,
@@ -284,6 +286,20 @@ export function DepositScreen({
     };
   }, []);
 
+  useEffect(() => {
+    if (!walletAddress) return;
+    return subscribeWalletChainChanged((chainId) => {
+      setWalletChainId(chainId);
+      void refreshBrowserProvider(walletAddress)
+        .then((conn) => {
+          setProvider(conn.provider);
+        })
+        .catch(() => {
+          /* wallet disconnected */
+        });
+    });
+  }, [walletAddress]);
+
   const notifyOrderUpdate = useCallback(
     async (state: OrderTrackState) => {
       const body = {
@@ -489,11 +505,9 @@ export function DepositScreen({
   const handleSwitchNetwork = async () => {
     setConnectErr("");
     try {
-      await switchChain(CHAINS[chainKey]);
-      if (provider) {
-        const network = await provider.getNetwork();
-        setWalletChainId(Number(network.chainId));
-      }
+      const conn = await ensureWalletOnChain(CHAINS[chainKey], walletAddress || undefined);
+      setProvider(conn.provider);
+      setWalletChainId(conn.chainId);
     } catch (e: unknown) {
       setConnectErr(parseWalletError(e));
     }
@@ -508,7 +522,7 @@ export function DepositScreen({
   }, [depositAddress]);
 
   const handleApprove = async () => {
-    if (!provider || !quote) return;
+    if (!quote) return;
     const spender = getProtocolSpender(quote);
     if (!spender) {
       setActionErr("Could not resolve approve spender contract");
@@ -518,15 +532,12 @@ export function DepositScreen({
     setActionErr("");
     setApproveStatus("pending");
     try {
-      const chain = CHAINS[chainKey];
-      if (walletChainId !== chain.chainId) {
-        await switchChain(chain);
-        setWalletChainId(chain.chainId);
-      }
-      const signer = await provider.getSigner();
-      const hash = await approveToken(signer, token, spender, BigInt(quote.inputUnits));
+      const conn = await ensureWalletOnChain(CHAINS[chainKey], walletAddress || undefined);
+      setProvider(conn.provider);
+      setWalletChainId(conn.chainId);
+      const hash = await approveToken(conn.signer, token, spender, BigInt(quote.inputUnits));
       setApproveHash(hash);
-      await waitTx(provider, hash);
+      await waitTx(conn.provider, hash);
       setApproveStatus("confirmed");
     } catch (e: unknown) {
       setApproveStatus("failed");
@@ -535,24 +546,22 @@ export function DepositScreen({
   };
 
   const handleSend = async () => {
-    if (!provider || !quote || !depositAddress || !omnistonWs) return;
+    if (!quote || !depositAddress || !omnistonWs) return;
 
     setActionErr("");
     setSendStatus("pending");
     try {
       const chain = CHAINS[chainKey];
-      if (walletChainId !== chain.chainId) {
-        await switchChain(chain);
-        setWalletChainId(chain.chainId);
-      }
-      const signer = await provider.getSigner();
+      const conn = await ensureWalletOnChain(chain, walletAddress || undefined);
+      setProvider(conn.provider);
+      setWalletChainId(conn.chainId);
       const { htlcSecrets } = await registerCrossChainOrder(
         omnistonWs,
         quote,
         chainKey,
-        walletAddress,
+        conn.address,
         depositAddress,
-        signer
+        conn.signer
       );
 
       const pseudoHash = `order-${quote.quoteId.slice(0, 16)}`;

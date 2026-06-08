@@ -9,6 +9,8 @@ export interface ChainConfig {
   omnistonCase: EvmChainKey;
   explorerTx: string;
   nativeSymbol: string;
+  rpcUrl: string;
+  blockExplorerUrl: string;
 }
 
 export interface TokenConfig {
@@ -25,6 +27,8 @@ export const CHAINS: Record<EvmChainKey, ChainConfig> = {
     omnistonCase: "ethereum",
     explorerTx: "https://etherscan.io/tx/",
     nativeSymbol: "ETH",
+    rpcUrl: "https://rpc.ankr.com/eth",
+    blockExplorerUrl: "https://etherscan.io",
   },
   base: {
     key: "base",
@@ -33,6 +37,8 @@ export const CHAINS: Record<EvmChainKey, ChainConfig> = {
     omnistonCase: "base",
     explorerTx: "https://basescan.org/tx/",
     nativeSymbol: "ETH",
+    rpcUrl: "https://rpc.ankr.com/base",
+    blockExplorerUrl: "https://basescan.org",
   },
   bnb: {
     key: "bnb",
@@ -41,6 +47,8 @@ export const CHAINS: Record<EvmChainKey, ChainConfig> = {
     omnistonCase: "bnb",
     explorerTx: "https://bscscan.com/tx/",
     nativeSymbol: "BNB",
+    rpcUrl: "https://rpc.ankr.com/bsc",
+    blockExplorerUrl: "https://bscscan.com",
   },
   polygon: {
     key: "polygon",
@@ -49,6 +57,8 @@ export const CHAINS: Record<EvmChainKey, ChainConfig> = {
     omnistonCase: "polygon",
     explorerTx: "https://polygonscan.com/tx/",
     nativeSymbol: "POL",
+    rpcUrl: "https://rpc.ankr.com/polygon",
+    blockExplorerUrl: "https://polygonscan.com",
   },
 };
 
