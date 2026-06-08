@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 200 200"
+     overflow="visible">
+  <!--
+    Gram Gravity — animated logo
+    • overflow="visible"  → glow bleeds outside the 200×200 box (container needs matching overflow:visible)
+    • No hardcoded width/height → set size via CSS on the containing element
+    • Adaptive: prefers-color-scheme auto-switches dark ↔ light
+  -->
+  <style>
+    /* ── Theme tokens ─────────────────────────────────────── */
+    :root {
+      --bg:   #000000;
+      --ink:  #ffffff;
+      --glow: #ffffff;
+    }
+    /* ── Animations ───────────────────────────────────────── */
+
+    /* Flicker — 3 smooth dip-and-recover per 14s, bright the rest */
+    @keyframes flicker {
+      0%   { opacity: .55 }
+      11%  { opacity: .55 }
+      19%  { opacity: .05 }
+      22%  { opacity: .05 }
+      30%  { opacity: .55 }
+      41%  { opacity: .55 }
+      49%  { opacity: .05 }
+      52%  { opacity: .05 }
+      60%  { opacity: .55 }
+      71%  { opacity: .55 }
+      79%  { opacity: .05 }
+      82%  { opacity: .05 }
+      90%  { opacity: .55 }
+      100% { opacity: .55 }
+    }
+
+    /* Star: 0.5s fade-in → 1s fade-out → 1s invisible (cycle 2.5s) */
+    @keyframes starFlash {
+      0%   { opacity: 0; animation-timing-function: ease-out }
+      20%  { opacity: 1; animation-timing-function: ease-in  }
+      60%  { opacity: 0 }
+      100% { opacity: 0 }
+    }
+
+    /* ── Element classes ──────────────────────────────────── */
+    .bg        { fill: var(--bg) }
+    .gem       { fill: var(--bg); stroke: var(--ink); stroke-width: 1.5 }
+    .hor       { fill: none; stroke: var(--ink); stroke-width: 2.5;
+                 animation: flicker 14s linear infinite }
+    /* .sync wraps the star glow — ties its brightness to the outer flicker.
+       opacity(group) × opacity(star) = glow peaks only when both are bright */
+    .sync      { animation: flicker 14s linear infinite }
+    .star-glow { fill: var(--ink); animation: starFlash 2.5s linear infinite }
+    .star      { fill: var(--ink); opacity: .72;
+                 animation: starFlash 2.5s linear infinite }
+  </style>
+
+  <defs>
+    <!--
+      Accretion disk gradient
+      • cx/cy is offset 50px RIGHT of the gem's visual center (100,107)
+      • animateTransform rotates it 360° around (100,107) every 22s
+      • Creates a slow, soft orbiting bright-spot — like a photon halo
+    -->
+    <radialGradient id="aura" gradientUnits="userSpaceOnUse"
+                    cx="150" cy="107" r="115">
+      <stop offset="0%"   style="stop-color:var(--glow);stop-opacity:.80"/>
+      <stop offset="28%"  style="stop-color:var(--glow);stop-opacity:.26"/>
+      <stop offset="65%"  style="stop-color:var(--glow);stop-opacity:.05"/>
+      <stop offset="100%" style="stop-color:var(--glow);stop-opacity:0"/>
+      <animateTransform attributeName="gradientTransform"
+        type="rotate"
+        from="0 100 107" to="360 100 107"
+        dur="22s" repeatCount="indefinite"/>
+    </radialGradient>
+
+    <!-- Large outer aura blur (stdDeviation 36 → bigger halo) -->
+    <filter id="fAu" x="-90%" y="-90%" width="280%" height="280%">
+      <feGaussianBlur stdDeviation="36"/>
+    </filter>
+
+    <!-- Event horizon stroke glow -->
+    <filter id="fHo" x="-45%" y="-45%" width="190%" height="190%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6"   result="w"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="n"/>
+      <feMerge>
+        <feMergeNode in="w"/>
+        <feMergeNode in="n"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Star glow — single soft layer -->
+    <filter id="fSt" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Layer 1 — Rotating accretion disk aura -->
+  <path fill="url(#aura)" filter="url(#fAu)"
+    d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1
+       L 169.5,73.9 Q 176,84 172.8,95.6
+       L 159.2,144.4 Q 156,156 145.3,161.4
+       L 110.7,178.6 Q 100,184 89.3,178.6
+       L 54.7,161.4 Q 44,156 40.8,144.4
+       L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z"/>
+
+  <!-- Layer 2 — Event horizon glow + slow flicker -->
+  <path class="hor" filter="url(#fHo)"
+    d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1
+       L 169.5,73.9 Q 176,84 172.8,95.6
+       L 159.2,144.4 Q 156,156 145.3,161.4
+       L 110.7,178.6 Q 100,184 89.3,178.6
+       L 54.7,161.4 Q 44,156 40.8,144.4
+       L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z"/>
+
+  <!-- Layer 3 — Gem body (solid, theme-adaptive fill) -->
+  <path class="gem"
+    d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1
+       L 169.5,73.9 Q 176,84 172.8,95.6
+       L 159.2,144.4 Q 156,156 145.3,161.4
+       L 110.7,178.6 Q 100,184 89.3,178.6
+       L 54.7,161.4 Q 44,156 40.8,144.4
+       L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z"/>
+
+  <!-- Layer 4 — Star glow synced with outer flicker -->
+  <g class="sync">
+    <path class="star-glow" filter="url(#fSt)"
+      d="M 115,67 C 120,88 120,88 141,93
+         C 120,98 120,98 115,119
+         C 110,98 110,98 89,93
+         C 110,88 110,88 115,67 Z"/>
+  </g>
+
+  <!-- Layer 5 — Star solid shape -->
+  <path class="star"
+    d="M 115,67 C 120,88 120,88 141,93
+       C 120,98 120,98 115,119
+       C 110,98 110,98 89,93
+       C 110,88 110,88 115,67 Z"/>
+</svg>

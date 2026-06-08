@@ -194,22 +194,22 @@
 
     /* ── Hero (slide 0) ── */
     .slide-hero .slide-content {
-      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       justify-content: flex-start;
       overflow: hidden;
     }
 
     .hero-upper-zone {
-      position: absolute;
-      top: 0;
-      left: 0;
       width: 100%;
       height: 50%;
+      min-height: 260px;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: center;
-      padding-top: max(2vh, 8px);
-      pointer-events: none;
+      padding: max(10vh, 48px) 0 0;
+      box-sizing: border-box;
     }
 
     .hero-center {
@@ -221,14 +221,14 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      pointer-events: auto;
+      gap: 0;
     }
 
     .logo-wrap {
-      flex: 1 1 0;
-      min-height: 0;
-      width: 100%;
-      max-width: min(68vw, 200px);
+      flex: 1 1 auto;
+      width: min(56vw, 190px);
+      height: min(56vw, 190px);
+      max-height: min(30dvh, 190px);
       padding: 0;
       overflow: visible;
       display: flex;
@@ -242,12 +242,12 @@
       will-change: opacity, transform;
     }
 
-    .logo-wrap svg {
+    .logo-wrap .hero-logo-img {
       width: 100%;
       height: 100%;
-      max-height: 100%;
       display: block;
       overflow: visible;
+      object-fit: contain;
     }
 
     .hero-text {
@@ -274,8 +274,14 @@
     .gg-sp { animation: gg-star 2.5s ease-in-out infinite; }
 
     .hero-title    { font-size: clamp(24px, 6vw, 32px); font-weight: 700; letter-spacing: -0.03em; }
-    .hero-subtitle { font-size: clamp(13px, 3.6vw, 16px); color: var(--text-secondary); line-height: 1.4; }
-    .hero-tagline  { font-size: clamp(11px, 3vw, 13px); color: rgba(74,138,255,0.7); }
+    .hero-subtitle { font-size: clamp(14px, 3.8vw, 17px); color: var(--text-primary); line-height: 1.35; font-weight: 500; }
+    .hero-tagline  {
+      font-size: clamp(10px, 2.8vw, 12px);
+      color: var(--text-secondary);
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
     .hero-meta     { font-size: clamp(10px, 2.8vw, 12px); color: var(--text-secondary); line-height: 1.5; }
     .hero-meta .mira-accent { color: #a78bfa; }
 
@@ -1649,39 +1655,20 @@
           <div class="hero-upper-zone">
             <div class="hero-center">
               <div class="logo-wrap" id="heroLogo">
-                <svg viewBox="0 0 200 200" overflow="visible" aria-hidden="true">
-                  <defs>
-                    <radialGradient id="ggr" cx="100" cy="107" r="82" gradientUnits="userSpaceOnUse">
-                      <stop offset="0%" stop-color="#2d2d3c"/>
-                      <stop offset="40%" stop-color="#161622"/>
-                      <stop offset="72%" stop-color="#080810"/>
-                      <stop offset="100%" stop-color="#000000"/>
-                    </radialGradient>
-                    <filter id="gga" x="-55%" y="-55%" width="210%" height="210%">
-                      <feGaussianBlur stdDeviation="22"/>
-                    </filter>
-                    <filter id="ggh" x="-40%" y="-40%" width="180%" height="180%">
-                      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="w"/>
-                      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="n"/>
-                      <feMerge><feMergeNode in="w"/><feMergeNode in="n"/><feMergeNode in="SourceGraphic"/></feMerge>
-                    </filter>
-                    <filter id="ggs" x="-90%" y="-90%" width="280%" height="280%">
-                      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="og"/>
-                      <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="ig"/>
-                      <feMerge><feMergeNode in="og"/><feMergeNode in="ig"/><feMergeNode in="SourceGraphic"/></feMerge>
-                    </filter>
-                  </defs>
-                  <path class="gg-au" d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1 L 169.5,73.9 Q 176,84 172.8,95.6 L 159.2,144.4 Q 156,156 145.3,161.4 L 110.7,178.6 Q 100,184 89.3,178.6 L 54.7,161.4 Q 44,156 40.8,144.4 L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z" fill="white" filter="url(#gga)" opacity="0.12"/>
-                  <path class="gg-ho" d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1 L 169.5,73.9 Q 176,84 172.8,95.6 L 159.2,144.4 Q 156,156 145.3,161.4 L 110.7,178.6 Q 100,184 89.3,178.6 L 54.7,161.4 Q 44,156 40.8,144.4 L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z" fill="none" stroke="white" stroke-width="2.5" filter="url(#ggh)" opacity="0.6"/>
-                  <path d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1 L 169.5,73.9 Q 176,84 172.8,95.6 L 159.2,144.4 Q 156,156 145.3,161.4 L 110.7,178.6 Q 100,184 89.3,178.6 L 54.7,161.4 Q 44,156 40.8,144.4 L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z" fill="url(#ggr)" stroke="white" stroke-width="1.5"/>
-                  <path class="gg-sp" d="M 115,67 C 120,88 120,88 141,93 C 120,98 120,98 115,119 C 110,98 110,98 89,93 C 110,88 110,88 115,67 Z" fill="white" filter="url(#ggs)" opacity="0.9"/>
-                </svg>
+                <img
+                  src="/app/logos/gram-gravity-animated.svg"
+                  alt=""
+                  class="hero-logo-img"
+                  width="190"
+                  height="190"
+                  decoding="async"
+                />
               </div>
               <div class="hero-text">
                 <h1 class="hero-title hero-line">Gramity</h1>
-                <p class="hero-subtitle hero-line">Your money works while you sleep</p>
-                <p class="hero-tagline hero-line">STON.fi Hackathon · ~5.4% APY</p>
-                <p class="hero-meta hero-line">0% platform fee · <span class="mira-accent">AI-managed via Mira</span></p>
+                <p class="hero-subtitle hero-line">Compounding yield on autopilot.</p>
+                <p class="hero-tagline hero-line">DCA Agentic Wallets</p>
+                <p class="hero-meta hero-line">powered by <span class="mira-accent">Mira AI</span> · STON.fi · TON</p>
               </div>
             </div>
           </div>
