@@ -28,6 +28,7 @@ import { getAllVerifiedJettons, getTonBalance } from "../services/tonapi.js";
 import { POOL_ADDRESS, TSTON_ADDRESS, USDT_ADDRESS, USDT_DECIMALS } from "../config.js";
 import { sleep } from "../wallet.js";
 import type { WalletContext } from "../wallet.js";
+import { hasWithdrawalAddress } from "../utils/tonAddress.js";
 
 export interface ExitResult {
   usdtSent: number;
@@ -87,9 +88,10 @@ async function getJettonBalanceOnChain(
 }
 
 export async function executeFullExit(plan: Plan): Promise<ExitResult> {
-  if (!plan.ton_address) {
+  if (!hasWithdrawalAddress(plan.ton_address)) {
     throw new Error("Withdrawal address not set");
   }
+  const withdrawalAddress = plan.ton_address;
   const telegramId = plan.telegram_id;
   console.log(`[EXIT] Starting full exit for user ${telegramId}`);
 
@@ -142,7 +144,7 @@ export async function executeFullExit(plan: Plan): Promise<ExitResult> {
     console.log(`[EXIT] USDT balance: ${Number(usdtBalance) / 1e6} USDT`);
 
     if (usdtBalance > 0n) {
-      await sendJettonTransfer(walletCtx, USDT_ADDRESS, usdtBalance, plan.ton_address);
+      await sendJettonTransfer(walletCtx, USDT_ADDRESS, usdtBalance, withdrawalAddress);
       const usdtHuman = Number(usdtBalance) / Math.pow(10, USDT_DECIMALS);
       summary.push(`${usdtHuman.toFixed(2)} USDT`);
       console.log(`[EXIT] Sent ${usdtHuman.toFixed(2)} USDT`);
@@ -166,7 +168,7 @@ export async function executeFullExit(plan: Plan): Promise<ExitResult> {
         secretKey: Buffer.from(walletCtx.key.secretKey),
         messages: [
           internal({
-            to: Address.parse(plan.ton_address),
+            to: Address.parse(withdrawalAddress),
             value: sendable,
             bounce: false,
           }),

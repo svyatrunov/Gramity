@@ -19,6 +19,7 @@ import {
   startDepositPoller,
   stopDepositPoller,
 } from "../depositPoller.js";
+import { hasWithdrawalAddress } from "../../utils/tonAddress.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -93,7 +94,7 @@ export async function handleStart(ctx: GramityContext) {
       `👋 Welcome back!\n\n` +
         `📊 *Your Gramity Strategy*\n\n` +
         `${statusEmoji} ${statusLabel} · $${existingPlan.usdt_amount} USDT ${freqLabel}\n` +
-        (existingPlan.ton_address
+        (hasWithdrawalAddress(existingPlan.ton_address)
           ? `Withdrawal: \`${existingPlan.ton_address.slice(0, 6)}…${existingPlan.ton_address.slice(-4)}\`\n`
           : `⚠️ Withdrawal address not set — open App to configure\n`) +
         (lastExec

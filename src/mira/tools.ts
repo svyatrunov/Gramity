@@ -191,7 +191,7 @@ export async function toolRunNow(args: Record<string, unknown>) {
 
   const plan = await getPlanByTelegramId(telegramId);
   if (!plan) throw new Error("No plan found");
-  if (!plan.ton_address) {
+  if (!hasWithdrawalAddress(plan.ton_address)) {
     return sanitizeForMira({
       success: false,
       error:
@@ -200,6 +200,7 @@ export async function toolRunNow(args: Record<string, unknown>) {
       action: "set_withdrawal_address",
     });
   }
+  const withdrawalAddress = plan.ton_address;
 
   const amountUsdt =
     args.amount_usdt != null ? Number(args.amount_usdt) : plan.usdt_amount;
@@ -269,7 +270,7 @@ export async function toolRunNow(args: Record<string, unknown>) {
     tx_swap: tonTxUrl(result.txSwap),
     tx_stake: tonTxUrl(result.txStake),
     tx_lp: tonTxUrl(result.txLp),
-    lp_tokens_sent_to: maskAddress(plan.ton_address),
+    lp_tokens_sent_to: maskAddress(withdrawalAddress),
   });
 }
 
@@ -279,7 +280,7 @@ export async function toolWithdraw(args: Record<string, unknown>) {
 
   const plan = await getPlanByTelegramId(telegramId);
   if (!plan) throw new Error("No plan found");
-  if (!plan.ton_address) {
+  if (!hasWithdrawalAddress(plan.ton_address)) {
     return sanitizeForMira({
       success: false,
       error:
@@ -288,15 +289,16 @@ export async function toolWithdraw(args: Record<string, unknown>) {
       action: "set_withdrawal_address",
     });
   }
+  const withdrawalAddress = plan.ton_address;
 
   const newAddress =
     args.withdrawal_address ?? args.new_address ?? args.to_address;
-  if (newAddress != null && String(newAddress) !== plan.ton_address) {
+  if (newAddress != null && String(newAddress) !== withdrawalAddress) {
     return sanitizeForMira({
       success: false,
       error:
         "Withdrawal address is locked at setup and cannot be changed via AI commands.",
-      current_address: maskAddress(plan.ton_address),
+      current_address: maskAddress(withdrawalAddress),
     });
   }
 
@@ -331,7 +333,7 @@ export async function toolWithdraw(args: Record<string, unknown>) {
     walletCtx,
     USDT_ADDRESS,
     amountRaw,
-    plan.ton_address
+    withdrawalAddress
   );
 
   const txHash = await getLastTxHash(walletCtx.address, 5_000);
@@ -341,7 +343,7 @@ export async function toolWithdraw(args: Record<string, unknown>) {
     .sendMessage(
       telegramId,
       `✅ *$${amountUsdt.toFixed(2)} USDT withdrawn via Mira*\n\n` +
-        `To: \`${maskAddress(plan.ton_address)}\` _(locked)_`,
+        `To: \`${maskAddress(withdrawalAddress)}\` _(locked)_`,
       { parse_mode: "Markdown" }
     )
     .catch(() => {});
@@ -349,7 +351,7 @@ export async function toolWithdraw(args: Record<string, unknown>) {
   return sanitizeForMira({
     success: true,
     amount_usdt: amountUsdt,
-    sent_to: maskAddress(plan.ton_address),
+    sent_to: maskAddress(withdrawalAddress),
     tx: tonTxUrl(txHash),
     note: "Address is locked and cannot be changed via Mira",
   });
@@ -490,11 +492,12 @@ export async function toolSetWithdrawalAddress(args: Record<string, unknown>) {
     throw new Error("No plan found. User must complete onboarding in Mini App first.");
   }
   if (hasWithdrawalAddress(plan.ton_address)) {
+    const lockedAddress = plan.ton_address;
     return sanitizeForMira({
       success: false,
       error: "Withdrawal address is already set and locked.",
       withdrawal_address_set: true,
-      withdrawal_address_masked: maskAddress(plan.ton_address),
+      withdrawal_address_masked: maskAddress(lockedAddress),
     });
   }
 

@@ -10,6 +10,7 @@ import { getUserWalletContext } from "../../services/userWallet.js";
 import { sendJettonTransfer } from "../../services/jetton.js";
 import { USDT_ADDRESS, USDT_DECIMALS, POOL_ADDRESS } from "../../config.js";
 import { Address, JettonMaster, JettonWallet, fromNano } from "@ton/ton";
+import { hasWithdrawalAddress } from "../../utils/tonAddress.js";
 
 async function getLpBalance(
   walletAddress: string,
@@ -35,7 +36,7 @@ export async function handleWithdrawMenu(ctx: GramityContext) {
     await ctx.reply("No active strategy. Use /start.");
     return;
   }
-  if (!plan.ton_address) {
+  if (!hasWithdrawalAddress(plan.ton_address)) {
     await ctx.reply(
       "⚠️ *No withdrawal address set*\n\n" +
         "Open the Mini App to set your TON withdrawal wallet before withdrawing.",
@@ -43,6 +44,7 @@ export async function handleWithdrawMenu(ctx: GramityContext) {
     );
     return;
   }
+  const withdrawalAddress = plan.ton_address;
 
   let depositAddress = "";
   let usdtBalance    = 0;
@@ -86,7 +88,7 @@ export async function handleWithdrawMenu(ctx: GramityContext) {
     `💸 *Withdraw Funds*\n\n` +
       `Deposit wallet:\n\`${depositAddress}\`\n\n` +
       `Available USDT: *$${usdtBalance.toFixed(2)}*${lpLine}\n\n` +
-      `Destination: \`${plan.ton_address}\`\n\n` +
+      `Destination: \`${withdrawalAddress}\`\n\n` +
       `⚠️ _"Withdraw everything" exits LP and unstakes tsTON — takes a few minutes._`,
     { parse_mode: "Markdown", reply_markup: kb }
   );
@@ -101,7 +103,7 @@ export async function handleWithdrawUsdtConfirm(ctx: GramityContext) {
     await ctx.reply("⚠️ Strategy not found.");
     return;
   }
-  if (!plan.ton_address) {
+  if (!hasWithdrawalAddress(plan.ton_address)) {
     await ctx.reply(
       "⚠️ *No withdrawal address set*\n\nOpen the Mini App to set your TON withdrawal wallet.",
       { parse_mode: "Markdown" }
@@ -151,10 +153,19 @@ export async function handleWithdrawLpConfirm(ctx: GramityContext) {
     return;
   }
 
+  if (!hasWithdrawalAddress(plan.ton_address)) {
+    await ctx.reply(
+      "⚠️ *No withdrawal address set*\n\nOpen the Mini App to set your TON withdrawal wallet.",
+      { parse_mode: "Markdown" }
+    );
+    return;
+  }
+  const withdrawalAddress = plan.ton_address;
+
   await ctx.reply(
     `⏳ *Starting LP withdrawal...*\n\n` +
       `Removing liquidity from STON.fi v2\n` +
-      `Sending to: \`${plan.ton_address}\`\n\n` +
+      `Sending to: \`${withdrawalAddress}\`\n\n` +
       `_This may take 1–3 minutes._`,
     { parse_mode: "Markdown" }
   );
@@ -173,7 +184,7 @@ export async function handleWithdrawLpConfirm(ctx: GramityContext) {
 
     await ctx.reply(
       `✅ *LP Withdrawal Complete*\n\n` +
-        `Sent to: \`${plan.ton_address}\`\n` +
+        `Sent to: \`${withdrawalAddress}\`\n` +
         (result.summary.length > 0 ? `Assets: ${result.summary.join(", ")}\n` : "") +
         txLink,
       { parse_mode: "Markdown", link_preview_options: { is_disabled: true } }
@@ -199,6 +210,15 @@ export async function handleWithdrawAllConfirm(ctx: GramityContext) {
     return;
   }
 
+  if (!hasWithdrawalAddress(plan.ton_address)) {
+    await ctx.reply(
+      "⚠️ *No withdrawal address set*\n\nOpen the Mini App to set your TON withdrawal wallet.",
+      { parse_mode: "Markdown" }
+    );
+    return;
+  }
+  const withdrawalAddress = plan.ton_address;
+
   const { updatePlan } = await import("../../db/index.js");
   await updatePlan(telegramId, { active: false });
 
@@ -219,7 +239,7 @@ export async function handleWithdrawAllConfirm(ctx: GramityContext) {
     await ctx.reply(
       `✅ *Exit complete*\n\n` +
         `Sent: *$${result.usdtSent.toFixed(2)} USDT*\n` +
-        `To: \`${plan.ton_address}\`\n\n` +
+        `To: \`${withdrawalAddress}\`\n\n` +
         `_Funds will arrive in 1–2 min._`,
       { parse_mode: "Markdown" }
     );

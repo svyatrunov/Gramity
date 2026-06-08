@@ -88,6 +88,7 @@ export async function buildMiraPortfolio(telegramId: number) {
   const preflight = await preflightCheck(plan);
   const canRunNextCycle = preflight.ok;
   const withdrawalAddressSet = hasWithdrawalAddress(plan.ton_address);
+  const withdrawalAddress = withdrawalAddressSet ? plan.ton_address : null;
 
   let topUpHint: string | undefined;
   let cycleBlockedReason: string | undefined;
@@ -138,8 +139,8 @@ export async function buildMiraPortfolio(telegramId: number) {
     amount_usdt: Number(plan.usdt_amount),
     status,
     agent_wallet_balance_usdt: usdtBalance,
-    withdrawal_address: plan.ton_address ? maskAddress(plan.ton_address) : null,
-    withdrawal_address_masked: plan.ton_address ? maskAddress(plan.ton_address) : null,
+    withdrawal_address: withdrawalAddress ? maskAddress(withdrawalAddress) : null,
+    withdrawal_address_masked: withdrawalAddress ? maskAddress(withdrawalAddress) : null,
     withdrawal_address_set: withdrawalAddressSet,
     agent_wallet_address: depositAddress,
     quick_mode: plan.demo_mode,

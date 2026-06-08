@@ -88,9 +88,10 @@ bot.command("demo", async (ctx) => {
     const { getPlanByTelegramId, upsertPlan } = await import("../db/index.js");
     const { createUserWallet } = await import("../services/userWallet.js");
     const { getNextPlanExecutionDate, formatPlanFrequency } = await import("../constants/dca.js");
+    const { hasWithdrawalAddress } = await import("../utils/tonAddress.js");
 
     const existingPlan = await getPlanByTelegramId(telegramId).catch(() => null);
-    if (!existingPlan?.ton_address) {
+    if (!existingPlan || !hasWithdrawalAddress(existingPlan.ton_address)) {
       await ctx.reply(
         "⚠️ *No withdrawal address set*\n\n" +
           "Please complete onboarding first via /start to set your TON address.",
@@ -98,6 +99,7 @@ bot.command("demo", async (ctx) => {
       );
       return;
     }
+    const withdrawalAddress = existingPlan.ton_address;
 
     const frequency = "10s";
     const nextExec = getNextPlanExecutionDate({ frequency, demo_mode: true });
@@ -105,7 +107,7 @@ bot.command("demo", async (ctx) => {
 
     await upsertPlan({
       telegram_id:       telegramId,
-      ton_address:       existingPlan.ton_address,
+      ton_address:       withdrawalAddress,
       agent_wallet:      null,
       usdt_amount:       amount,
       frequency,
@@ -124,7 +126,7 @@ bot.command("demo", async (ctx) => {
       "🚀 *Quick Start activated*\n\n" +
         `2 cycles × $${amount} USDT\n` +
         `Interval: ${freqLabel}\n` +
-        `Withdrawal: \`${existingPlan.ton_address.slice(0, 8)}…${existingPlan.ton_address.slice(-6)}\`\n\n` +
+        `Withdrawal: \`${withdrawalAddress.slice(0, 8)}…${withdrawalAddress.slice(-6)}\`\n\n` +
         "Fund your agent wallet to begin.",
       { parse_mode: "Markdown" }
     );

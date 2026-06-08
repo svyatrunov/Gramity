@@ -244,13 +244,14 @@ app.post("/api/withdraw/usdt", tgAuth, async (req, res) => {
       res.status(400).json({ error: "Withdrawal address not set" });
       return;
     }
+    const withdrawalAddress = plan.ton_address;
 
     const walletCtx = await getUserWalletContext(telegramId);
     const balance = await getUsdtBalance(walletCtx.address);
     if (balance < 0.01) { res.status(400).json({ error: "No USDT to withdraw" }); return; }
 
     const amountRaw = BigInt(Math.floor(balance * Math.pow(10, USDT_DECIMALS)));
-    await sendJettonTransfer(walletCtx, USDT_ADDRESS, amountRaw, plan.ton_address);
+    await sendJettonTransfer(walletCtx, USDT_ADDRESS, amountRaw, withdrawalAddress);
     res.json({ sent: balance });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -545,6 +546,10 @@ app.post("/api/evm-wallet/connected", async (req, res) => {
     }
     if (!address || typeof address !== "string") {
       res.status(400).json({ error: "address required" });
+      return;
+    }
+    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+      res.status(400).json({ error: "Invalid EVM address" });
       return;
     }
 
