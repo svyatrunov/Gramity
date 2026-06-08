@@ -5,6 +5,7 @@ import { createEVMClient } from "@metamask/connect-evm";
 import type { MetamaskConnectEVM } from "@metamask/connect-evm";
 
 const CHAIN_IDS = ["0x1", "0x2105", "0x38", "0x89"] as const;
+type HexChainId = (typeof CHAIN_IDS)[number];
 
 const SUPPORTED_NETWORKS: Record<string, string> = {
   "0x1": "https://rpc.ankr.com/eth",
@@ -171,7 +172,7 @@ async function readConnectedSession(
  */
 async function connectWithTelegramResume(
   client: MetamaskConnectEVM,
-  chainIds: string[]
+  chainIds: readonly HexChainId[]
 ): Promise<{ accounts: string[]; chainId: string }> {
   let finished = false;
   let connectError: unknown;
@@ -187,7 +188,7 @@ async function connectWithTelegramResume(
   getTelegramWebApp()?.onEvent?.("viewportChanged", onVisible);
 
   const connectPromise = client
-    .connect({ chainIds })
+    .connect({ chainIds: [...chainIds] })
     .then((result) => {
       finished = true;
       return result;
@@ -238,7 +239,7 @@ export async function connectMetaMaskWallet(): Promise<{
     return connectWithTelegramResume(client, chainIds);
   }
 
-  return client.connect({ chainIds });
+  return client.connect({ chainIds: [...chainIds] });
 }
 
 export async function getMetaMaskConnectProvider() {
