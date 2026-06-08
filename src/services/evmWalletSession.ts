@@ -64,6 +64,11 @@ function replaceExistingSession(telegramId: number): void {
   }
 }
 
+export function clearEvmWalletSessionsForTelegram(telegramId: number): void {
+  purgeExpiredSessions();
+  replaceExistingSession(telegramId);
+}
+
 export function getEvmWalletSession(sessionId: string): EvmWalletSession | null {
   purgeExpiredSessions();
   const session = sessions.get(sessionId);

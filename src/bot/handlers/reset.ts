@@ -1,17 +1,21 @@
 import { InlineKeyboard } from "grammy";
 import type { GramityContext } from "../session.js";
-import { getPlanByTelegramId, deletePlan } from "../../db/index.js";
+import { getPlanByTelegramId, getUserWallets, deleteUserAccount } from "../../db/index.js";
 
 export async function handleReset(ctx: GramityContext) {
   const telegramId = ctx.from?.id;
   if (!telegramId) return;
 
-  const plan = await getPlanByTelegramId(telegramId).catch(() => null);
+  const [plan, wallets] = await Promise.all([
+    getPlanByTelegramId(telegramId).catch(() => null),
+    getUserWallets(telegramId).catch(() => []),
+  ]);
 
-  if (!plan) {
-    await ctx.reply(
-      "No active strategy.\n\nUse /start to create one."
-    );
+  if (!plan && wallets.length === 0) {
+    const { clearEvmWalletSessionsForTelegram } =
+      await import("../../services/evmWalletSession.js");
+    clearEvmWalletSessionsForTelegram(telegramId);
+    await ctx.reply("Nothing to delete — EVM sessions cleared.\n\nUse /start to create a strategy.");
     return;
   }
 
@@ -19,11 +23,20 @@ export async function handleReset(ctx: GramityContext) {
     .text("🗑 Yes, delete", "confirm_reset")
     .text("❌ Cancel",     "cancel_reset");
 
+  const planLine = plan
+    ? `Strategy: $${plan.usdt_amount} | ${plan.frequency}\n`
+    : "";
+  const walletLine =
+    wallets.length > 0
+      ? `Deposit wallet: \`${wallets[0].wallet_address.slice(0, 8)}…\`\n`
+      : "";
+
   await ctx.reply(
-    `⚠️ *Delete strategy?*\n\n` +
-      `Amount: $${plan.usdt_amount} | ${plan.frequency}\n\n` +
-      `Funds in the pool remain — this only removes the plan from Gramity.\n` +
-      `To withdraw funds from LP use /withdraw`,
+    `⚠️ *Delete strategy and deposit wallet?*\n\n` +
+      planLine +
+      walletLine +
+      `\nThis removes your Gramity plan and agentic deposit address.\n` +
+      `Funds already in LP remain on-chain — use /withdraw if needed.`,
     { parse_mode: "Markdown", reply_markup: kb }
   );
 }
@@ -38,10 +51,13 @@ export async function handleResetCallback(ctx: GramityContext, action: "confirm"
   }
 
   try {
-    await deletePlan(telegramId);
+    await deleteUserAccount(telegramId);
+    const { clearEvmWalletSessionsForTelegram } =
+      await import("../../services/evmWalletSession.js");
+    clearEvmWalletSessionsForTelegram(telegramId);
     ctx.session.step = "idle";
     await ctx.editMessageText(
-      "✅ Strategy deleted.\n\nUse /start to create a new one."
+      "✅ Strategy and deposit wallet deleted.\n\nUse /start to set up again from scratch."
     );
   } catch (err) {
     await ctx.editMessageText(

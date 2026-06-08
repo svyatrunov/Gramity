@@ -2776,7 +2776,12 @@
 
       /* MetaMask — mobile: in-app browser; desktop TMA: system browser + extension */
       window.addEventListener('gramity-metamask-ready', function () {
-        if (window.GramityMetaMask && window.GramityMetaMask.warm) {
+        if (
+          window.GramityMetaMask &&
+          window.GramityMetaMask.warm &&
+          window.GramityMetaMask.isMobileDevice &&
+          window.GramityMetaMask.isMobileDevice()
+        ) {
           window.GramityMetaMask.warm();
         }
       }, { once: true });
@@ -2807,6 +2812,25 @@
         return isMobileDevice() ? session.metamaskUrl : session.pageUrl;
       }
 
+      function isInsideTelegramMiniApp() {
+        if (window.GramityMetaMask && window.GramityMetaMask.isInsideTelegramMiniApp) {
+          return window.GramityMetaMask.isInsideTelegramMiniApp();
+        }
+        return !!(tg && tg.initData && tg.initData.indexOf('hash=') !== -1);
+      }
+
+      function hasRealExtension() {
+        return !!getExtensionProvider() && !isInsideTelegramMiniApp();
+      }
+
+      function fetchEvmBalancesFromServer(address) {
+        return fetch('/api/evm-wallet/balances?address=' + encodeURIComponent(address), {
+          headers: { 'X-Telegram-Init-Data': initData },
+        }).then(function (r) {
+          if (!r.ok) return r.text().then(function (t) { throw new Error(t || String(r.status)); });
+          return r.json();
+        });
+      }
       function getExtensionProvider() {
         if (!window.ethereum) return null;
         if (window.ethereum.providers && window.ethereum.providers.length) {
@@ -2857,13 +2881,26 @@
               .then(function (r) { return r.ok ? r.json() : null; })
               .then(function (data) {
                 if (data && data.status === 'connected' && data.evmAddress) {
-                  cleanup();
-                  resolve({
-                    accounts: [data.evmAddress],
-                    provider: null,
-                    walletBalance: data.walletBalance || null,
-                  });
-                  return;
+                  if (data.balanceStatus === 'ready' && data.walletBalance) {
+                    cleanup();
+                    resolve({
+                      accounts: [data.evmAddress],
+                      provider: null,
+                      walletBalance: data.walletBalance,
+                    });
+                    return;
+                  }
+                  if (data.balanceStatus === 'failed') {
+                    cleanup();
+                    resolve({
+                      accounts: [data.evmAddress],
+                      provider: null,
+                      walletBalance: null,
+                    });
+                    return;
+                  }
+                  if (labelEl) labelEl.textContent = 'Loading balances…';
+                  if (hintEl) hintEl.textContent = 'Fetching tokens from BSC…';
                 }
                 if (attempts >= maxAttempts) {
                   cleanup();
@@ -2923,20 +2960,38 @@
 
       function handleMetaMaskAccounts(btn, accounts, walletBalance) {
         if (!accounts || !accounts.length) return;
-        wiz.evmAddress = accounts[0];
-        wiz.evmConnected = true;
 
-        var short = accounts[0].slice(0, 6) + '…' + accounts[0].slice(-4);
-        btn.querySelector('div').children[0].textContent = 'Connected: ' + short;
-        btn.style.borderColor = 'rgba(230,119,30,0.5)';
+        function applyBalance(payload) {
+          wiz.evmAddress = accounts[0];
+          wiz.evmConnected = true;
+          var short = accounts[0].slice(0, 6) + '…' + accounts[0].slice(-4);
+          btn.querySelector('div').children[0].textContent = 'Connected: ' + short;
+          btn.style.borderColor = 'rgba(230,119,30,0.5)';
 
-        var stripResult = document.getElementById('stripBalanceResult');
-        if (stripResult) {
-          document.getElementById('stripAddr').textContent = short;
-          var totalUsd = walletBalance && walletBalance.totalUsd != null ? walletBalance.totalUsd : 0;
-          document.getElementById('stripTotal').textContent = '$' + totalUsd.toFixed(0);
-          stripResult.style.display = 'block';
+          var totalUsd = payload && payload.totalUsd != null ? payload.totalUsd : 0;
+          wiz.totalUsdBalance = totalUsd;
+          wiz.usdtBalance = totalUsd;
+
+          var stripResult = document.getElementById('stripBalanceResult');
+          if (stripResult) {
+            document.getElementById('stripAddr').textContent = short;
+            document.getElementById('stripTotal').textContent = '$' + totalUsd.toFixed(0);
+            stripResult.style.display = 'block';
+          }
         }
+
+        if (walletBalance && walletBalance.totalUsd != null) {
+          applyBalance(walletBalance);
+          return;
+        }
+
+        btn.querySelector('div').children[0].textContent = 'Loading balances…';
+        fetchEvmBalancesFromServer(accounts[0])
+          .then(applyBalance)
+          .catch(function (err) {
+            console.error('[MetaMask] balance fetch failed', err);
+            applyBalance(null);
+          });
       }
 
       function runMetaMaskConnect(btn) {
@@ -2945,7 +3000,7 @@
         var hintEl = btn.querySelector('div').children[1];
 
         btn.disabled = true;
-        var hasExt = !!getExtensionProvider();
+        var hasExt = hasRealExtension();
         var mobile = isMobileDevice();
         labelEl.textContent = hasExt
           ? 'Connecting…'

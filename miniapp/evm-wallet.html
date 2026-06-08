@@ -38,12 +38,26 @@
       }
       .err { color: #ef4444; }
       .ok { color: #22c55e; }
+      .btn {
+        width: 100%;
+        margin-top: 8px;
+        padding: 14px 16px;
+        border: none;
+        border-radius: 12px;
+        background: #f6851b;
+        color: #fff;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .btn:disabled { opacity: 0.6; cursor: default; }
     </style>
   </head>
   <body>
     <div class="card" id="root">
       <h1>Connect MetaMask</h1>
-      <p id="status">Opening wallet…</p>
+      <p id="status">Click below to connect your wallet.</p>
+      <button type="button" class="btn" id="connectBtn">Connect MetaMask</button>
     </div>
     <script type="module" src="/src/evm-wallet-entry.tsx"></script>
   </body>

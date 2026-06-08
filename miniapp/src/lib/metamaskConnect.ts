@@ -104,10 +104,10 @@ export function openExternalBrowser(link: string): void {
   const url = link.trim();
   if (!url) return;
 
-  // Same-origin pageUrl stays inside Telegram WebView with tg.openLink — force window.open on desktop.
+  // Desktop TMA: window.open opens the external browser but often returns null — do not fall through to tg.openLink (double tab).
   if (isInsideTelegramMiniApp() && !isMobileDevice()) {
-    const popup = window.open(url, "_blank", "noopener,noreferrer");
-    if (popup) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+    return;
   }
 
   const tg = getTelegramWebApp();
@@ -196,9 +196,9 @@ export function getMetaMaskConnectClient(): Promise<MetamaskConnectEVM> {
   return clientPromise;
 }
 
-/** Pre-open relay WebSocket before user taps Connect (helps MWP handshake in TMA). */
+/** Pre-open relay WebSocket before user taps Connect (mobile TMA only). */
 export function warmMetaMaskConnectClient(): void {
-  if (isInsideTelegramMiniApp()) {
+  if (isInsideTelegramMiniApp() && isMobileDevice()) {
     void getMetaMaskConnectClient();
   }
 }
@@ -298,8 +298,9 @@ export async function getMetaMaskConnectProvider() {
   return client.getProvider();
 }
 
-/** Legacy extension-only provider (desktop browser outside Telegram). */
+/** Real in-page extension only — not MWP relay inside Telegram WebView. */
 export function getBrowserExtensionProvider(): Eip1193Provider | null {
+  if (isInsideTelegramMiniApp()) return null;
   const eth = (window as unknown as { ethereum?: Eip1193Provider & { providers?: Eip1193Provider[] } }).ethereum;
   if (!eth) return null;
   if (eth.providers?.length) {

@@ -38,16 +38,30 @@
       }
       .err { color: #ef4444; }
       .ok { color: #22c55e; }
+      .btn {
+        width: 100%;
+        margin-top: 8px;
+        padding: 14px 16px;
+        border: none;
+        border-radius: 12px;
+        background: #f6851b;
+        color: #fff;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .btn:disabled { opacity: 0.6; cursor: default; }
     </style>
-    <script type="module" crossorigin src="/app/assets/evm-wallet-CjE-NEFw.js"></script>
-    <link rel="modulepreload" crossorigin href="/app/assets/metamaskConnect-D27lViU5.js">
+    <script type="module" crossorigin src="/app/assets/evm-wallet-DxvmC9IH.js"></script>
+    <link rel="modulepreload" crossorigin href="/app/assets/metamaskConnect-BX3PNYms.js">
     <link rel="modulepreload" crossorigin href="/app/assets/tslib.es6-Baw4jpgF.js">
-    <link rel="modulepreload" crossorigin href="/app/assets/evmWallet-B9c1d8oM.js">
+    <link rel="modulepreload" crossorigin href="/app/assets/evmWallet-DUzgow_6.js">
   </head>
   <body>
     <div class="card" id="root">
       <h1>Connect MetaMask</h1>
-      <p id="status">Opening wallet…</p>
+      <p id="status">Click below to connect your wallet.</p>
+      <button type="button" class="btn" id="connectBtn">Connect MetaMask</button>
     </div>
   </body>
 </html>
