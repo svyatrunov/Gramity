@@ -1840,73 +1840,57 @@
           <div class="wizard-step-fill" style="width:40%"></div>
         </div>
         <div class="slide-content">
-          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:10px">Invest into DCA</h2>
+          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:6px">Invest into DCA</h2>
+          <p class="subtitle anim-item" style="font-size:13px;margin-bottom:16px">How much USDT per cycle?</p>
 
-          <!-- Wallet balance chip -->
-          <div class="balance-chip anim-item" id="dcaBalanceChip">
-            <span class="chip-dot chip-dot-demo" id="dcaChipDot"></span>
-            <span id="dcaBalanceLabel">Demo mode · $2,000 limit</span>
+          <!-- Demo / Live mode toggle -->
+          <div class="mode-tabs anim-item" id="dcaModeTabs">
+            <button type="button" class="mode-tab active" data-mode="demo" id="modeTabDemo">Demo $5</button>
+            <button type="button" class="mode-tab" data-mode="live" id="modeTabLive">Live</button>
           </div>
 
-          <!-- Insufficient USDT card (connected wallet, &lt; $10) -->
-          <div class="dca-low-balance-card anim-item" id="dcaLowBalanceCard">
-            <span><strong>Minimum $10 USDT</strong> on wallet required for live DCA</span>
-            <div class="connect-hint-btns">
-              <button class="hint-connect-btn" id="btnTryDemo5">Try demo ($5)</button>
-              <button class="hint-connect-btn" id="btnContinueDemo">Continue in demo</button>
-            </div>
-          </div>
+          <div class="dca-min-banner anim-item" id="dcaMinBanner">⚠️ Min $10 USDT on TON wallet required</div>
 
           <!-- Frequency -->
-          <p class="param-label anim-item">Frequency</p>
           <div class="freq-tabs anim-item" id="freqTabs">
-            <button class="freq-tab" data-freq="daily">Daily</button>
-            <button class="freq-tab active" data-freq="weekly">Weekly</button>
-            <button class="freq-tab" data-freq="monthly">Monthly</button>
+            <button type="button" class="freq-tab" data-freq="daily">Daily</button>
+            <button type="button" class="freq-tab active" data-freq="weekly">Weekly</button>
+            <button type="button" class="freq-tab" data-freq="monthly">Monthly</button>
           </div>
 
-          <div id="dcaSliderSection">
-            <!-- Amount per cycle -->
-            <p class="param-label anim-item" style="margin-top:16px">Amount per cycle</p>
-            <div class="slider-val-row anim-item">
-              <span class="slider-big-val" id="sliderBigVal">$500</span>
-              <span class="slider-usdt-label">USDT</span>
+          <!-- Amount block (Live mode only) -->
+          <div id="dcaAmountSection" style="display:none">
+            <p class="param-label anim-item">Amount per cycle</p>
+            <div class="amount-row anim-item">
+              <span class="amount-prefix">$</span>
+              <input class="amount-input" id="amountInput" type="number"
+                     inputmode="decimal" min="10" max="2000" step="5" value="500"/>
+              <span class="amount-suffix">USDT</span>
             </div>
 
-            <!-- Range slider -->
             <div class="slider-wrap anim-item">
               <input type="range" class="dca-slider" id="amountSlider"
                      min="10" max="2000" step="5" value="500"/>
               <div class="slider-ticks">
-                <span id="sliderMinLabel">$10</span>
-                <span id="sliderMaxLabel">$2,000</span>
+                <span>$10</span>
+                <span>$2,000</span>
               </div>
             </div>
 
-            <!-- % preset buttons -->
             <div class="slider-pcts anim-item" id="sliderPcts">
-              <button class="pct-btn" data-pct="25">25%</button>
-              <button class="pct-btn pct-active" data-pct="50">50%</button>
-              <button class="pct-btn" data-pct="75">75%</button>
-              <button class="pct-btn" data-pct="100">Max</button>
+              <button type="button" class="pct-btn" data-pct="25">25%</button>
+              <button type="button" class="pct-btn" data-pct="50">50%</button>
+              <button type="button" class="pct-btn" data-pct="75">75%</button>
+              <button type="button" class="pct-btn" data-pct="100">Max</button>
             </div>
-
-            <!-- Zone label -->
-            <div class="zone-label anim-item" id="zoneLabel">✅ Weekly viable</div>
           </div>
 
-          <!-- 1-year projection card -->
+          <!-- 1-year projection -->
           <div class="proj-big-card anim-item" id="projBigCard">
             <div style="font-size:10px;color:var(--text-secondary);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">After 1 year</div>
-            <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:5px">
-              <div style="font-size:26px;font-weight:800;color:var(--green);line-height:1" id="projBigTon">≈ 0 TON</div>
-            </div>
-            <div class="proj-breakdown" id="projBreakdown" style="margin-bottom:5px">
-              $0 invested · +$0 yield
-            </div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.3);line-height:1.4" id="projTonDisclaimer">
-              Fetching live TON/USD rate…
-            </div>
+            <div style="font-size:26px;font-weight:800;color:var(--text-secondary);line-height:1;margin-bottom:6px" id="projBigTon">≈ — TON</div>
+            <div class="proj-breakdown" id="projBreakdown" style="margin-bottom:5px">$0 invested · +$0 yield (~5.4% APY)</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.35);line-height:1.4" id="projTonDisclaimer">Fetching rate…</div>
           </div>
 
         </div>
@@ -2476,6 +2460,8 @@
          SHARED WALLET STATE
       ══════════════════════════════════════════════════════ */
 
+      window.gramityState = window.gramityState || {};
+
       var wiz = {
         tonAddress:     '',
         tonConnected:   false,
@@ -2490,6 +2476,10 @@
         sameWallet:     true,
         withdrawAddress: '',
       };
+
+      function syncGramityWalletBalance() {
+        window.gramityState.walletBalance = wiz.usdtBalance || 0;
+      }
 
       /* ── TonConnect UI ── */
       var tonConnectUI = null;
@@ -2595,15 +2585,16 @@
             if (price && price > 0) {
               TON_USD_PRICE = price;
               TON_PRICE_FETCHED_AT = now;
+              window.gramityState.tonPrice = price;
               return TON_USD_PRICE;
             }
-            return TON_USD_PRICE || 3.5;
-          }).catch(function () { return TON_USD_PRICE || 3.5; });
+            return TON_USD_PRICE || null;
+          }).catch(function () { return TON_USD_PRICE || null; });
       }
 
       // Prefetch price on page load; refresh projection when ready
       fetchTonPrice(true).then(function () {
-        if (typeof refreshProjectionCard === 'function') refreshProjectionCard();
+        if (typeof refreshStep2Projection === 'function') refreshStep2Projection();
       });
 
       /* ── TON address normalization (raw 0:hex ↔ EQ) ── */
@@ -2849,6 +2840,7 @@
           listEl.innerHTML = result.items.slice(0, 6).map(renderBalRow).join('');
         }
         wiz.usdtBalance = result.usdtBalance;
+        syncGramityWalletBalance();
         if (typeof initSlider7 === 'function') initSlider7();
         return result;
       }
@@ -3129,6 +3121,7 @@
         wiz.totalUsdBalance  = 0;
         wiz.usdtBalance      = 0;
         wiz.demoMode         = false;
+        syncGramityWalletBalance();
 
         document.getElementById('scanResults').style.display = 'none';
         document.getElementById('tonConnectInput').style.display = 'none';
@@ -3151,253 +3144,256 @@
       });
 
       /* ══════════════════════════════════════════════════════
-         WIZARD STEP 2 — DCA Slider
+         WIZARD STEP 2 — Invest into DCA
       ══════════════════════════════════════════════════════ */
 
-      var MIN_DCA              = 10;
-      var DEMO_MODE_THRESHOLD  = 10;
-      var FALLBACK_MAX         = 2000;
-      var FALLBACK_DEFAULT     = 500;
-      var DEMO_TRY_AMOUNT      = 5;
-      var GAS_PER_CYCLE        = 2.45;
+      var MIN_DCA          = 10;
+      var AMOUNT_MAX       = 2000;
+      var AMOUNT_STEP      = 5;
+      var DEMO_AMOUNT      = 5;
+      var LIVE_DEFAULT     = 500;
 
-      function getSliderStep(usdtBalance) {
-        return (usdtBalance || 0) < 100 ? 5 : 10;
+      var step2Mode        = 'demo';
+      var step2Amount      = LIVE_DEFAULT;
+      var sliderEl         = document.getElementById('amountSlider');
+      var amountInputEl    = document.getElementById('amountInput');
+
+      function getWalletBalance() {
+        if (window.gramityState.walletBalance != null && !isNaN(window.gramityState.walletBalance)) {
+          return window.gramityState.walletBalance;
+        }
+        return wiz.usdtBalance || 0;
       }
 
       function cyclesPerYear(freq) {
         return { daily: 365, weekly: 52, monthly: 12 }[freq] || 52;
       }
 
-      var sliderEl  = document.getElementById('amountSlider');
-      var sliderMax = FALLBACK_MAX;
-
-      function isWalletConnected() {
-        return wiz.tonConnected || wiz.evmConnected;
+      function snapAmount(val) {
+        var n = Math.round(parseFloat(val) / AMOUNT_STEP) * AMOUNT_STEP;
+        return Math.max(MIN_DCA, Math.min(AMOUNT_MAX, n));
       }
 
-      function isInsufficientUsdt() {
-        var bal = wiz.usdtBalance || 0;
-        return isWalletConnected() && bal < DEMO_MODE_THRESHOLD && !wiz.demoMode;
+      function getStep2Amount() {
+        return step2Mode === 'demo' ? DEMO_AMOUNT : step2Amount;
       }
 
-      function getSliderMax() {
-        var bal = wiz.usdtBalance || 0;
-        if (bal >= MIN_DCA) {
-          var step = getSliderStep(bal);
-          return Math.max(MIN_DCA, Math.floor(bal / step) * step);
+      function calcStep2Projection(amount, freq, tonPrice) {
+        var totalInvested = amount * cyclesPerYear(freq);
+        var yieldUSD = totalInvested * 0.054;
+        var tonAmount = null;
+        if (tonPrice && tonPrice > 0) {
+          tonAmount = (totalInvested + yieldUSD) / tonPrice;
         }
-        return FALLBACK_MAX;
+        return { totalInvested: totalInvested, yieldUSD: yieldUSD, tonAmount: tonAmount };
       }
 
-      function getZone(amount) {
-        if (amount < 30)   return { color: '#ef4444', label: '⚠️ Высокий % gas — рекомендуем Monthly' };
-        if (amount < 100)  return { color: '#f59e0b', label: '💡 Подходит для Monthly/Weekly' };
-        if (amount < 600)  return { color: '#4a8aff', label: '✅ Weekly viable' };
-        return               { color: '#10b981', label: '🚀 Optimal range' };
-      }
+      function setStep2Mode(mode) {
+        step2Mode = mode;
+        wiz.demoMode = mode === 'demo';
 
-      function snapToStep(val, step, min, max) {
-        var snapped = Math.round(val / step) * step;
-        return Math.max(min, Math.min(snapped, max));
-      }
+        document.getElementById('modeTabDemo').classList.toggle('active', mode === 'demo');
+        document.getElementById('modeTabLive').classList.toggle('active', mode === 'live');
 
-      function formatUsdtChip(val) {
-        if (val >= 100) return '$' + Math.floor(val) + ' USDT available';
-        return '$' + val.toFixed(2).replace(/\.?0+$/, '') + ' USDT available';
-      }
+        var amountSection = document.getElementById('dcaAmountSection');
+        var banner = document.getElementById('dcaMinBanner');
+        var bal = getWalletBalance();
 
-      function setDcaSectionVisibility(insufficient) {
-        var section = document.getElementById('dcaSliderSection');
-        var lowCard = document.getElementById('dcaLowBalanceCard');
-        if (section) section.style.display = insufficient ? 'none' : 'block';
-        if (lowCard) lowCard.style.display = insufficient ? 'flex' : 'none';
-      }
-
-      function updateBalanceChip() {
-        var dot   = document.getElementById('dcaChipDot');
-        var label = document.getElementById('dcaBalanceLabel');
-        var hint  = document.getElementById('connectHintCard');
-        var usdt  = wiz.usdtBalance || 0;
-        var connected = isWalletConnected();
-
-        if (wiz.demoMode) {
-          dot.className = 'chip-dot chip-dot-demo';
-          label.textContent = 'Demo mode · $' + FALLBACK_MAX.toLocaleString() + ' limit';
-          if (hint) hint.style.display = connected ? 'none' : 'flex';
-        } else if (connected) {
-          dot.className = 'chip-dot ' + (wiz.tonConnected ? 'chip-dot-ton' : 'chip-dot-evm');
-          label.textContent = formatUsdtChip(usdt);
-          if (hint) hint.style.display = 'none';
+        if (mode === 'demo') {
+          amountSection.style.display = 'none';
+          banner.style.display = 'none';
         } else {
-          dot.className = 'chip-dot chip-dot-demo';
-          label.textContent = 'Demo mode · $' + FALLBACK_MAX.toLocaleString() + ' limit';
-          if (hint) hint.style.display = 'flex';
+          amountSection.style.display = 'block';
+          banner.style.display = bal < MIN_DCA ? 'block' : 'none';
+        }
+
+        updateStep2UI();
+      }
+
+      function setStep2Amount(val) {
+        step2Amount = snapAmount(val);
+        if (sliderEl) sliderEl.value = String(step2Amount);
+        if (amountInputEl) amountInputEl.value = String(step2Amount);
+        wiz.amountPerCycle = getStep2Amount();
+        refreshStep2SliderTrack();
+        refreshStep2PctButtons();
+        refreshStep2Projection();
+        updateContinueBtn7();
+      }
+
+      function refreshStep2SliderTrack() {
+        if (!sliderEl) return;
+        var val = step2Amount;
+        var pct = ((val - MIN_DCA) / (AMOUNT_MAX - MIN_DCA)) * 100;
+        sliderEl.style.background =
+          'linear-gradient(to right, var(--accent) 0%, var(--accent) ' + pct.toFixed(1) +
+          '%, rgba(255,255,255,0.12) ' + pct.toFixed(1) + '%)';
+      }
+
+      function refreshStep2PctButtons() {
+        if (step2Mode !== 'live') return;
+        var bal = getWalletBalance();
+        var base = bal > 0 ? bal : AMOUNT_MAX;
+        document.querySelectorAll('#sliderPcts .pct-btn').forEach(function (btn) {
+          var target = snapAmount(parseInt(btn.dataset.pct, 10) / 100 * base);
+          btn.classList.toggle('pct-active', Math.abs(step2Amount - target) < AMOUNT_STEP);
+        });
+      }
+
+      function refreshStep2Projection() {
+        var amount = getStep2Amount();
+        var freq = wiz.frequency;
+        var tonPrice = window.gramityState.tonPrice || TON_USD_PRICE;
+        var p = calcStep2Projection(amount, freq, tonPrice);
+
+        var bigTonEl = document.getElementById('projBigTon');
+        var brkEl = document.getElementById('projBreakdown');
+        var priceEl = document.getElementById('projTonDisclaimer');
+
+        if (bigTonEl) {
+          bigTonEl.textContent = p.tonAmount != null
+            ? '≈ ' + Math.round(p.tonAmount).toLocaleString() + ' TON'
+            : '≈ — TON';
+        }
+        if (brkEl) {
+          brkEl.textContent =
+            '$' + Math.round(p.totalInvested).toLocaleString() + ' invested · +$' +
+            Math.round(p.yieldUSD).toLocaleString() + ' yield (~5.4% APY)';
+        }
+        if (priceEl) {
+          if (tonPrice && tonPrice > 0) {
+            priceEl.textContent = 'Live TON/USD: $' + tonPrice.toFixed(2);
+          } else {
+            priceEl.textContent = 'Fetching rate…';
+          }
         }
       }
 
       function updateContinueBtn7() {
         var btn = document.getElementById('btnWizardNext7');
-        var val = parseInt(sliderEl.value, 10) || 0;
-        var can = wiz.demoMode || val >= MIN_DCA;
+        var can = false;
+        if (step2Mode === 'demo') {
+          can = true;
+        } else {
+          var bal = getWalletBalance();
+          can = step2Amount >= MIN_DCA && bal >= MIN_DCA;
+        }
         btn.disabled = !can;
         btn.style.opacity = can ? '' : '0.4';
+        btn.style.pointerEvents = can ? '' : 'none';
       }
 
-      function applySliderConfig(isDemo) {
-        var bal = wiz.usdtBalance || 0;
-        var step = isDemo ? 5 : getSliderStep(bal);
-        var min = isDemo ? DEMO_TRY_AMOUNT : MIN_DCA;
-        sliderMax = isDemo ? FALLBACK_MAX : getSliderMax();
-
-        sliderEl.min = String(min);
-        sliderEl.step = String(step);
-        sliderEl.max = String(sliderMax);
-
-        var minTick = document.getElementById('sliderMinLabel');
-        if (minTick) minTick.textContent = '$' + min;
-        document.getElementById('sliderMaxLabel').textContent = '$' + sliderMax.toLocaleString();
-      }
-
-      function refreshSliderTrack() {
-        var val  = parseInt(sliderEl.value, 10) || FALLBACK_DEFAULT;
-        var min  = parseInt(sliderEl.min, 10);
-        var max  = parseInt(sliderEl.max, 10);
-        var zone = getZone(val);
-        var pct  = max <= min ? 100 : ((val - min) / (max - min) * 100);
-        sliderEl.style.background =
-          'linear-gradient(to right,' + zone.color + ' 0%,' + zone.color + ' ' + pct.toFixed(1) + '%,rgba(255,255,255,0.12) ' + pct.toFixed(1) + '%)';
-        var zl = document.getElementById('zoneLabel');
-        zl.textContent = zone.label;
-        zl.style.color  = zone.color;
-      }
-
-      function refreshProjectionCard() {
-        var slider = document.getElementById('amountSlider');
-        if (!slider) return;
-        var val  = parseInt(slider.value, 10) || FALLBACK_DEFAULT;
-        var freq = wiz.frequency;
-
-        fetchTonPrice(false).then(function (tonPrice) {
-          if (!tonPrice || tonPrice <= 0) tonPrice = 3.5;
-
-          var p = calcProjection(val, freq, APY);
-          var tonFromDca = p.invested / tonPrice;
-          var tonTotal   = p.total / tonPrice;
-
-          var bigTonEl = document.getElementById('projBigTon');
-          if (bigTonEl) bigTonEl.textContent = '≈ ' + Math.round(tonTotal).toLocaleString() + ' TON';
-
-          var brkEl = document.getElementById('projBreakdown');
-          if (brkEl) brkEl.textContent =
-            '$' + Math.round(p.invested).toLocaleString() + ' USDT invested · ' +
-            Math.round(tonFromDca).toLocaleString() + ' TON bought · +$' +
-            Math.round(p.yieldVal).toLocaleString() + ' yield';
-
-          var disclaimerEl = document.getElementById('projTonDisclaimer');
-          if (disclaimerEl) disclaimerEl.textContent =
-            'Live TON/USD: $' + tonPrice.toFixed(2) + ' (TonAPI) · each cycle USDT→TON at market rate';
-        });
-      }
-
-      function refreshPctButtons() {
-        var val = parseInt(sliderEl.value, 10) || FALLBACK_DEFAULT;
-        var step = parseInt(sliderEl.step, 10) || 5;
-        var min = parseInt(sliderEl.min, 10) || MIN_DCA;
-        document.querySelectorAll('.pct-btn').forEach(function (btn) {
-          var target = snapToStep(parseInt(btn.dataset.pct, 10) / 100 * sliderMax, step, min, sliderMax);
-          btn.classList.toggle('pct-active', Math.abs(val - target) < step);
-        });
-      }
-
-      function updateSliderUI() {
-        var val = parseInt(sliderEl.value, 10) || FALLBACK_DEFAULT;
-        var step = parseInt(sliderEl.step, 10) || 5;
-        var min = parseInt(sliderEl.min, 10) || MIN_DCA;
-        var max = parseInt(sliderEl.max, 10) || sliderMax;
-        val = snapToStep(val, step, min, max);
-        sliderEl.value = String(val);
-        wiz.amountPerCycle = val;
-        document.getElementById('sliderBigVal').textContent = '$' + val.toLocaleString();
-        refreshSliderTrack();
-        refreshProjectionCard();
-        refreshPctButtons();
+      function updateStep2UI() {
+        wiz.amountPerCycle = getStep2Amount();
+        refreshStep2SliderTrack();
+        refreshStep2PctButtons();
+        refreshStep2Projection();
         updateContinueBtn7();
       }
 
-      function enterDemoMode(amount) {
-        wiz.demoMode = true;
-        setDcaSectionVisibility(false);
-        applySliderConfig(true);
-        sliderEl.value = String(amount);
-        updateBalanceChip();
-        updateSliderUI();
+      function setStep2Frequency(freq) {
+        wiz.frequency = freq;
+        document.querySelectorAll('#freqTabs .freq-tab').forEach(function (tab) {
+          tab.classList.toggle('active', tab.dataset.freq === freq);
+        });
+        updateStep2UI();
+      }
+
+      function restoreStep2FromState() {
+        var saved = window.gramityState.step2;
+        if (!saved) return false;
+
+        setStep2Frequency(saved.frequency || 'weekly');
+        var savedAmt = saved.amount != null ? saved.amount : LIVE_DEFAULT;
+        step2Amount = savedAmt >= MIN_DCA ? snapAmount(savedAmt) : LIVE_DEFAULT;
+        if (sliderEl) sliderEl.value = String(step2Amount);
+        if (amountInputEl) amountInputEl.value = String(step2Amount);
+        setStep2Mode(saved.mode === 'live' ? 'live' : 'demo');
+        return true;
       }
 
       function initSlider7() {
-        var insufficient = isInsufficientUsdt();
-        setDcaSectionVisibility(insufficient);
-        updateBalanceChip();
+        syncGramityWalletBalance();
 
-        if (insufficient) {
-          updateContinueBtn7();
-          return;
-        }
+        fetchTonPrice(false).then(function (price) {
+          if (price && price > 0) {
+            window.gramityState.tonPrice = price;
+          }
+          refreshStep2Projection();
+        });
 
-        var connected = isWalletConnected();
-        var usdt = wiz.usdtBalance || 0;
-        if (connected && usdt >= MIN_DCA) wiz.demoMode = false;
-        var isDemo = wiz.demoMode || (!connected && usdt < MIN_DCA);
+        if (restoreStep2FromState()) return;
 
-        if (!connected && usdt < MIN_DCA) wiz.demoMode = true;
+        var bal = getWalletBalance();
+        var initialMode = bal >= MIN_DCA ? 'live' : 'demo';
 
-        applySliderConfig(isDemo);
-
-        if (isDemo) {
-          if (!parseInt(sliderEl.value, 10)) sliderEl.value = String(FALLBACK_DEFAULT);
-        } else if (usdt >= MIN_DCA) {
-          var step = getSliderStep(usdt);
-          var def = snapToStep(Math.min(usdt * 0.5, sliderMax), step, MIN_DCA, sliderMax);
-          sliderEl.value = String(def);
-        }
-
-        updateSliderUI();
+        setStep2Frequency('weekly');
+        step2Amount = LIVE_DEFAULT;
+        if (sliderEl) sliderEl.value = String(step2Amount);
+        if (amountInputEl) amountInputEl.value = String(step2Amount);
+        setStep2Mode(initialMode);
       }
 
-      document.getElementById('btnWizardBack7').addEventListener('click', function () { goTo(7); });
+      function saveStep2State() {
+        var amount = getStep2Amount();
+        var tonPrice = window.gramityState.tonPrice || TON_USD_PRICE || 0;
+        var p = calcStep2Projection(amount, wiz.frequency, tonPrice || null);
+
+        window.gramityState.step2 = {
+          mode: step2Mode,
+          frequency: wiz.frequency,
+          amount: amount,
+          totalInvested: p.totalInvested,
+          estimatedYield: p.yieldUSD,
+          tonPrice: tonPrice
+        };
+
+        wiz.demoMode = step2Mode === 'demo';
+        wiz.amountPerCycle = amount;
+      }
+
+      document.getElementById('btnWizardBack7').addEventListener('click', function () { goTo(6); });
       document.getElementById('btnWizardNext7').addEventListener('click', function () {
-        wiz.amountPerCycle = parseInt(sliderEl.value, 10) || FALLBACK_DEFAULT;
+        if (document.getElementById('btnWizardNext7').disabled) return;
+        saveStep2State();
         updateProjectionBox();
-        goTo(9);
+        goTo(8);
       });
 
-      document.getElementById('btnTryDemo5').addEventListener('click', function () {
-        enterDemoMode(DEMO_TRY_AMOUNT);
+      document.getElementById('modeTabDemo').addEventListener('click', function () {
+        setStep2Mode('demo');
       });
-      document.getElementById('btnContinueDemo').addEventListener('click', function () {
-        enterDemoMode(FALLBACK_DEFAULT);
+      document.getElementById('modeTabLive').addEventListener('click', function () {
+        setStep2Mode('live');
       });
 
-      /* Frequency tabs */
-      document.querySelectorAll('.freq-tab').forEach(function (tab) {
+      document.querySelectorAll('#freqTabs .freq-tab').forEach(function (tab) {
         tab.addEventListener('click', function () {
-          document.querySelectorAll('.freq-tab').forEach(function (t) { t.classList.remove('active'); });
-          tab.classList.add('active');
-          wiz.frequency = tab.dataset.freq;
-          updateSliderUI();
+          setStep2Frequency(tab.dataset.freq);
         });
       });
 
-      sliderEl.addEventListener('input', updateSliderUI);
+      if (sliderEl) {
+        sliderEl.addEventListener('input', function () {
+          setStep2Amount(sliderEl.value);
+        });
+      }
 
-      /* % preset buttons */
-      document.querySelectorAll('.pct-btn').forEach(function (btn) {
+      if (amountInputEl) {
+        amountInputEl.addEventListener('input', function () {
+          var raw = parseFloat(amountInputEl.value);
+          if (!isNaN(raw)) setStep2Amount(raw);
+        });
+        amountInputEl.addEventListener('blur', function () {
+          setStep2Amount(amountInputEl.value || MIN_DCA);
+        });
+      }
+
+      document.querySelectorAll('#sliderPcts .pct-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          var step = parseInt(sliderEl.step, 10) || 5;
-          var min = parseInt(sliderEl.min, 10) || MIN_DCA;
-          var target = snapToStep(parseInt(btn.dataset.pct, 10) / 100 * sliderMax, step, min, sliderMax);
-          sliderEl.value = String(target);
-          updateSliderUI();
+          var bal = getWalletBalance();
+          var base = bal > 0 ? bal : AMOUNT_MAX;
+          setStep2Amount(parseInt(btn.dataset.pct, 10) / 100 * base);
         });
       });
 
@@ -3405,7 +3401,7 @@
          WIZARD STEP 3 — Accumulate
       ══════════════════════════════════════════════════════ */
 
-      document.getElementById('btnWizardBack8').addEventListener('click', function () { goTo(8); });
+      document.getElementById('btnWizardBack8').addEventListener('click', function () { goTo(7); });
       document.getElementById('btnWizardNext8').addEventListener('click', function () { goTo(10); });
 
       function calcProjection(amount, freq, apy) {
@@ -3719,7 +3715,7 @@
       var _origAnimateSlide = animateSlide;
       animateSlide = function (index) {
         _origAnimateSlide(index);
-        if (index === 8) {
+        if (index === 7) {
           initSlider7();
         }
         if (index === 9) {
