@@ -126,7 +126,6 @@ function installTelegramOpenLinkPatch(): void {
 export function getMetaMaskConnectClient(): Promise<MetamaskConnectEVM> {
   if (!clientPromise) {
     installTelegramOpenLinkPatch();
-    const inTelegram = isInsideTelegramMiniApp();
     clientPromise = createEVMClient({
       dapp: {
         name: "Gramity",
