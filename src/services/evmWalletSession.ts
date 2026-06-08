@@ -10,7 +10,7 @@ export interface EvmWalletToken {
   name: string;
   balance: string;
   balanceUsd: number;
-  type: "NATIVE" | "ERC20";
+  type: "NATIVE" | "BEP20";
   icon: string;
 }
 
@@ -144,13 +144,14 @@ function parseAnkrAssets(
     .map((asset) => {
       const balance = asset.balance ?? "0";
       const balanceUsd = parseFloat(asset.balanceUsd ?? "0") || 0;
-      const tokenType = asset.tokenType === "NATIVE" ? "NATIVE" : "ERC20";
+      // Ankr labels BSC fungible tokens as "ERC20" — on BNB Chain that is BEP20.
+      const tokenType = asset.tokenType === "NATIVE" ? "NATIVE" : "BEP20";
       return {
         symbol: asset.tokenSymbol ?? "?",
         name: asset.tokenName ?? asset.tokenSymbol ?? "?",
         balance,
         balanceUsd,
-        type: tokenType as "NATIVE" | "ERC20",
+        type: tokenType as "NATIVE" | "BEP20",
         icon: asset.thumbnail ?? "",
       };
     })
@@ -173,6 +174,50 @@ function parseAnkrAssets(
   };
 }
 
+export async function fetchAnkrWalletBalances(
+  address: string,
+  sessionId = ""
+): Promise<EvmWalletBalancePayload> {
+  console.log(`[EVM-WALLET] Fetching balances... address=${address.slice(0, 10)}…`);
+
+  const res = await fetch("https://rpc.ankr.com/multichain", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      method: "ankr_getAccountBalance",
+        params: {
+          walletAddress: address,
+          blockchain: ["bsc"],
+          onlyWhitelisted: false,
+          nativeFirst: true,
+        },
+      id: 1,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Ankr HTTP ${res.status}`);
+  }
+
+  const data = (await res.json()) as {
+    error?: { message?: string };
+    result?: { assets?: AnkrAsset[] };
+  };
+
+  if (data.error) {
+    throw new Error(data.error.message ?? "Ankr RPC error");
+  }
+
+  const assets = data.result?.assets ?? [];
+  const walletBalance = parseAnkrAssets(sessionId, address, assets);
+
+  console.log(
+    `[EVM-WALLET] Balances loaded tokens=${walletBalance.tokens.length} totalUsd=${walletBalance.totalUsd.toFixed(2)}`
+  );
+  return walletBalance;
+}
+
 export async function fetchAndStoreEvmWalletBalances(
   sessionId: string,
   address: string
@@ -181,48 +226,13 @@ export async function fetchAndStoreEvmWalletBalances(
   if (!session) return null;
 
   updateEvmWalletSession(sessionId, { balanceStatus: "pending" });
-  console.log(`[EVM-WALLET] Fetching balances... address=${address.slice(0, 10)}…`);
 
   try {
-    const res = await fetch("https://rpc.ankr.com/multichain", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        method: "ankr_getAccountBalance",
-        params: {
-          walletAddress: address,
-          blockchain: ["bsc"],
-          onlyWhitelisted: false,
-        },
-        id: 1,
-      }),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Ankr HTTP ${res.status}`);
-    }
-
-    const data = (await res.json()) as {
-      error?: { message?: string };
-      result?: { assets?: AnkrAsset[] };
-    };
-
-    if (data.error) {
-      throw new Error(data.error.message ?? "Ankr RPC error");
-    }
-
-    const assets = data.result?.assets ?? [];
-    const walletBalance = parseAnkrAssets(sessionId, address, assets);
-
+    const walletBalance = await fetchAnkrWalletBalances(address, sessionId);
     updateEvmWalletSession(sessionId, {
       balanceStatus: "ready",
       walletBalance,
     });
-
-    console.log(
-      `[EVM-WALLET] Balances loaded tokens=${walletBalance.tokens.length} totalUsd=${walletBalance.totalUsd.toFixed(2)}`
-    );
     return walletBalance;
   } catch (err) {
     updateEvmWalletSession(sessionId, { balanceStatus: "failed" });

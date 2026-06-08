@@ -138,8 +138,8 @@ export function getMetaMaskConnectClient(): Promise<MetamaskConnectEVM> {
       },
       ui: {
         headless: true,
-        // Force MWP mobile deeplink in Telegram — extension path hangs in WebView
-        preferExtension: inTelegram ? false : !isMobileDevice(),
+        // Mobile: deeplink to MetaMask app. Desktop (incl. Telegram WebView): MWP relay → Chrome extension.
+        preferExtension: !isMobileDevice(),
       },
       mobile: {
         useDeeplink: true,
@@ -152,7 +152,7 @@ export function getMetaMaskConnectClient(): Promise<MetamaskConnectEVM> {
 
 /** Pre-open relay WebSocket before user taps Connect (helps MWP handshake in TMA). */
 export function warmMetaMaskConnectClient(): void {
-  if (isInsideTelegramMiniApp() && isMobileDevice()) {
+  if (isInsideTelegramMiniApp()) {
     void getMetaMaskConnectClient();
   }
 }

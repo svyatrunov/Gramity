@@ -471,6 +471,22 @@ app.get("/api/evm-wallet/status", async (req, res) => {
   }
 });
 
+app.get("/api/evm-wallet/balances", tgAuth, async (req, res) => {
+  try {
+    const address = String(req.query.address ?? "");
+    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+      res.status(400).json({ error: "Invalid EVM address" });
+      return;
+    }
+
+    const { fetchAnkrWalletBalances } = await import("./services/evmWalletSession.js");
+    const walletBalance = await fetchAnkrWalletBalances(address);
+    res.json(walletBalance);
+  } catch (err) {
+    res.status(502).json({ error: (err as Error).message });
+  }
+});
+
 app.post("/api/evm-wallet/connected", async (req, res) => {
   try {
     const { token, address, chainId } = req.body ?? {};

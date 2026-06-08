@@ -2864,7 +2864,8 @@
               : renderBalIcon('logo-metamask', null);
             return '<div class="balance-row">' +
               '<div class="bal-left">' + iconHtml +
-              '<div><div class="bal-name">' + t.symbol + '</div><div class="bal-chain">' + (payload.chain || 'bsc').toUpperCase() + '</div></div>' +
+              '<div><div class="bal-name">' + t.symbol + '</div><div class="bal-chain">' +
+                (t.type === 'NATIVE' ? 'BNB' : 'BEP20') + ' · BSC</div></div>' +
               '</div>' +
               '<div class="bal-right">' +
               '<div class="bal-amount">' + t.symbol + ': ' + t.balance + usdPart + '</div>' +
@@ -2876,6 +2877,15 @@
         wiz.usdtBalance = totalUsd;
         syncGramityWalletBalance();
         if (typeof initSlider7 === 'function') initSlider7();
+      }
+
+      function fetchEvmBalancesFromServer(address) {
+        return fetch('/api/evm-wallet/balances?address=' + encodeURIComponent(address), {
+          headers: { 'X-Telegram-Init-Data': initData },
+        }).then(function (r) {
+          if (!r.ok) return r.text().then(function (t) { throw new Error(t || String(r.status)); });
+          return r.json();
+        });
       }
 
       /* ── Shared: show scan results on step 1 ── */
@@ -2963,9 +2973,9 @@
         if (e.key === 'Enter') document.getElementById('btnScanTon').click();
       });
 
-      /* MetaMask connect — desktop extension or MetaMask in-app browser on mobile (no MWP relay) */
+      /* MetaMask connect — mobile: in-app browser; desktop: Chrome extension via MWP relay */
       window.addEventListener('gramity-metamask-ready', function () {
-        if (window.GramityMetaMask && window.GramityMetaMask.warm && !isMobileDevice()) {
+        if (window.GramityMetaMask && window.GramityMetaMask.warm) {
           window.GramityMetaMask.warm();
         }
       }, { once: true });
@@ -3010,6 +3020,29 @@
         });
       }
 
+      /** Desktop Telegram WebView has no window.ethereum — reach Chrome extension via MWP relay. */
+      function connectViaMwp(btn) {
+        var labelEl = btn.querySelector('div').children[0];
+        var hintEl = btn.querySelector('div').children[1];
+        if (labelEl) labelEl.textContent = 'Connecting via MetaMask…';
+        if (hintEl) hintEl.textContent = 'Approve in MetaMask extension popup';
+
+        if (!window.GramityMetaMask || !window.GramityMetaMask.connect) {
+          return Promise.reject(new Error('sdk_loading'));
+        }
+        return window.GramityMetaMask.connect().then(function (result) {
+          if (!result.accounts || !result.accounts.length) {
+            throw new Error('no_accounts');
+          }
+          return { accounts: result.accounts, provider: null };
+        });
+      }
+
+      function isAppBrowserTimeout(err) {
+        var msg = String(err && err.message || '');
+        return msg.indexOf('timeout') !== -1 || msg.indexOf('return to Telegram') !== -1;
+      }
+
       function connectViaMetaMaskApp(btn) {
         var labelEl = btn.querySelector('div').children[0];
         var hintEl = btn.querySelector('div').children[1];
@@ -3044,7 +3077,7 @@
               .then(function (r) { return r.ok ? r.json() : null; })
               .then(function (data) {
                 if (data && data.status === 'connected' && data.evmAddress) {
-                  if (data.walletBalance && data.walletBalance.tokens) {
+                  if (data.balanceStatus === 'ready' && data.walletBalance) {
                     cleanup();
                     resolve({
                       accounts: [data.evmAddress],
@@ -3112,10 +3145,14 @@
           return;
         }
 
-        Promise.all(EVM_CHAINS.map(function (ch) { return fetchEvmChain(ch, accounts[0]); }))
-          .then(function (results) {
-            var all = [].concat.apply([], results);
-            showScanResults(all);
+        fetchEvmBalancesFromServer(accounts[0])
+          .then(function (payload) {
+            showEvmWalletBalances(payload);
+          })
+          .catch(function (err) {
+            console.error('[MetaMask] balance fetch failed', err);
+            listEl.innerHTML = renderEmpty('Could not load balances');
+            document.getElementById('scanTotalValue').textContent = 'Total: $0.00';
           });
       }
 
@@ -3129,19 +3166,30 @@
           ? 'Connecting…'
           : shouldUseMetaMaskAppBrowser()
             ? 'Opening MetaMask…'
-            : 'Connecting…';
+            : 'Connecting via MetaMask…';
         if (hintEl) {
-          hintEl.textContent = shouldUseMetaMaskAppBrowser()
-            ? 'Approve in MetaMask app, then switch back to Telegram'
-            : 'Approve in MetaMask, then return to Telegram';
+          hintEl.textContent = getExtensionProvider()
+            ? 'Approve in MetaMask extension popup'
+            : shouldUseMetaMaskAppBrowser()
+              ? 'Approve in MetaMask app, then switch back to Telegram'
+              : 'Approve in MetaMask extension popup (Chrome)';
         }
         btn.style.borderColor = '';
 
-        var attempt = getExtensionProvider()
-          ? connectViaExtension(btn)
-          : shouldUseMetaMaskAppBrowser()
-            ? connectViaMetaMaskApp(btn)
-            : connectViaExtension(btn);
+        var attempt;
+        if (getExtensionProvider()) {
+          attempt = connectViaExtension(btn);
+        } else if (shouldUseMetaMaskAppBrowser()) {
+          attempt = connectViaMetaMaskApp(btn).catch(function (err) {
+            if (isAppBrowserTimeout(err) && window.GramityMetaMask && window.GramityMetaMask.connect) {
+              console.warn('[MetaMask] App browser failed, falling back to extension relay');
+              return connectViaMwp(btn);
+            }
+            throw err;
+          });
+        } else {
+          attempt = connectViaMwp(btn);
+        }
 
         attempt.then(function (res) {
           btn.disabled = false;
