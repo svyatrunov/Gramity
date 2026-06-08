@@ -1,13 +1,4 @@
-import {
-  BrowserProvider,
-  Contract,
-  AbiCoder,
-  Signature,
-  getBytes,
-  MaxUint256,
-  type Signer,
-  type Eip1193Provider,
-} from "ethers";
+import { BrowserProvider, Contract, AbiCoder, Signature, getBytes, MaxUint256, type Signer } from "ethers";
 import type { Quote } from "@ston-fi/omniston-sdk";
 import {
   getOmniston,
@@ -17,15 +8,15 @@ import {
 } from "./omnistonClient";
 import { generateHtlcSecret, generateHtlcHashlock } from "./htlc";
 import { ERC20_ABI, type ChainConfig, type TokenConfig } from "./chains";
+import {
+  connectMetaMaskWallet,
+  getMetaMaskConnectProvider,
+  getBrowserExtensionProvider,
+} from "./metamaskConnect";
 
-declare global {
-  interface Window {
-    ethereum?: Eip1193Provider & {
-      isMetaMask?: boolean;
-      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-    };
-  }
-}
+type Eip1193Provider = {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+};
 
 export class WalletError extends Error {
   constructor(
@@ -38,7 +29,7 @@ export class WalletError extends Error {
 }
 
 export function hasMetaMask(): boolean {
-  return typeof window.ethereum !== "undefined";
+  return getBrowserExtensionProvider() !== null || typeof window !== "undefined";
 }
 
 export async function connectMetaMask(): Promise<{
@@ -47,11 +38,31 @@ export async function connectMetaMask(): Promise<{
   address: string;
   chainId: number;
 }> {
-  if (!window.ethereum) {
-    throw new WalletError("MetaMask не найден. Откройте страницу в браузере с расширением.");
+  let eip1193: Eip1193Provider | null = getBrowserExtensionProvider();
+
+  if (!eip1193) {
+    try {
+      await connectMetaMaskWallet();
+      eip1193 = (await getMetaMaskConnectProvider()) as Eip1193Provider;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.toLowerCase().includes("reject") || msg.includes("4001")) {
+        throw new WalletError("Подключение отклонено", "USER_REJECTED");
+      }
+      throw new WalletError(
+        "Не удалось открыть MetaMask. Подтвердите подключение в приложении MetaMask.",
+        "CONNECT_FAILED"
+      );
+    }
   }
 
-  const provider = new BrowserProvider(window.ethereum);
+  if (!eip1193) {
+    throw new WalletError(
+      "MetaMask недоступен. Установите приложение или откройте Gramity в браузере с расширением."
+    );
+  }
+
+  const provider = new BrowserProvider(eip1193);
   await provider.send("eth_requestAccounts", []);
   const signer = await provider.getSigner();
   const address = await signer.getAddress();
@@ -59,13 +70,19 @@ export async function connectMetaMask(): Promise<{
   return { provider, signer, address, chainId: Number(network.chainId) };
 }
 
+async function getActiveProvider(): Promise<Eip1193Provider> {
+  const ext = getBrowserExtensionProvider();
+  if (ext) return ext;
+  return (await getMetaMaskConnectProvider()) as Eip1193Provider;
+}
+
 export async function switchChain(chain: ChainConfig): Promise<void> {
-  if (!window.ethereum) throw new WalletError("MetaMask не найден");
+  const ethereum = await getActiveProvider();
 
   const hexId = "0x" + chain.chainId.toString(16);
 
   try {
-    await window.ethereum.request({
+    await ethereum.request({
       method: "wallet_switchEthereumChain",
       params: [{ chainId: hexId }],
     });

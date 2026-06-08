@@ -7,6 +7,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script src="https://unpkg.com/@tonconnect/ui@2/dist/tonconnect-ui.min.js"></script>
+  <script type="module" src="/app/assets/metamask-connect.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1669,7 +1670,7 @@
               <span class="logo-circle logo-circle-lg"><img src="/app/logos/metamask.svg" alt="" class="wallet-logo-img" width="28" height="28"/></span>
               <div style="flex:1;text-align:left">
                 <div>Connect MetaMask</div>
-                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">ETH · Base · BNB · Polygon</div>
+                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Opens MetaMask app · ETH · Base · BNB · Polygon</div>
               </div>
             </button>
 
@@ -2680,54 +2681,111 @@
         if (e.key === 'Enter') document.getElementById('btnScanTon').click();
       });
 
-      /* MetaMask connect */
-      function getMetaMaskProvider() {
+      /* MetaMask connect — extension (desktop) or MetaMask Connect SDK (mobile deeplink) */
+      function getExtensionProvider() {
         if (!window.ethereum) return null;
-        // Multiple wallets: providers array (EIP-5749)
         if (window.ethereum.providers && window.ethereum.providers.length) {
           return window.ethereum.providers.find(function (p) {
             return p.isMetaMask && !p.isPhantom && !p.isCoinbaseWallet;
           }) || null;
         }
-        // Single wallet: must be MetaMask, not Phantom pretending to be MetaMask
         if (window.ethereum.isMetaMask && !window.ethereum.isPhantom) {
           return window.ethereum;
         }
         return null;
       }
 
+      function connectViaExtension(btn) {
+        var mmProvider = getExtensionProvider();
+        if (!mmProvider) return Promise.reject(new Error('no_extension'));
+        return mmProvider.request({ method: 'eth_requestAccounts' }).then(function (accounts) {
+          return { accounts: accounts, provider: mmProvider };
+        });
+      }
+
+      function connectViaMetaMaskSdk(btn) {
+        function tryConnect() {
+          if (!window.GramityMetaMask) {
+            return Promise.reject(new Error('sdk_loading'));
+          }
+          return window.GramityMetaMask.connect().then(function (result) {
+            return window.GramityMetaMask.getProvider().then(function (provider) {
+              return { accounts: result.accounts, provider: provider };
+            });
+          });
+        }
+        return tryConnect().catch(function (err) {
+          if (err && err.message !== 'sdk_loading') throw err;
+          return new Promise(function (resolve, reject) {
+            var done = false;
+            function finish(fn) {
+              if (done) return;
+              done = true;
+              fn();
+            }
+            window.addEventListener('gramity-metamask-ready', function onReady() {
+              window.removeEventListener('gramity-metamask-ready', onReady);
+              tryConnect().then(function (r) { finish(function () { resolve(r); }); })
+                .catch(function (e) { finish(function () { reject(e); }); });
+            });
+            setTimeout(function () {
+              finish(function () { reject(new Error('sdk_loading')); });
+            }, 8000);
+          });
+        });
+      }
+
+      function handleMetaMaskAccounts(btn, accounts, provider) {
+        if (!accounts || !accounts.length) return;
+        wiz.evmAddress   = accounts[0];
+        wiz.evmConnected = true;
+
+        var scanBox = document.getElementById('scanResults');
+        var listEl  = document.getElementById('scanAssetsList');
+        scanBox.style.display = 'block';
+        document.getElementById('scanTotalValue').textContent = '…';
+        listEl.innerHTML = renderSkeletons();
+
+        var short = accounts[0].slice(0, 6) + '…' + accounts[0].slice(-4);
+        btn.querySelector('div').children[0].textContent = 'Connected: ' + short;
+        btn.style.borderColor = '';
+
+        Promise.all(EVM_CHAINS.map(function (ch) { return fetchEvmChain(ch, accounts[0]); }))
+          .then(function (results) {
+            var all  = [].concat.apply([], results);
+            var totalUsd = 0;
+            all.forEach(function (it) { if (it.usd) totalUsd += parseFloat(it.usd); });
+            showScanResults(all, totalUsd);
+          });
+      }
+
       document.getElementById('btnConnectMM').addEventListener('click', function () {
         var btn = this;
-        var mmProvider = getMetaMaskProvider();
-        if (!mmProvider) {
+        var labelEl = btn.querySelector('div').children[0];
+
+        labelEl.textContent = getExtensionProvider() ? 'Connecting…' : 'Opening MetaMask…';
+        btn.style.borderColor = '';
+
+        var attempt = getExtensionProvider()
+          ? connectViaExtension(btn)
+          : connectViaMetaMaskSdk(btn);
+
+        attempt.then(function (res) {
+          handleMetaMaskAccounts(btn, res.accounts, res.provider);
+        }).catch(function (err) {
+          console.error('[MetaMask]', err);
           btn.style.borderColor = '#ff4a6e';
-          btn.querySelector('div').children[0].textContent = 'MetaMask not found';
-          return;
-        }
-        btn.querySelector('div').children[0].textContent = 'Connecting…';
-        mmProvider.request({ method: 'eth_requestAccounts' }).then(function (accounts) {
-          if (!accounts || !accounts.length) return;
-          wiz.evmAddress   = accounts[0];
-          wiz.evmConnected = true;
-
-          var scanBox = document.getElementById('scanResults');
-          var listEl  = document.getElementById('scanAssetsList');
-          scanBox.style.display = 'block';
-          document.getElementById('scanTotalValue').textContent = '…';
-          listEl.innerHTML = renderSkeletons();
-
-          var short = accounts[0].slice(0, 6) + '…' + accounts[0].slice(-4);
-          btn.querySelector('div').children[0].textContent = 'Connected: ' + short;
-
-          Promise.all(EVM_CHAINS.map(function (ch) { return fetchEvmChain(ch, accounts[0]); }))
-            .then(function (results) {
-              var all  = [].concat.apply([], results);
-              var totalUsd = 0;
-              all.forEach(function (it) { if (it.usd) totalUsd += parseFloat(it.usd); });
-              showScanResults(all, totalUsd);
-            });
-        }).catch(function () {
-          btn.querySelector('div').children[0].textContent = 'Connect MetaMask';
+          if (err && err.message === 'sdk_loading') {
+            labelEl.textContent = 'Loading MetaMask…';
+          } else if (err && err.message === 'no_extension') {
+            labelEl.textContent = 'Open MetaMask app to connect';
+          } else {
+            labelEl.textContent = 'Connection cancelled';
+          }
+          setTimeout(function () {
+            labelEl.textContent = 'Connect MetaMask';
+            btn.style.borderColor = '';
+          }, 4000);
         });
       });
 
