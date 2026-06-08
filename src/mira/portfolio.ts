@@ -90,6 +90,9 @@ export async function buildMiraPortfolio(telegramId: number) {
     ? undefined
     : `Top up agent wallet with $${nextCycleRequiresUsdt} USDT + ${GAS_RESERVE_TON} TON gas`;
 
+  const status = plan.active ? "active" : "paused";
+  const canRunNow = usdtBalance >= Number(plan.usdt_amount);
+
   return {
     telegram_id: telegramId,
     total_usd: totalUsd,
@@ -99,11 +102,20 @@ export async function buildMiraPortfolio(telegramId: number) {
     next_cycle_requires_usdt: nextCycleRequiresUsdt,
     next_cycle_requires_gas_ton: GAS_RESERVE_TON,
     can_run_next_cycle: canRunNextCycle,
+    can_run_now: canRunNow,
     top_up_hint: topUpHint,
     lp_value_usd: lpValue,
     total_invested_usd: totalInvested,
+    total_invested_usdt: totalInvested,
     cycles_done: plan.cycles_completed,
+    cycles_completed: plan.cycles_completed,
     next_cycle_at: plan.next_execution_at,
+    next_cycle: plan.active ? plan.next_execution_at : null,
+    frequency: plan.frequency,
+    amount_usdt: Number(plan.usdt_amount),
+    status,
+    agent_wallet_balance_usdt: usdtBalance,
+    withdrawal_address: maskAddress(plan.ton_address),
     withdrawal_address_masked: maskAddress(plan.ton_address),
     agent_wallet_address: depositAddress,
     quick_mode: plan.demo_mode,

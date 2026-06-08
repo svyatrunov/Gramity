@@ -126,6 +126,20 @@ CREATE TABLE IF NOT EXISTS mira_context_tokens (
   created_at   TIMESTAMPTZ DEFAULT now(),
   consumed_at  TIMESTAMPTZ
 );
+
+CREATE TABLE IF NOT EXISTS cycles (
+  id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  telegram_id         TEXT        NOT NULL,
+  status              TEXT        NOT NULL DEFAULT 'pending',
+  amount_usdt         NUMERIC     NOT NULL,
+  ton_received        NUMERIC,
+  lp_tokens_received  NUMERIC,
+  tx_swap             TEXT,
+  tx_stake            TEXT,
+  tx_lp               TEXT,
+  error_message       TEXT,
+  executed_at         TIMESTAMPTZ DEFAULT NOW()
+);
 `;
 
 export async function initDb(): Promise<void> {
@@ -167,6 +181,20 @@ export interface Execution {
   tx_stake: string | null;
   tx_lp: string | null;
   status: "success" | "failed" | "partial";
+}
+
+export interface Cycle {
+  id: string;
+  telegram_id: string;
+  status: "pending" | "running" | "completed" | "failed";
+  amount_usdt: number;
+  ton_received: number | null;
+  lp_tokens_received: number | null;
+  tx_swap: string | null;
+  tx_stake: string | null;
+  tx_lp: string | null;
+  error_message: string | null;
+  executed_at: string;
 }
 
 // ─── Plan queries ─────────────────────────────────────────────────────────────
@@ -307,12 +335,114 @@ export async function deletePlan(telegramId: number): Promise<void> {
   await pool.query("DELETE FROM plans WHERE telegram_id = $1", [telegramId]);
 }
 
+/** Removes agentic deposit wallet(s) for a user — next deposit creates a fresh address. */
+export async function deleteUserWallets(telegramId: number): Promise<void> {
+  await getPool().query("DELETE FROM user_wallets WHERE telegram_id = $1", [telegramId]);
+}
+
+/** Full account reset: strategy, executions, deposit wallet(s), Mira handoff tokens. */
+export async function deleteUserAccount(telegramId: number): Promise<void> {
+  await deletePlan(telegramId);
+  await deleteUserWallets(telegramId);
+  await getPool().query("DELETE FROM mira_context_tokens WHERE telegram_id = $1", [
+    telegramId,
+  ]);
+}
+
 export async function getTotalInvested(planId: string): Promise<number> {
   const { rows } = await getPool().query<{ total: string }>(
     "SELECT COALESCE(SUM(usdt_spent), 0) AS total FROM executions WHERE plan_id = $1 AND status = 'success'",
     [planId]
   );
   return Number(rows[0]?.total ?? 0);
+}
+
+// ─── Cycle queries (Mira history) ─────────────────────────────────────────────
+
+export async function insertCycle(
+  telegramId: number,
+  amountUsdt: number
+): Promise<string> {
+  const { rows } = await getPool().query<{ id: string }>(
+    `INSERT INTO cycles (telegram_id, status, amount_usdt)
+     VALUES ($1, 'running', $2)
+     RETURNING id`,
+    [String(telegramId), amountUsdt]
+  );
+  return rows[0].id;
+}
+
+export async function updateCycle(
+  cycleId: string,
+  updates: Partial<
+    Pick<
+      Cycle,
+      | "status"
+      | "ton_received"
+      | "lp_tokens_received"
+      | "tx_swap"
+      | "tx_stake"
+      | "tx_lp"
+      | "error_message"
+    >
+  >
+): Promise<void> {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  let i = 1;
+
+  for (const [key, val] of Object.entries(updates)) {
+    fields.push(`${key} = $${i++}`);
+    values.push(val);
+  }
+  if (fields.length === 0) return;
+
+  values.push(cycleId);
+  await getPool().query(
+    `UPDATE cycles SET ${fields.join(", ")} WHERE id = $${i}`,
+    values
+  );
+}
+
+export async function getCompletedCycles(
+  telegramId: number,
+  limit = 5
+): Promise<Cycle[]> {
+  const { rows } = await getPool().query<Cycle>(
+    `SELECT * FROM cycles
+     WHERE telegram_id = $1 AND status = 'completed'
+     ORDER BY executed_at DESC
+     LIMIT $2`,
+    [String(telegramId), limit]
+  );
+  return rows.map((row) => ({
+    ...row,
+    amount_usdt: Number(row.amount_usdt),
+    ton_received: row.ton_received != null ? Number(row.ton_received) : null,
+    lp_tokens_received:
+      row.lp_tokens_received != null ? Number(row.lp_tokens_received) : null,
+  }));
+}
+
+export async function getCycleStats(telegramId: number): Promise<{
+  total_cycles: number;
+  total_invested_usdt: number;
+}> {
+  const { rows } = await getPool().query<{
+    total_cycles: string;
+    total_invested_usdt: string;
+  }>(
+    `SELECT
+       COUNT(*)::int AS total_cycles,
+       COALESCE(SUM(amount_usdt), 0) AS total_invested_usdt
+     FROM cycles
+     WHERE telegram_id = $1 AND status = 'completed'`,
+    [String(telegramId)]
+  );
+  return {
+    total_cycles: Number(rows[0]?.total_cycles ?? 0),
+    total_invested_usdt: Number(rows[0]?.total_invested_usdt ?? 0),
+  };
 }
 
 // ─── Multi-wallet queries ──────────────────────────────────────────────────────

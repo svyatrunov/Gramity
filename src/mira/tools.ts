@@ -2,6 +2,8 @@ import {
   getPlanByTelegramId,
   updatePlan,
   getPool,
+  getCompletedCycles,
+  getCycleStats,
 } from "../db/index.js";
 import {
   MIN_DCA_USDT,
@@ -13,10 +15,18 @@ import {
   getNextPlanExecutionDate,
   formatPlanFrequency,
 } from "../constants/dca.js";
-import { createUserWallet } from "../services/userWallet.js";
-import { RAILWAY_PUBLIC_URL } from "../config.js";
+import { executeDcaCycle } from "../execution/cycle.js";
+import { createUserWallet, getUserWalletContext } from "../services/userWallet.js";
+import { getUsdtBalance, getLastTxHash } from "../services/tonapi.js";
+import { sendJettonTransfer } from "../services/jetton.js";
+import { RAILWAY_PUBLIC_URL, USDT_ADDRESS, USDT_DECIMALS } from "../config.js";
 import { buildMiraPortfolio } from "./portfolio.js";
 import { sanitizeForMira, maskAddress, parseTelegramId } from "./utils.js";
+import { notify } from "../bot/notifications.js";
+
+function tonTxUrl(hash: string | null | undefined): string | undefined {
+  return hash ? `https://tonviewer.com/transaction/${hash}` : undefined;
+}
 
 const STRATEGY_MAP: Record<string, "full" | "stake_only" | "accumulate"> = {
   "TON+LP": "full",
@@ -165,6 +175,234 @@ export async function toolPauseStrategy(args: Record<string, unknown>) {
   });
 }
 
+export async function toolRunNow(args: Record<string, unknown>) {
+  const telegramId = parseTelegramId(args.telegram_id);
+  if (telegramId === null) throw new Error("telegram_id required");
+
+  const plan = await getPlanByTelegramId(telegramId);
+  if (!plan) throw new Error("No plan found");
+
+  const amountUsdt =
+    args.amount_usdt != null ? Number(args.amount_usdt) : plan.usdt_amount;
+
+  if (args.amount_usdt != null) {
+    if (isNaN(amountUsdt) || amountUsdt < MIN_DCA_USDT) {
+      throw new Error(`amount_usdt must be >= ${MIN_DCA_USDT}`);
+    }
+  } else if (!amountUsdt || isNaN(amountUsdt)) {
+    throw new Error("No amount_usdt in strategy — set via update_amount or create_strategy");
+  }
+
+  const walletCtx = await getUserWalletContext(telegramId);
+  const agentWalletBalance = await getUsdtBalance(walletCtx.address);
+
+  if (agentWalletBalance < amountUsdt) {
+    return sanitizeForMira({
+      success: false,
+      error: "Insufficient balance",
+      required: amountUsdt,
+      available: agentWalletBalance,
+      top_up_address: walletCtx.address,
+    });
+  }
+
+  const result = await executeDcaCycle(plan, amountUsdt);
+  const { bot } = await import("../bot/index.js");
+
+  if (result.status !== "success") {
+    const errMsg = result.failedStep
+      ? `Failed at ${result.failedStep}`
+      : "Cycle failed";
+    await bot.api
+      .sendMessage(telegramId, notify.cycleFailed(errMsg), { parse_mode: "Markdown" })
+      .catch(() => {});
+    return sanitizeForMira({
+      success: false,
+      error: errMsg,
+      amount_usdt: amountUsdt,
+      tx_swap: tonTxUrl(result.txSwap),
+      tx_stake: tonTxUrl(result.txStake),
+      tx_lp: tonTxUrl(result.txLp),
+    });
+  }
+
+  await bot.api
+    .sendMessage(
+      telegramId,
+      notify.cycleComplete({
+        amountUsdt,
+        tonAmount: result.tonReceived,
+        tsTonAmount: result.tstonReceived,
+        lpTokensAdded: result.lpTokensAdded,
+        txSwap: result.txSwap,
+        txStake: result.txStake,
+        txLp: result.txLp,
+        cyclesDone: plan.cycles_completed + 1,
+        totalCycles: plan.max_cycles,
+      }),
+      { parse_mode: "Markdown", link_preview_options: { is_disabled: true } }
+    )
+    .catch(() => {});
+
+  return sanitizeForMira({
+    success: true,
+    amount_usdt: amountUsdt,
+    tx_swap: tonTxUrl(result.txSwap),
+    tx_stake: tonTxUrl(result.txStake),
+    tx_lp: tonTxUrl(result.txLp),
+    lp_tokens_sent_to: maskAddress(plan.ton_address),
+  });
+}
+
+export async function toolWithdraw(args: Record<string, unknown>) {
+  const telegramId = parseTelegramId(args.telegram_id);
+  if (telegramId === null) throw new Error("telegram_id required");
+
+  const plan = await getPlanByTelegramId(telegramId);
+  if (!plan) throw new Error("No plan found");
+
+  const newAddress =
+    args.withdrawal_address ?? args.new_address ?? args.to_address;
+  if (newAddress != null && String(newAddress) !== plan.ton_address) {
+    return sanitizeForMira({
+      success: false,
+      error:
+        "Withdrawal address is locked at setup and cannot be changed via AI commands.",
+      current_address: maskAddress(plan.ton_address),
+    });
+  }
+
+  const walletCtx = await getUserWalletContext(telegramId);
+  const balance = await getUsdtBalance(walletCtx.address);
+
+  let amountUsdt =
+    args.amount_usdt != null ? Number(args.amount_usdt) : balance;
+
+  if (isNaN(amountUsdt) || amountUsdt <= 0) {
+    return sanitizeForMira({
+      success: false,
+      error: "No USDT available to withdraw",
+      available: balance,
+    });
+  }
+
+  if (amountUsdt > balance) {
+    return sanitizeForMira({
+      success: false,
+      error: "Insufficient balance",
+      required: amountUsdt,
+      available: balance,
+    });
+  }
+
+  const amountRaw = BigInt(
+    Math.floor(amountUsdt * Math.pow(10, USDT_DECIMALS))
+  );
+
+  await sendJettonTransfer(
+    walletCtx,
+    USDT_ADDRESS,
+    amountRaw,
+    plan.ton_address
+  );
+
+  const txHash = await getLastTxHash(walletCtx.address, 5_000);
+
+  const { bot } = await import("../bot/index.js");
+  await bot.api
+    .sendMessage(
+      telegramId,
+      `✅ *$${amountUsdt.toFixed(2)} USDT withdrawn via Mira*\n\n` +
+        `To: \`${maskAddress(plan.ton_address)}\` _(locked)_`,
+      { parse_mode: "Markdown" }
+    )
+    .catch(() => {});
+
+  return sanitizeForMira({
+    success: true,
+    amount_usdt: amountUsdt,
+    sent_to: maskAddress(plan.ton_address),
+    tx: tonTxUrl(txHash),
+    note: "Address is locked and cannot be changed via Mira",
+  });
+}
+
+export async function toolUpdateFrequency(args: Record<string, unknown>) {
+  const telegramId = parseTelegramId(args.telegram_id);
+  if (telegramId === null) throw new Error("telegram_id required");
+
+  const frequency = String(args.frequency ?? "");
+  const allowed = ["daily", "weekly", "monthly"];
+  if (!allowed.includes(frequency)) {
+    throw new Error(`frequency must be one of: ${allowed.join(", ")}`);
+  }
+
+  const plan = await getPlanByTelegramId(telegramId);
+  if (!plan) throw new Error("No plan found");
+
+  const nextCycle = getNextPlanExecutionDate({
+    frequency,
+    demo_mode: false,
+  });
+
+  await updatePlan(telegramId, {
+    frequency: frequency as typeof plan.frequency,
+    next_execution_at: nextCycle.toISOString(),
+  });
+
+  return sanitizeForMira({
+    updated: true,
+    frequency,
+    next_cycle: nextCycle.toISOString(),
+  });
+}
+
+export async function toolUpdateAmount(args: Record<string, unknown>) {
+  const telegramId = parseTelegramId(args.telegram_id);
+  if (telegramId === null) throw new Error("telegram_id required");
+
+  const amountUsdt = Number(args.amount_usdt);
+  if (isNaN(amountUsdt) || amountUsdt < MIN_DCA_USDT) {
+    throw new Error(`amount_usdt must be >= ${MIN_DCA_USDT}`);
+  }
+
+  const plan = await getPlanByTelegramId(telegramId);
+  if (!plan) throw new Error("No plan found");
+
+  await updatePlan(telegramId, { usdt_amount: amountUsdt });
+
+  return sanitizeForMira({
+    updated: true,
+    amount_usdt: amountUsdt,
+    next_cycle_amount: amountUsdt,
+  });
+}
+
+export async function toolGetHistory(args: Record<string, unknown>) {
+  const telegramId = parseTelegramId(args.telegram_id);
+  if (telegramId === null) throw new Error("telegram_id required");
+
+  const limit = args.limit != null ? Number(args.limit) : 5;
+  const safeLimit = isNaN(limit) || limit < 1 ? 5 : Math.min(limit, 50);
+
+  const [cycles, stats] = await Promise.all([
+    getCompletedCycles(telegramId, safeLimit),
+    getCycleStats(telegramId),
+  ]);
+
+  return sanitizeForMira({
+    total_cycles: stats.total_cycles,
+    total_invested_usdt: stats.total_invested_usdt,
+    cycles: cycles.map((c) => ({
+      date: c.executed_at.slice(0, 10),
+      amount_usdt: c.amount_usdt,
+      ton_received: c.ton_received,
+      tx_swap: tonTxUrl(c.tx_swap),
+      tx_lp: tonTxUrl(c.tx_lp),
+    })),
+  });
+}
+
 export async function toolResumeStrategy(args: Record<string, unknown>) {
   const telegramId = parseTelegramId(args.telegram_id);
   if (telegramId === null) throw new Error("telegram_id required");
@@ -223,7 +461,7 @@ export function getMcpManifest() {
       {
         name: "get_portfolio",
         description:
-          "Returns portfolio summary, usdt_balance, can_run_next_cycle, next_cycle_requires_usdt, quick_mode flag, and masked withdrawal address. Use top_up_hint when can_run_next_cycle is false.",
+          "Returns portfolio summary with frequency, amount_usdt, status, next_cycle, cycles_completed, total_invested_usdt, agent_wallet_balance_usdt, can_run_now, and masked withdrawal_address.",
         inputSchema: {
           type: "object",
           required: ["telegram_id"],
@@ -280,6 +518,74 @@ export function getMcpManifest() {
           properties: { telegram_id: { type: "string" } },
         },
       },
+      {
+        name: "run_now",
+        description:
+          "Immediately execute one DCA cycle: Omniston swap → Tonstakers → STON.fi LP. Uses strategy amount by default. LP tokens go to locked withdrawal address.",
+        inputSchema: {
+          type: "object",
+          required: ["telegram_id"],
+          properties: {
+            telegram_id: { type: "string" },
+            amount_usdt: { type: "number", minimum: MIN_DCA_USDT },
+          },
+        },
+      },
+      {
+        name: "withdraw",
+        description:
+          "Send available USDT from agent wallet to user's locked withdrawal address. Cannot change the withdrawal address — it was locked during onboarding.",
+        inputSchema: {
+          type: "object",
+          required: ["telegram_id"],
+          properties: {
+            telegram_id: { type: "string" },
+            amount_usdt: { type: "number" },
+          },
+        },
+      },
+      {
+        name: "update_frequency",
+        description:
+          "Change how often DCA cycles run. Does not change amount or strategy.",
+        inputSchema: {
+          type: "object",
+          required: ["telegram_id", "frequency"],
+          properties: {
+            telegram_id: { type: "string" },
+            frequency: {
+              type: "string",
+              enum: ["daily", "weekly", "monthly"],
+            },
+          },
+        },
+      },
+      {
+        name: "update_amount",
+        description:
+          "Change the USDT amount per DCA cycle. Min $10. Does not affect frequency.",
+        inputSchema: {
+          type: "object",
+          required: ["telegram_id", "amount_usdt"],
+          properties: {
+            telegram_id: { type: "string" },
+            amount_usdt: { type: "number", minimum: MIN_DCA_USDT },
+          },
+        },
+      },
+      {
+        name: "get_history",
+        description:
+          "Returns last N completed DCA cycles with amounts and transaction links.",
+        inputSchema: {
+          type: "object",
+          required: ["telegram_id"],
+          properties: {
+            telegram_id: { type: "string" },
+            limit: { type: "number", default: 5 },
+          },
+        },
+      },
     ],
   };
 }
@@ -292,6 +598,11 @@ const TOOL_HANDLERS: Record<
   create_strategy: toolCreateStrategy,
   pause_strategy: toolPauseStrategy,
   resume_strategy: toolResumeStrategy,
+  run_now: toolRunNow,
+  withdraw: toolWithdraw,
+  update_frequency: toolUpdateFrequency,
+  update_amount: toolUpdateAmount,
+  get_history: toolGetHistory,
 };
 
 function wrapToolResult(data: unknown) {

@@ -13,14 +13,15 @@
 import cron from "node-cron";
 import {
   getDuePlans,
+  getPlanByTelegramId,
   updatePlan,
-  incrementCyclesCompleted,
   incrementConsecutiveFailures,
   resetConsecutiveFailures,
   logNotification,
   getTotalInvested,
 } from "../db/index.js";
-import { executeStrategy, InsufficientFundsError, type ExecutionResult } from "../execution/index.js";
+import { InsufficientFundsError, type ExecutionResult } from "../execution/index.js";
+import { executeDcaCycle } from "../execution/cycle.js";
 import { preflightCheck } from "../execution/preflight.js";
 import type { Plan } from "../db/index.js";
 import { getNextPlanExecutionDate, isQuickPlan } from "../constants/dca.js";
@@ -181,16 +182,25 @@ async function checkAndExecute() {
         const nextDate = getNextExecutionDate(plan);
         await updatePlan(plan.telegram_id, { next_execution_at: nextDate.toISOString() });
 
-        // ── 3. Execute strategy ──────────────────────────────────────────────
-        const result = await executeStrategy(plan);
+        // ── 3. Execute full DCA cycle (logged to cycles table) ─────────────────
+        const result = await executeDcaCycle(plan);
         console.log(`[SCHEDULER] Plan ${plan.id} done: status=${result.status}`);
 
-        // ── 4. Reset failure counter on any successful execution ─────────────
+        if (result.status !== "success") {
+          const errMsg = result.failedStep
+            ? `Failed at ${result.failedStep}`
+            : "Cycle failed";
+          await handleFailure(plan, "cycle_failed", errMsg);
+          return;
+        }
+
+        // ── 4. Reset failure counter on successful execution ───────────────────
         await resetConsecutiveFailures(plan.id).catch(() => {});
 
         // ── 5. Demo / max_cycles handling ────────────────────────────────────
         if (isQuickPlan(plan.demo_mode, plan.frequency)) {
-          const completed = await incrementCyclesCompleted(plan.id);
+          const updated = await getPlanByTelegramId(plan.telegram_id);
+          const completed = updated?.cycles_completed ?? plan.cycles_completed;
           console.log(
             `[SCHEDULER] Demo plan ${plan.id}: cycle ${completed}/${plan.max_cycles ?? "∞"}`
           );

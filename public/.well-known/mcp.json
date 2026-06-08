@@ -15,7 +15,7 @@
   "tools": [
     {
       "name": "get_portfolio",
-      "description": "Returns portfolio summary, active strategies, quick_mode flag, and masked withdrawal address for a Gramity user.",
+      "description": "Returns portfolio summary with frequency, amount_usdt, status, next_cycle, cycles_completed, total_invested_usdt, agent_wallet_balance_usdt, can_run_now, and masked withdrawal_address.",
       "inputSchema": {
         "type": "object",
         "required": ["telegram_id"],
@@ -60,6 +60,66 @@
         "required": ["telegram_id"],
         "properties": {
           "telegram_id": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "run_now",
+      "description": "Immediately execute one DCA cycle: Omniston swap → Tonstakers → STON.fi LP. Uses strategy amount by default. LP tokens go to locked withdrawal address.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["telegram_id"],
+        "properties": {
+          "telegram_id": { "type": "string" },
+          "amount_usdt": { "type": "number", "minimum": 10 }
+        }
+      }
+    },
+    {
+      "name": "withdraw",
+      "description": "Send available USDT from agent wallet to user's locked withdrawal address. Cannot change the withdrawal address — it was locked during onboarding.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["telegram_id"],
+        "properties": {
+          "telegram_id": { "type": "string" },
+          "amount_usdt": { "type": "number" }
+        }
+      }
+    },
+    {
+      "name": "update_frequency",
+      "description": "Change how often DCA cycles run. Does not change amount or strategy.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["telegram_id", "frequency"],
+        "properties": {
+          "telegram_id": { "type": "string" },
+          "frequency": { "type": "string", "enum": ["daily", "weekly", "monthly"] }
+        }
+      }
+    },
+    {
+      "name": "update_amount",
+      "description": "Change the USDT amount per DCA cycle. Min $10. Does not affect frequency.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["telegram_id", "amount_usdt"],
+        "properties": {
+          "telegram_id": { "type": "string" },
+          "amount_usdt": { "type": "number", "minimum": 10 }
+        }
+      }
+    },
+    {
+      "name": "get_history",
+      "description": "Returns last N completed DCA cycles with amounts and transaction links.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["telegram_id"],
+        "properties": {
+          "telegram_id": { "type": "string" },
+          "limit": { "type": "number", "default": 5 }
         }
       }
     }
