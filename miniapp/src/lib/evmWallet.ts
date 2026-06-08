@@ -354,6 +354,30 @@ interface Eip712TypedData {
   message: Record<string, unknown>;
 }
 
+/** ethers v6 rejects EIP712Domain in `types` — it must be omitted (domain is passed separately). */
+function prepareEip712ForSigning(typedData: Eip712TypedData): {
+  domain: Record<string, unknown>;
+  types: Record<string, Array<{ name: string; type: string }>>;
+  message: Record<string, unknown>;
+} {
+  const signTypes: Record<string, Array<{ name: string; type: string }>> = {};
+  for (const [name, fields] of Object.entries(typedData.types)) {
+    if (name === "EIP712Domain") continue;
+    signTypes[name] = fields;
+  }
+
+  const domain = { ...typedData.domain };
+  if (domain.chainId != null) {
+    domain.chainId = BigInt(domain.chainId as string | number | bigint);
+  }
+
+  return {
+    domain,
+    types: signTypes,
+    message: typedData.message,
+  };
+}
+
 function encodeTypedDataMessage(typedData: Eip712TypedData): Uint8Array {
   const fields = typedData.types[typedData.primaryType];
   const types = fields.map((f) => f.type);
@@ -402,11 +426,8 @@ export async function registerCrossChainOrder(
   });
 
   const typedData = JSON.parse(orderPayload.typedData) as Eip712TypedData;
-  const signatureHex = await signer.signTypedData(
-    typedData.domain,
-    typedData.types,
-    typedData.message
-  );
+  const { domain, types, message } = prepareEip712ForSigning(typedData);
+  const signatureHex = await signer.signTypedData(domain, types, message);
 
   await omniston.orderRegisterSignedOrder({
     quoteId: quote.quoteId,
