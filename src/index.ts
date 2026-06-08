@@ -537,7 +537,7 @@ app.post("/api/evm-wallet/connected", async (req, res) => {
       return;
     }
 
-    const { resolveWalletToken, updateEvmWalletSession } =
+    const { resolveWalletToken, connectEvmWalletSession } =
       await import("./services/evmWalletSession.js");
     const resolved = resolveWalletToken(token);
     if (!resolved) {
@@ -545,32 +545,32 @@ app.post("/api/evm-wallet/connected", async (req, res) => {
       return;
     }
 
-    const session = resolved.session;
-    if (session.status === "connected" && session.evmAddress === address) {
-      res.json({ ok: true, already: true });
-      return;
-    }
-    if (session.status !== "pending" && session.status !== "opened") {
-      res.status(409).json({ error: `Session not open for connect (status=${session.status})` });
-      return;
-    }
-
-    updateEvmWalletSession(resolved.session.id, {
-      status: "connected",
-      evmAddress: address,
-      chainId: chainId != null ? Number(chainId) : undefined,
-      balanceStatus: "pending",
+    const result = await connectEvmWalletSession(
+      resolved.session.id,
+      address,
+      chainId != null ? Number(chainId) : undefined
+    ).catch((err: Error) => {
+      if (err.message.includes("Session not open")) {
+        res.status(409).json({ error: err.message });
+        return null;
+      }
+      throw err;
     });
 
-    console.log(
-      `[EVM-WALLET] Connected user=${resolved.telegramId} address=${address.slice(0, 10)}…`
-    );
+    if (!result) return;
 
-    const { fetchAndStoreEvmWalletBalances } =
-      await import("./services/evmWalletSession.js");
-    void fetchAndStoreEvmWalletBalances(resolved.session.id, address);
+    if (!result.already) {
+      console.log(
+        `[EVM-WALLET] Connected user=${resolved.telegramId} address=${address.slice(0, 10)}…`
+      );
+    }
 
-    res.json({ ok: true });
+    res.json({
+      ok: true,
+      already: result.already,
+      balances: result.walletBalance,
+      balanceStatus: result.balanceStatus,
+    });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

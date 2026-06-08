@@ -30,7 +30,7 @@
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**`/reset` не трогает:** MetaMask Connected Sites, MWP relay, кэш в Chrome.
+`**/reset` не трогает:** MetaMask Connected Sites, MWP relay, кэш в Chrome.
 
 ---
 
@@ -97,6 +97,7 @@ installTelegramOpenLinkPatch (metamaskConnect.ts:152)
 **Гипотеза двойной вкладки:** `window.open` на Telegram Desktop **сам** открывает Chrome **и** проксирует в `tg.openLink`.
 
 **Гипотеза silent connect:**
+
 - Poll получает `connected` с **другой вкладки** (первая из двух успела POST /connected)
 - Или `connectViaMwp` / `connectViaExtension` через MWP `window.ethereum` в WebView
 - Или MetaMask site уже authorized → `eth_requestAccounts` без popup
@@ -105,24 +106,28 @@ installTelegramOpenLinkPatch (metamaskConnect.ts:152)
 
 ## Файлы и ответственность
 
-| Файл | Роль | Риск |
-|------|------|------|
-| `miniapp/src/lib/metamaskConnect.ts` | Единый SDK: open, MWP client, extension detect | window.open + patch |
-| `miniapp/src/metamask-connect-entry.ts` | window.GramityMetaMask bridge | — |
-| `miniapp/public/onboarding.html` | runMetaMaskConnect, poll, openMetaMaskUrl | **дублирует** логику TS, свой getExtensionProvider |
-| `miniapp/src/evm-wallet-entry.tsx` | Browser connect page | MetaMask site cache |
-| `miniapp/src/screens/DepositScreen.tsx` | Cross-chain deposit TMA | openMetaMaskLink |
-| `src/services/evmWalletSession.ts` | In-memory sessions | survives /reset in DB |
-| `src/index.ts` | POST session, GET status, POST connected | — |
+
+| Файл                                    | Роль                                           | Риск                                               |
+| --------------------------------------- | ---------------------------------------------- | -------------------------------------------------- |
+| `miniapp/src/lib/metamaskConnect.ts`    | Единый SDK: open, MWP client, extension detect | window.open + patch                                |
+| `miniapp/src/metamask-connect-entry.ts` | window.GramityMetaMask bridge                  | —                                                  |
+| `miniapp/public/onboarding.html`        | runMetaMaskConnect, poll, openMetaMaskUrl      | **дублирует** логику TS, свой getExtensionProvider |
+| `miniapp/src/evm-wallet-entry.tsx`      | Browser connect page                           | MetaMask site cache                                |
+| `miniapp/src/screens/DepositScreen.tsx` | Cross-chain deposit TMA                        | openMetaMaskLink                                   |
+| `src/services/evmWalletSession.ts`      | In-memory sessions                             | survives /reset in DB                              |
+| `src/index.ts`                          | POST session, GET status, POST connected       | —                                                  |
+
 
 ---
 
 ## Известные fix (commits)
 
-| Commit | Что сделано |
-|--------|-------------|
-| d7056b9 | pageUrl вместо link.metamask.io на desktop |
+
+| Commit  | Что сделано                                                                                                       |
+| ------- | ----------------------------------------------------------------------------------------------------------------- |
+| d7056b9 | pageUrl вместо link.metamask.io на desktop                                                                        |
 | 31d2da8 | getBrowserExtensionProvider null in TMA; warm mobile-only; manual connect button; reset clears in-memory sessions |
+
 
 ## Fix v2 (pending deploy)
 
@@ -175,3 +180,4 @@ console.log({
 2. Страница ждёт клик **Connect MetaMask**
 3. MetaMask popup (или disconnect site → popup снова)
 4. POST /connected → poll в TMA → балансы
+

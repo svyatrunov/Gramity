@@ -49,11 +49,14 @@ export function openGramityExternalUrl(url: string): void {
   console.info("[GramityOpen] open external:", href.slice(0, 80));
 
   const tg = getTelegramWebApp();
-  if (isInsideTelegramMiniApp() && tg?.openLink) {
-    tg.openLink(href);
+  if (isInsideTelegramMiniApp()) {
+    if (tg?.openLink) {
+      tg.openLink(href);
+    } else {
+      console.warn("[GramityOpen] Telegram WebApp.openLink unavailable");
+    }
     return;
   }
 
-  const popup = window.open(href, "_blank", "noopener,noreferrer");
-  if (!popup) window.location.assign(href);
+  window.open(href, "_blank", "noopener,noreferrer");
 }

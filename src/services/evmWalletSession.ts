@@ -174,7 +174,7 @@ function parseAnkrAssets(
     type: "wallet_balance",
     sessionId,
     address,
-    chain: "bsc",
+    chain: "multichain",
     tokens,
     totalUsd,
   };
@@ -197,7 +197,7 @@ async function fetchViaAnkr(
       method: "ankr_getAccountBalance",
       params: {
         walletAddress: address,
-        blockchain: ["bsc"],
+        blockchain: ["bsc", "eth", "polygon"],
         onlyWhitelisted: false,
         nativeFirst: true,
       },
@@ -287,4 +287,50 @@ export async function fetchAndStoreEvmWalletBalances(
     console.error("[EVM-WALLET] Balance fetch failed:", (err as Error).message);
     return null;
   }
+}
+
+export interface EvmWalletConnectResult {
+  already: boolean;
+  walletBalance: EvmWalletBalancePayload | null;
+  balanceStatus: EvmWalletBalanceStatus;
+}
+
+/** Idempotent connect: stores address, awaits Ankr balances before returning. */
+export async function connectEvmWalletSession(
+  sessionId: string,
+  address: string,
+  chainId?: number
+): Promise<EvmWalletConnectResult> {
+  const session = getEvmWalletSession(sessionId);
+  if (!session) {
+    throw new Error("Session not found or expired");
+  }
+
+  if (session.status === "connected") {
+    return {
+      already: true,
+      walletBalance: session.walletBalance ?? null,
+      balanceStatus: session.balanceStatus ?? "ready",
+    };
+  }
+
+  if (session.status !== "pending" && session.status !== "opened") {
+    throw new Error(`Session not open for connect (status=${session.status})`);
+  }
+
+  updateEvmWalletSession(sessionId, {
+    status: "connected",
+    evmAddress: address,
+    chainId,
+    balanceStatus: "pending",
+  });
+
+  const walletBalance = await fetchAndStoreEvmWalletBalances(sessionId, address);
+  const updated = getEvmWalletSession(sessionId);
+
+  return {
+    already: false,
+    walletBalance,
+    balanceStatus: updated?.balanceStatus ?? (walletBalance ? "ready" : "failed"),
+  };
 }
