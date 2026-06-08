@@ -908,7 +908,14 @@
       padding: 10px 14px; font-size: 12px; color: var(--text-secondary);
       display: flex; flex-direction: column; gap: 8px;
     }
-    .connect-hint-btns { display: flex; gap: 8px; }
+    .connect-hint-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+    .dca-low-balance-card {
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.25); border-radius: 12px;
+      padding: 12px 14px; font-size: 12px; color: var(--text-secondary);
+      display: none; flex-direction: column; gap: 10px; margin-bottom: 14px;
+    }
+    .dca-low-balance-card strong { color: #fca5a5; }
     .hint-connect-btn {
       flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
       background: rgba(74,138,255,0.15);
@@ -1116,6 +1123,26 @@
       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
       animation: shimmer-btn 3.5s ease-in-out infinite;
     }
+    .btn-mira {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      padding: 14px 28px;
+      width: 100%;
+      max-width: 320px;
+      font-size: 15px;
+      font-weight: 600;
+      margin-top: 10px;
+      display: none;
+    }
+    .btn-mira.visible { display: block; }
+    .btn-create-dca.success {
+      background: rgba(74, 255, 140, 0.15);
+      color: var(--green);
+      animation: none;
+      pointer-events: none;
+    }
+    .btn-create-dca.success::after { display: none; }
 
     /* ── Balance rows (shared) ── */
     .balance-row {
@@ -1741,6 +1768,15 @@
             <span id="dcaBalanceLabel">Demo mode · $2,000 limit</span>
           </div>
 
+          <!-- Insufficient USDT card (connected wallet, &lt; $10) -->
+          <div class="dca-low-balance-card anim-item" id="dcaLowBalanceCard">
+            <span><strong>Нужно минимум $10 USDT</strong> на кошельке для реального DCA</span>
+            <div class="connect-hint-btns">
+              <button class="hint-connect-btn" id="btnTryDemo5">Попробовать demo ($5)</button>
+              <button class="hint-connect-btn" id="btnContinueDemo">Продолжить в demo</button>
+            </div>
+          </div>
+
           <!-- Frequency -->
           <p class="param-label anim-item">Frequency</p>
           <div class="freq-tabs anim-item" id="freqTabs">
@@ -1749,33 +1785,35 @@
             <button class="freq-tab" data-freq="monthly">Monthly</button>
           </div>
 
-          <!-- Amount per cycle -->
-          <p class="param-label anim-item" style="margin-top:16px">Amount per cycle</p>
-          <div class="slider-val-row anim-item">
-            <span class="slider-big-val" id="sliderBigVal">$500</span>
-            <span class="slider-usdt-label">USDT</span>
-          </div>
-
-          <!-- Range slider -->
-          <div class="slider-wrap anim-item">
-            <input type="range" class="dca-slider" id="amountSlider"
-                   min="50" max="2000" step="50" value="500"/>
-            <div class="slider-ticks">
-              <span>$50</span>
-              <span id="sliderMaxLabel">$2,000</span>
+          <div id="dcaSliderSection">
+            <!-- Amount per cycle -->
+            <p class="param-label anim-item" style="margin-top:16px">Amount per cycle</p>
+            <div class="slider-val-row anim-item">
+              <span class="slider-big-val" id="sliderBigVal">$500</span>
+              <span class="slider-usdt-label">USDT</span>
             </div>
-          </div>
 
-          <!-- % preset buttons -->
-          <div class="slider-pcts anim-item" id="sliderPcts">
-            <button class="pct-btn" data-pct="25">25%</button>
-            <button class="pct-btn pct-active" data-pct="50">50%</button>
-            <button class="pct-btn" data-pct="75">75%</button>
-            <button class="pct-btn" data-pct="100">Max</button>
-          </div>
+            <!-- Range slider -->
+            <div class="slider-wrap anim-item">
+              <input type="range" class="dca-slider" id="amountSlider"
+                     min="10" max="2000" step="5" value="500"/>
+              <div class="slider-ticks">
+                <span id="sliderMinLabel">$10</span>
+                <span id="sliderMaxLabel">$2,000</span>
+              </div>
+            </div>
 
-          <!-- Zone label -->
-          <div class="zone-label anim-item" id="zoneLabel">✅ Weekly viable</div>
+            <!-- % preset buttons -->
+            <div class="slider-pcts anim-item" id="sliderPcts">
+              <button class="pct-btn" data-pct="25">25%</button>
+              <button class="pct-btn pct-active" data-pct="50">50%</button>
+              <button class="pct-btn" data-pct="75">75%</button>
+              <button class="pct-btn" data-pct="100">Max</button>
+            </div>
+
+            <!-- Zone label -->
+            <div class="zone-label anim-item" id="zoneLabel">✅ Weekly viable</div>
+          </div>
 
           <!-- 1-year projection card -->
           <div class="proj-big-card anim-item" id="projBigCard">
@@ -2067,7 +2105,10 @@
           <button class="btn btn-create-dca anim-item" id="btnCreateDCA">
             ✦ Create DCA Strategy
           </button>
-          <p class="cta-meta anim-item">~2 min setup · non-custodial · 0% platform fee</p>
+          <button class="btn btn-mira anim-item" id="btnManageMira">
+            💬 Управлять через MIRA
+          </button>
+          <p class="cta-meta anim-item" id="ctaMeta">~2 min setup · non-custodial · 0% platform fee</p>
         </div>
       </section>
 
@@ -2366,6 +2407,8 @@
         evmAddress:     null,
         evmConnected:   false,
         totalUsdBalance: 0,
+        usdtBalance:    0,
+        demoMode:       false,
         frequency:      'weekly',
         amountPerCycle: 500,
         selectedToken:  'ton',
@@ -2395,9 +2438,7 @@
               document.getElementById('scanTotalValue').textContent = '…';
               listEl.innerHTML = '<div class="skeleton-row"></div><div class="skeleton-row"></div>';
               fetchTonBal(rawAddr).then(function (items) {
-                var totalUsd = 0;
-                if (items) items.forEach(function (it) { if (it.usd) totalUsd += parseFloat(it.usd); });
-                showScanResults(items || [], totalUsd);
+                showScanResults(items || []);
               });
               if (typeof checkWithdrawalReady === 'function') checkWithdrawalReady();
             } else {
@@ -2481,38 +2522,121 @@
         if (typeof refreshProjectionCard === 'function') refreshProjectionCard();
       });
 
+      /* ── TON address normalization (raw 0:hex ↔ EQ) ── */
+      function crc16Ton(bytes) {
+        var crc = 0;
+        for (var i = 0; i < bytes.length; i++) {
+          crc ^= bytes[i] << 8;
+          for (var j = 0; j < 8; j++) {
+            crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+            crc &= 0xffff;
+          }
+        }
+        return crc;
+      }
+
+      function rawToEqAddr(raw) {
+        var parts = raw.split(':');
+        if (parts.length !== 2 || parts[1].length !== 64) return raw;
+        var wc = parseInt(parts[0], 10);
+        var hash = parts[1];
+        var addr = new Uint8Array(34);
+        addr[0] = 0x11;
+        addr[1] = wc < 0 ? 256 + wc : wc;
+        for (var i = 0; i < 32; i++) addr[i + 2] = parseInt(hash.substr(i * 2, 2), 16);
+        var c = crc16Ton(addr);
+        var full = new Uint8Array(36);
+        full.set(addr);
+        full[34] = (c >> 8) & 0xff;
+        full[35] = c & 0xff;
+        var b64 = btoa(String.fromCharCode.apply(null, full));
+        return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      }
+
+      function normalizeEqAddr(input) {
+        if (!input) return '';
+        input = input.trim();
+        if (/^[EUk]Q[A-Za-z0-9_\-]{46}$/.test(input)) return input;
+        if (/^(-?\d+):[A-Fa-f0-9]{64}$/i.test(input)) return rawToEqAddr(input);
+        return input;
+      }
+
+      /* ── Popular tokens allowlist (/api/tokens/popular) ── */
+      var _popularTokensCache = null;
+      function fetchPopularTokens() {
+        if (_popularTokensCache) return _popularTokensCache;
+        _popularTokensCache = fetch('/api/tokens/popular', { signal: AbortSignal.timeout(8000) })
+          .then(function (r) { return r.ok ? r.json() : []; })
+          .catch(function () { return []; })
+          .then(function (tokens) {
+            var byEq = {}, bySymbol = {};
+            (tokens || []).forEach(function (t) {
+              if (t.symbol) bySymbol[normalizeTokenSymbol(t.symbol)] = t;
+              if (!t.address || t.address === 'ton') return;
+              byEq[normalizeEqAddr(t.address)] = t;
+            });
+            return { byEq: byEq, bySymbol: bySymbol };
+          });
+        return _popularTokensCache;
+      }
+
+      function normalizeTokenSymbol(symbol) {
+        return (symbol || '').replace(/\u20AE/g, 'T').toUpperCase();
+      }
+
+      function isUsdtSymbol(symbol) {
+        return normalizeTokenSymbol(symbol) === 'USDT';
+      }
+
+      function formatTokenAmount(bal) {
+        return bal >= 1000 ? (bal / 1000).toFixed(1) + 'K' : bal.toFixed(2);
+      }
+
       /* ── tonapi balance ── */
       function fetchTonBal(address) {
         return Promise.all([
           fetch('https://tonapi.io/v2/accounts/' + encodeURIComponent(address), { signal: AbortSignal.timeout(8000) }),
           fetch('https://tonapi.io/v2/accounts/' + encodeURIComponent(address) + '/jettons?currencies=usd', { signal: AbortSignal.timeout(8000) }),
           fetchTonPrice(),
+          fetchPopularTokens(),
         ]).then(function (rs) {
           return Promise.all([
             rs[0].ok ? rs[0].json() : null,
             rs[1].ok ? rs[1].json() : null,
             rs[2],
+            rs[3],
           ]);
         }).then(function (data) {
           var items = [];
-          var acct = data[0], jData = data[1], tonPrice = data[2] || 3.5;
+          var acct = data[0], jData = data[1], tonPrice = data[2] || 3.5, popular = data[3] || { byEq: {} };
           if (acct) {
             var ton = Number(acct.balance || 0) / 1e9;
             if (ton >= 0.001) {
-              var tonUsd = (ton * tonPrice).toFixed(2);
-              items.push({ logoId: 'logo-ton', name: 'TON', chain: 'TON', amount: ton.toFixed(3), usd: tonUsd });
+              var tonUsd = ton * tonPrice;
+              items.push({
+                logoId: 'logo-ton', name: 'TON', chain: 'TON',
+                amount: ton.toFixed(3), usd: tonUsd.toFixed(2), rawBal: tonUsd,
+                isUsdtStable: false, isUsdtJetton: false,
+              });
             }
           }
           if (jData && jData.balances) {
             jData.balances.forEach(function (b) {
-              if (b.jetton.verification !== 'whitelist') return;
+              var jettonEq = normalizeEqAddr(b.jetton.address);
+              var tokenMeta = popular.byEq[jettonEq];
+              if (!tokenMeta) return;
               var bal = Number(b.balance) / Math.pow(10, b.jetton.decimals);
               if (bal < 0.001) return;
+              var symbol = tokenMeta.symbol || b.jetton.symbol;
+              var isUsdt = isUsdtSymbol(symbol) || isUsdtSymbol(b.jetton.symbol);
               var usdPrice = b.price && b.price.prices && b.price.prices.USD;
+              var usd = usdPrice ? (bal * usdPrice).toFixed(2) : (isUsdt ? bal.toFixed(2) : null);
               items.push({
-                logoId: 'logo-usdt', name: b.jetton.symbol, chain: 'TON',
-                amount: bal >= 1000 ? (bal / 1000).toFixed(1) + 'K' : bal.toFixed(2),
-                usd: usdPrice ? (bal * usdPrice).toFixed(2) : null,
+                logoId: logoIdForSymbol(symbol),
+                name: b.jetton.symbol, chain: 'TON',
+                amount: formatTokenAmount(bal),
+                usd: usd, rawBal: bal,
+                isUsdtStable: isUsdt, isUsdtJetton: isUsdt,
               });
             });
           }
@@ -2545,7 +2669,15 @@
           }
           if (stableHex && stableHex !== '0x' && stableHex.length > 2) {
             var s = parseInt(stableHex, 16) / Math.pow(10, chain.stableDec);
-            if (s >= 0.01) items.push({ logoId: 'logo-usdt', name: chain.stableSym, chain: chain.name, amount: s.toFixed(2), usd: s.toFixed(2) });
+            var isUsdt = chain.stableSym === 'USDT';
+            if (s >= 0.01) {
+              items.push({
+                logoId: isUsdt ? 'logo-usdt' : 'logo-wallet',
+                name: chain.stableSym, chain: chain.name,
+                amount: s.toFixed(2), usd: isUsdt ? s.toFixed(2) : null,
+                rawBal: s, isUsdtStable: isUsdt, isUsdtJetton: isUsdt,
+              });
+            }
           }
           return items;
         }).catch(function () { return []; });
@@ -2586,23 +2718,45 @@
         return false;
       }
 
+      /* ── Filter: USD >= 5; no price → hide (USDT stable exception) ── */
+      var MIN_BAL_USD = 5;
+
+      function applyBalanceFilters(items) {
+        var filtered = [];
+        var usdtBal = 0;
+        (items || []).forEach(function (it) {
+          var usdVal = it.usd != null && it.usd !== '' ? parseFloat(it.usd) : null;
+          if (it.isUsdtStable) {
+            var effective = (usdVal != null && !isNaN(usdVal)) ? usdVal : (it.rawBal != null ? it.rawBal : null);
+            if (effective == null || isNaN(effective) || effective < MIN_BAL_USD) return;
+            it.usd = effective.toFixed(2);
+            if (it.isUsdtJetton) usdtBal += effective;
+            filtered.push(it);
+            return;
+          }
+          if (usdVal == null || isNaN(usdVal) || usdVal < MIN_BAL_USD) return;
+          filtered.push(it);
+        });
+        var totalUsd = filtered.reduce(function (s, it) { return s + parseFloat(it.usd); }, 0);
+        return { items: filtered, totalUsd: totalUsd, usdtBalance: usdtBal };
+      }
+
       /* ── Shared: show scan results on step 1 ── */
-      function showScanResults(items, totalUsd) {
+      function showScanResults(items) {
+        var result = applyBalanceFilters(items);
         var box = document.getElementById('scanResults');
         var listEl = document.getElementById('scanAssetsList');
         var totalEl = document.getElementById('scanTotalValue');
         box.style.display = 'block';
-        totalEl.textContent = '$' + totalUsd.toFixed(2);
-        if (!items || !items.length) {
+        totalEl.textContent = '$' + result.totalUsd.toFixed(2);
+        if (!result.items.length) {
           listEl.innerHTML = renderEmpty('No assets found');
         } else {
-          listEl.innerHTML = items.slice(0, 6).map(renderBalRow).join('');
+          listEl.innerHTML = result.items.slice(0, 6).map(renderBalRow).join('');
         }
-        // refresh slider in step 2 with the new balance
-        if (totalUsd > 0) {
-          wiz.totalUsdBalance = totalUsd;
-          if (typeof initSlider7 === 'function') initSlider7();
-        }
+        wiz.usdtBalance = result.usdtBalance;
+        if (typeof initSlider7 === 'function') initSlider7();
+        return result;
       }
 
       /* ══════════════════════════════════════════════════════
@@ -2663,16 +2817,12 @@
         listEl.innerHTML = renderSkeletons();
 
         fetchTonBal(addr).then(function (items) {
-          var totalUsd = 0;
-          if (items) {
-            items.forEach(function (it) { if (it.usd) totalUsd += parseFloat(it.usd); });
-          }
-          showScanResults(items || [], totalUsd);
+          var result = showScanResults(items || []);
 
           // update strip on slide 1
           var stripResult = document.getElementById('stripBalanceResult');
           document.getElementById('stripAddr').textContent = addr.slice(0, 6) + '…' + addr.slice(-4);
-          document.getElementById('stripTotal').textContent = '$' + totalUsd.toFixed(0);
+          document.getElementById('stripTotal').textContent = '$' + result.totalUsd.toFixed(0);
           stripResult.style.display = 'block';
         });
       });
@@ -2752,10 +2902,8 @@
 
         Promise.all(EVM_CHAINS.map(function (ch) { return fetchEvmChain(ch, accounts[0]); }))
           .then(function (results) {
-            var all  = [].concat.apply([], results);
-            var totalUsd = 0;
-            all.forEach(function (it) { if (it.usd) totalUsd += parseFloat(it.usd); });
-            showScanResults(all, totalUsd);
+            var all = [].concat.apply([], results);
+            showScanResults(all);
           });
       }
 
@@ -2801,6 +2949,8 @@
         wiz.tonAddress       = '';
         wiz.evmAddress       = null;
         wiz.totalUsdBalance  = 0;
+        wiz.usdtBalance      = 0;
+        wiz.demoMode         = false;
 
         document.getElementById('scanResults').style.display = 'none';
         document.getElementById('tonConnectInput').style.display = 'none';
@@ -2826,9 +2976,16 @@
          WIZARD STEP 2 — DCA Slider
       ══════════════════════════════════════════════════════ */
 
-      var FALLBACK_MAX     = 2000;
-      var FALLBACK_DEFAULT = 500;
-      var GAS_PER_CYCLE    = 2.45;
+      var MIN_DCA              = 10;
+      var DEMO_MODE_THRESHOLD  = 10;
+      var FALLBACK_MAX         = 2000;
+      var FALLBACK_DEFAULT     = 500;
+      var DEMO_TRY_AMOUNT      = 5;
+      var GAS_PER_CYCLE        = 2.45;
+
+      function getSliderStep(usdtBalance) {
+        return (usdtBalance || 0) < 100 ? 5 : 10;
+      }
 
       function cyclesPerYear(freq) {
         return { daily: 365, weekly: 52, monthly: 12 }[freq] || 52;
@@ -2837,27 +2994,101 @@
       var sliderEl  = document.getElementById('amountSlider');
       var sliderMax = FALLBACK_MAX;
 
+      function isWalletConnected() {
+        return wiz.tonConnected || wiz.evmConnected;
+      }
+
+      function isInsufficientUsdt() {
+        var bal = wiz.usdtBalance || 0;
+        return isWalletConnected() && bal < DEMO_MODE_THRESHOLD && !wiz.demoMode;
+      }
+
       function getSliderMax() {
-        var bal = wiz.totalUsdBalance || 0;
-        if (bal >= 50) return Math.floor(bal / 50) * 50;
+        var bal = wiz.usdtBalance || 0;
+        if (bal >= MIN_DCA) {
+          var step = getSliderStep(bal);
+          return Math.max(MIN_DCA, Math.floor(bal / step) * step);
+        }
         return FALLBACK_MAX;
       }
 
       function getZone(amount) {
-        if (amount < 300)  return { color: '#ef4444', label: '⚠️ Gas overhead ~8%+ · consider Monthly' };
-        if (amount < 600)  return { color: '#f59e0b', label: '💡 Monthly DCA recommended' };
-        if (amount < 2000) return { color: '#4a8aff', label: '✅ Weekly viable' };
-        return              { color: '#10b981', label: '🚀 Optimal range' };
+        if (amount < 30)   return { color: '#ef4444', label: '⚠️ Высокий % gas — рекомендуем Monthly' };
+        if (amount < 100)  return { color: '#f59e0b', label: '💡 Подходит для Monthly/Weekly' };
+        if (amount < 600)  return { color: '#4a8aff', label: '✅ Weekly viable' };
+        return               { color: '#10b981', label: '🚀 Optimal range' };
+      }
+
+      function snapToStep(val, step, min, max) {
+        var snapped = Math.round(val / step) * step;
+        return Math.max(min, Math.min(snapped, max));
+      }
+
+      function formatUsdtChip(val) {
+        if (val >= 100) return '$' + Math.floor(val) + ' USDT available';
+        return '$' + val.toFixed(2).replace(/\.?0+$/, '') + ' USDT available';
+      }
+
+      function setDcaSectionVisibility(insufficient) {
+        var section = document.getElementById('dcaSliderSection');
+        var lowCard = document.getElementById('dcaLowBalanceCard');
+        if (section) section.style.display = insufficient ? 'none' : 'block';
+        if (lowCard) lowCard.style.display = insufficient ? 'flex' : 'none';
+      }
+
+      function updateBalanceChip() {
+        var dot   = document.getElementById('dcaChipDot');
+        var label = document.getElementById('dcaBalanceLabel');
+        var hint  = document.getElementById('connectHintCard');
+        var usdt  = wiz.usdtBalance || 0;
+        var connected = isWalletConnected();
+
+        if (wiz.demoMode) {
+          dot.className = 'chip-dot chip-dot-demo';
+          label.textContent = 'Demo mode · $' + FALLBACK_MAX.toLocaleString() + ' limit';
+          if (hint) hint.style.display = connected ? 'none' : 'flex';
+        } else if (connected) {
+          dot.className = 'chip-dot ' + (wiz.tonConnected ? 'chip-dot-ton' : 'chip-dot-evm');
+          label.textContent = formatUsdtChip(usdt);
+          if (hint) hint.style.display = 'none';
+        } else {
+          dot.className = 'chip-dot chip-dot-demo';
+          label.textContent = 'Demo mode · $' + FALLBACK_MAX.toLocaleString() + ' limit';
+          if (hint) hint.style.display = 'flex';
+        }
+      }
+
+      function updateContinueBtn7() {
+        var btn = document.getElementById('btnWizardNext7');
+        var val = parseInt(sliderEl.value, 10) || 0;
+        var can = wiz.demoMode || val >= MIN_DCA;
+        btn.disabled = !can;
+        btn.style.opacity = can ? '' : '0.4';
+      }
+
+      function applySliderConfig(isDemo) {
+        var bal = wiz.usdtBalance || 0;
+        var step = isDemo ? 5 : getSliderStep(bal);
+        var min = isDemo ? DEMO_TRY_AMOUNT : MIN_DCA;
+        sliderMax = isDemo ? FALLBACK_MAX : getSliderMax();
+
+        sliderEl.min = String(min);
+        sliderEl.step = String(step);
+        sliderEl.max = String(sliderMax);
+
+        var minTick = document.getElementById('sliderMinLabel');
+        if (minTick) minTick.textContent = '$' + min;
+        document.getElementById('sliderMaxLabel').textContent = '$' + sliderMax.toLocaleString();
       }
 
       function refreshSliderTrack() {
-        var val  = parseInt(sliderEl.value, 10) || 500;
+        var val  = parseInt(sliderEl.value, 10) || FALLBACK_DEFAULT;
         var min  = parseInt(sliderEl.min, 10);
         var max  = parseInt(sliderEl.max, 10);
         var zone = getZone(val);
-        var pct  = ((val - min) / (max - min) * 100).toFixed(1);
+        var pct  = max <= min ? 100 : ((val - min) / (max - min) * 100);
         sliderEl.style.background =
-          'linear-gradient(to right,' + zone.color + ' 0%,' + zone.color + ' ' + pct + '%,rgba(255,255,255,0.12) ' + pct + '%)';
+          'linear-gradient(to right,' + zone.color + ' 0%,' + zone.color + ' ' + pct.toFixed(1) + '%,rgba(255,255,255,0.12) ' + pct.toFixed(1) + '%)';
         var zl = document.getElementById('zoneLabel');
         zl.textContent = zone.label;
         zl.style.color  = zone.color;
@@ -2866,14 +3097,13 @@
       function refreshProjectionCard() {
         var slider = document.getElementById('amountSlider');
         if (!slider) return;
-        var val  = parseInt(slider.value, 10) || 500;
+        var val  = parseInt(slider.value, 10) || FALLBACK_DEFAULT;
         var freq = wiz.frequency;
 
         fetchTonPrice(false).then(function (tonPrice) {
           if (!tonPrice || tonPrice <= 0) tonPrice = 3.5;
 
           var p = calcProjection(val, freq, APY);
-          /* USDT invested each cycle → swapped to TON at live rate; yield compounds in USD */
           var tonFromDca = p.invested / tonPrice;
           var tonTotal   = p.total / tonPrice;
 
@@ -2889,58 +3119,68 @@
           var disclaimerEl = document.getElementById('projTonDisclaimer');
           if (disclaimerEl) disclaimerEl.textContent =
             'Live TON/USD: $' + tonPrice.toFixed(2) + ' (TonAPI) · each cycle USDT→TON at market rate';
-
-          var zl = document.getElementById('zoneLabel');
-          if (val < 200) {
-            zl.textContent = '⚠️ Amount < $200 — high slippage risk';
-            zl.style.color  = '#ef4444';
-          }
         });
       }
 
       function refreshPctButtons() {
-        var val = parseInt(sliderEl.value, 10) || 500;
+        var val = parseInt(sliderEl.value, 10) || FALLBACK_DEFAULT;
+        var step = parseInt(sliderEl.step, 10) || 5;
+        var min = parseInt(sliderEl.min, 10) || MIN_DCA;
         document.querySelectorAll('.pct-btn').forEach(function (btn) {
-          var target = Math.round((parseInt(btn.dataset.pct, 10) / 100 * sliderMax) / 50) * 50;
-          target = Math.max(50, Math.min(target, sliderMax));
-          btn.classList.toggle('pct-active', Math.abs(val - target) < 26);
+          var target = snapToStep(parseInt(btn.dataset.pct, 10) / 100 * sliderMax, step, min, sliderMax);
+          btn.classList.toggle('pct-active', Math.abs(val - target) < step);
         });
       }
 
       function updateSliderUI() {
-        var val = parseInt(sliderEl.value, 10) || 500;
+        var val = parseInt(sliderEl.value, 10) || FALLBACK_DEFAULT;
+        var step = parseInt(sliderEl.step, 10) || 5;
+        var min = parseInt(sliderEl.min, 10) || MIN_DCA;
+        var max = parseInt(sliderEl.max, 10) || sliderMax;
+        val = snapToStep(val, step, min, max);
+        sliderEl.value = String(val);
         wiz.amountPerCycle = val;
         document.getElementById('sliderBigVal').textContent = '$' + val.toLocaleString();
         refreshSliderTrack();
         refreshProjectionCard();
         refreshPctButtons();
+        updateContinueBtn7();
+      }
+
+      function enterDemoMode(amount) {
+        wiz.demoMode = true;
+        setDcaSectionVisibility(false);
+        applySliderConfig(true);
+        sliderEl.value = String(amount);
+        updateBalanceChip();
+        updateSliderUI();
       }
 
       function initSlider7() {
-        sliderMax = getSliderMax();
-        sliderEl.max = sliderMax;
-        document.getElementById('sliderMaxLabel').textContent = '$' + sliderMax.toLocaleString();
+        var insufficient = isInsufficientUsdt();
+        setDcaSectionVisibility(insufficient);
+        updateBalanceChip();
 
-        var bal = wiz.totalUsdBalance || 0;
-        var isConnected = bal >= 50;
-        var chip  = document.getElementById('dcaBalanceChip');
-        var dot   = document.getElementById('dcaChipDot');
-        var label = document.getElementById('dcaBalanceLabel');
-        var hint  = document.getElementById('connectHintCard');
+        if (insufficient) {
+          updateContinueBtn7();
+          return;
+        }
 
-        if (isConnected) {
-          dot.className = 'chip-dot ' + (wiz.tonConnected ? 'chip-dot-ton' : 'chip-dot-evm');
-          var chainName = wiz.tonConnected ? 'TON' : 'EVM chains';
-          label.textContent = chainName + '  $' + bal.toFixed(0) + ' USDT  ● connected';
-          hint.style.display = 'none';
-          // set default to 50% of balance, snapped to step
-          var def = Math.round(Math.min(bal * 0.5, 5000) / 50) * 50;
-          sliderEl.value = Math.max(50, def);
-        } else {
-          dot.className = 'chip-dot chip-dot-demo';
-          label.textContent = 'Demo mode · $2,000 limit';
-          hint.style.display = 'flex';
-          sliderEl.value = FALLBACK_DEFAULT;
+        var connected = isWalletConnected();
+        var usdt = wiz.usdtBalance || 0;
+        if (connected && usdt >= MIN_DCA) wiz.demoMode = false;
+        var isDemo = wiz.demoMode || (!connected && usdt < MIN_DCA);
+
+        if (!connected && usdt < MIN_DCA) wiz.demoMode = true;
+
+        applySliderConfig(isDemo);
+
+        if (isDemo) {
+          if (!parseInt(sliderEl.value, 10)) sliderEl.value = String(FALLBACK_DEFAULT);
+        } else if (usdt >= MIN_DCA) {
+          var step = getSliderStep(usdt);
+          var def = snapToStep(Math.min(usdt * 0.5, sliderMax), step, MIN_DCA, sliderMax);
+          sliderEl.value = String(def);
         }
 
         updateSliderUI();
@@ -2951,6 +3191,13 @@
         wiz.amountPerCycle = parseInt(sliderEl.value, 10) || FALLBACK_DEFAULT;
         updateProjectionBox();
         goTo(8);
+      });
+
+      document.getElementById('btnTryDemo5').addEventListener('click', function () {
+        enterDemoMode(DEMO_TRY_AMOUNT);
+      });
+      document.getElementById('btnContinueDemo').addEventListener('click', function () {
+        enterDemoMode(FALLBACK_DEFAULT);
       });
 
       /* Frequency tabs */
@@ -2968,9 +3215,10 @@
       /* % preset buttons */
       document.querySelectorAll('.pct-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          var target = Math.round((parseInt(btn.dataset.pct, 10) / 100 * sliderMax) / 50) * 50;
-          target = Math.max(50, Math.min(target, sliderMax));
-          sliderEl.value = target;
+          var step = parseInt(sliderEl.step, 10) || 5;
+          var min = parseInt(sliderEl.min, 10) || MIN_DCA;
+          var target = snapToStep(parseInt(btn.dataset.pct, 10) / 100 * sliderMax, step, min, sliderMax);
+          sliderEl.value = String(target);
           updateSliderUI();
         });
       });
@@ -3120,6 +3368,47 @@
 
       document.getElementById('btnWizardBack10').addEventListener('click', function () { goTo(9); });
 
+      document.getElementById('btnManageMira').addEventListener('click', async function () {
+        if (!assertAuth()) return;
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = '⏳ Opening MIRA…';
+        var tg = window.Telegram && window.Telegram.WebApp;
+        try {
+          var res = await fetch('/api/mira/create-context', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Telegram-Init-Data': initData,
+            },
+          });
+          if (!res.ok) {
+            var errData = await res.json().catch(function () { return {}; });
+            var errMsg = errData.error || 'Failed to open MIRA. Try again.';
+            if (tg && tg.showAlert) tg.showAlert('❌ ' + errMsg);
+            else alert('Error: ' + errMsg);
+            btn.disabled = false;
+            btn.textContent = '💬 Управлять через MIRA';
+            return;
+          }
+          var data = await res.json();
+          var deeplink = data.mira_deeplink;
+          if (deeplink) {
+            if (tg && tg.openTelegramLink) tg.openTelegramLink(deeplink);
+            else if (tg && tg.openLink) tg.openLink(deeplink);
+            else window.location.href = deeplink;
+          }
+          btn.disabled = false;
+          btn.textContent = '💬 Управлять через MIRA';
+        } catch (e) {
+          console.error('[btnManageMira]', e);
+          if (tg && tg.showAlert) tg.showAlert('❌ Network error. Please try again.');
+          else alert('Network error. Please try again.');
+          btn.disabled = false;
+          btn.textContent = '💬 Управлять через MIRA';
+        }
+      });
+
       document.getElementById('btnCreateDCA').addEventListener('click', async function () {
         if (!assertAuth()) return;
         var btn = this;
@@ -3159,12 +3448,14 @@
           });
 
           if (res.ok) {
-            if (tg && tg.showAlert) {
-              tg.showAlert('🚀 Strategy created! First cycle starts within 24 hours. Check the bot for updates.', function () {
-                if (tg.close) tg.close();
-              });
-            } else {
-              alert('Strategy created!');
+            btn.textContent = '✓ Strategy created';
+            btn.classList.add('success');
+            var miraBtn = document.getElementById('btnManageMira');
+            if (miraBtn) miraBtn.classList.add('visible');
+            var ctaMeta = document.getElementById('ctaMeta');
+            if (ctaMeta) ctaMeta.textContent = 'First cycle starts within 24h · manage via MIRA below';
+            if (tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred) {
+              tg.HapticFeedback.notificationOccurred('success');
             }
           } else {
             var errData = await res.json().catch(function () { return {}; });
