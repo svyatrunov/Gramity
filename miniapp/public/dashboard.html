@@ -631,10 +631,19 @@
       var pauseBtn = el('button', { class: 'btn btn-ghost' });
       pauseBtn.textContent = plan.active ? '⏸ Pause' : '▶️ Resume';
       pauseBtn.addEventListener('click', function () {
-        if (tg && tg.sendData) {
-          tg.sendData(JSON.stringify({ type: plan.active ? 'pause' : 'resume' }));
-          showToast(plan.active ? 'Pause requested' : 'Resume requested', 'ok');
-        }
+        var action = plan.active ? 'pause' : 'resume';
+        pauseBtn.disabled = true;
+        apiPost('/plan/' + action)
+          .then(function () {
+            showToast(plan.active ? 'Strategy paused' : 'Strategy resumed', 'ok');
+            return reloadPortfolio();
+          })
+          .catch(function (err) {
+            showToast(err.message || 'Action failed', 'err');
+          })
+          .finally(function () {
+            pauseBtn.disabled = false;
+          });
       });
       row.appendChild(pauseBtn);
     }

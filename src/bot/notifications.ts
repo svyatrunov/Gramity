@@ -3,6 +3,8 @@
  * Pure functions — no bot dependency, no I/O.
  */
 
+import { formatGasTopUpMessage } from "../utils/gasLink.js";
+
 export interface CycleCompleteData {
   amountUsdt: number;
   tonAmount: number;
@@ -53,10 +55,7 @@ export const notify = {
     `_Strategy is paused until funded._`,
 
   insufficientGas: (walletAddress: string, have: number): string =>
-    `⛽ *Low Gas — Cycle Skipped*\n\n` +
-    `Agent wallet needs 0.8 TON for network fees.\n` +
-    `Current: ${have.toFixed(3)} TON\n\n` +
-    `👉 Send TON to:\n\`${walletAddress}\``,
+    formatGasTopUpMessage(walletAddress, have),
 
   autoPaused: (reason: string): string =>
     `⏸ *Strategy Auto-Paused*\n\n` +

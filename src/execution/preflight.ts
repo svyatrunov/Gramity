@@ -9,6 +9,7 @@ import { getUserWalletContext } from "../services/userWallet.js";
 import { getUsdtBalance, getTonBalance } from "../services/tonapi.js";
 import type { Plan } from "../db/index.js";
 import { hasWithdrawalAddress } from "../utils/tonAddress.js";
+import { formatGasTopUpMessage } from "../utils/gasLink.js";
 
 export type PreflightFailReason =
   | "insufficient_usdt"
@@ -107,11 +108,7 @@ export async function preflightCheck(plan: Plan): Promise<PreflightResult> {
       ok: false,
       reason: "insufficient_gas",
       message: `Need ${GAS_RESERVE_TON} TON for gas, have ${tonBalance.toFixed(3)}`,
-      userMessage:
-        `⛽ *Low Gas — Cycle Skipped*\n\n` +
-        `Agent wallet needs ${GAS_RESERVE_TON} TON for network fees.\n` +
-        `Current: ${tonBalance.toFixed(3)} TON\n\n` +
-        `👉 Send TON to:\n\`${walletAddress}\``,
+      userMessage: formatGasTopUpMessage(walletAddress, tonBalance),
       walletAddress,
       tonBalance,
     };

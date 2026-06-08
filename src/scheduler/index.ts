@@ -175,6 +175,8 @@ async function checkAndExecute() {
               }
             } else if (preflight.userMessage) {
               await handleFailure(plan, preflight.reason ?? "preflight", preflight.userMessage);
+              const nextDate = getNextExecutionDate(plan);
+              await updatePlan(plan.telegram_id, { next_execution_at: nextDate.toISOString() });
               return;
             }
           }
@@ -195,6 +197,9 @@ async function checkAndExecute() {
               } catch {}
             }
           }
+
+          const nextDate = getNextExecutionDate(plan);
+          await updatePlan(plan.telegram_id, { next_execution_at: nextDate.toISOString() });
           return;
         }
 

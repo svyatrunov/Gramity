@@ -254,6 +254,45 @@ app.post("/api/withdraw/usdt", tgAuth, async (req, res) => {
   }
 });
 
+// Pause / resume strategy (dashboard + API)
+app.post("/api/plan/pause", tgAuth, async (req, res) => {
+  try {
+    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const { getPlanByTelegramId, updatePlan } = await import("./db/index.js");
+    const plan = await getPlanByTelegramId(telegramId);
+    if (!plan) { res.status(404).json({ error: "No plan" }); return; }
+    if (!plan.active) {
+      res.json({ ok: true, active: false, message: "Already paused" });
+      return;
+    }
+    await updatePlan(telegramId, { active: false });
+    res.json({ ok: true, active: false });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post("/api/plan/resume", tgAuth, async (req, res) => {
+  try {
+    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const { getPlanByTelegramId, updatePlan } = await import("./db/index.js");
+    const plan = await getPlanByTelegramId(telegramId);
+    if (!plan) { res.status(404).json({ error: "No plan" }); return; }
+    if (plan.active) {
+      res.json({ ok: true, active: true, message: "Already active" });
+      return;
+    }
+    const next = getNextPlanExecutionDate(plan);
+    await updatePlan(telegramId, {
+      active: true,
+      next_execution_at: next.toISOString(),
+    });
+    res.json({ ok: true, active: true, next_execution_at: next.toISOString() });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 // Withdraw all
 app.post("/api/withdraw/all", tgAuth, async (req, res) => {
   try {
@@ -451,7 +490,7 @@ app.post("/api/evm-deposit/deposit-initiated", async (req, res) => {
         `Amount: ${amt} ${tokenSym}\n` +
         `Network: ${chain}\n` +
         `Tx: \`${txHash.slice(0, 10)}…${txHash.slice(-8)}\`\n\n` +
-        `_Funds will arrive on TON after bridge confirmation (usually 5–15 min)._`,
+        `_Funds arrive on TON in ~5–15 min. You'll get a follow-up with next steps (gas via STON Wallet, withdrawal address)._`,
       { parse_mode: "Markdown" }
     );
 
@@ -651,14 +690,21 @@ async function notifyDepositOrderUpdate(
   const shortId = quoteId ? `${quoteId.slice(0, 8)}…` : "?";
 
   if (orderStatus === "TRADE_STATUS_FULLY_FILLED") {
-    await bot.api.sendMessage(
-      telegramId,
-      `✅ *Cross-chain order completed*\n\n` +
-        `Quote: \`${shortId}\`\n` +
-        `${message ?? "USDT is on the way to your DCA wallet."}\n\n` +
-        `_Balance updates within a few minutes._`,
-      { parse_mode: "Markdown" }
-    );
+    const { buildBridgeCompleteMessage } = await import("./utils/gasLink.js");
+    const { text, gasButtonUrl } = await buildBridgeCompleteMessage(telegramId);
+    const filledPrefix =
+      `Quote: \`${shortId}\`\n` +
+      (message ? `${message}\n\n` : "");
+    await bot.api.sendMessage(telegramId, filledPrefix + text, {
+      parse_mode: "Markdown",
+      ...(gasButtonUrl
+        ? {
+            reply_markup: {
+              inline_keyboard: [[{ text: "⛽ Send TON via STON Wallet", url: gasButtonUrl }]],
+            },
+          }
+        : {}),
+    });
     return;
   }
 
@@ -727,7 +773,7 @@ app.post("/api/deposit-initiated", tgAuth, async (req, res) => {
         `Amount: ${amt} ${token}\n` +
         `Network: ${chain}\n` +
         `Tx: \`${txHash.slice(0, 10)}…${txHash.slice(-8)}\`\n\n` +
-        `_Funds will arrive on TON after bridge confirmation (usually 5–15 min)._`,
+        `_Funds arrive on TON in ~5–15 min. You'll get a follow-up with next steps (gas via STON Wallet, withdrawal address)._`,
       { parse_mode: "Markdown" }
     );
 
