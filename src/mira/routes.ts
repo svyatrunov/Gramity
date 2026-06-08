@@ -11,7 +11,6 @@ import {
   sanitizeForMira,
   parseTelegramId,
   buildMiraBotDeeplink,
-  buildMiraOnboardingDeeplink,
   strategyModeToSlug,
 } from "./utils.js";
 import { hasWithdrawalAddress } from "../utils/tonAddress.js";
@@ -124,33 +123,27 @@ export function registerMiraRoutes(app: Express): void {
         return;
       }
 
-      // Mini App handoff: validate Telegram initData, issue one-time token
+      // Mini App handoff: validate Telegram initData, issue one-time JWT deeplink
       const telegramId = resolveTelegramId(req);
       if (!telegramId) {
         res.status(401).json({ error: "Unauthorized" });
         return;
       }
 
-      const plan = await getPlanByTelegramId(telegramId);
       const fromOnboarding =
         req.body?.source === "onboarding" || req.body?.context === "onboarding";
-      if (!plan) {
-        const ctx = await buildMiraContext(telegramId);
-        if (fromOnboarding) {
-          res.json({
-            ...ctx,
-            deeplink: buildMiraOnboardingDeeplink(telegramId),
-            mira_deeplink: buildMiraOnboardingDeeplink(telegramId),
-            context: "onboarding",
-          });
-          return;
-        }
-        res.json(ctx);
-        return;
-      }
+      const onboardingProgress = req.body?.onboarding_progress;
+      const extra =
+        onboardingProgress && typeof onboardingProgress === "object"
+          ? { onboarding: onboardingProgress as Record<string, unknown> }
+          : undefined;
 
-      const handoff = await createContextHandoff(telegramId);
-      res.json(handoff);
+      const handoff = await createContextHandoff(telegramId, extra);
+      res.json({
+        ...handoff,
+        deeplink: handoff.mira_deeplink,
+        context: fromOnboarding ? "onboarding" : "portfolio",
+      });
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });
     }
@@ -164,23 +157,37 @@ export function registerMiraRoutes(app: Express): void {
         return;
       }
 
-      const portfolio = await buildMiraPortfolio(consumed.telegramId);
-      res.json(sanitizeForMira({
-        telegram_id: portfolio.telegram_id,
-        total_usd: portfolio.total_usd,
-        strategies: portfolio.strategies,
-        agent_wallet_address: portfolio.agent_wallet_address,
-        withdrawal_address_set: portfolio.withdrawal_address_set,
-        withdrawal_address_masked: portfolio.withdrawal_address_masked,
-        cycle_blocked_reason: portfolio.cycle_blocked_reason,
-        suggested_action: portfolio.suggested_action,
-      }));
+      try {
+        const portfolio = await buildMiraPortfolio(consumed.telegramId);
+        res.json(sanitizeForMira({
+          telegram_id: portfolio.telegram_id,
+          total_usd: portfolio.total_usd,
+          strategies: portfolio.strategies,
+          agent_wallet_address: portfolio.agent_wallet_address,
+          withdrawal_address_set: portfolio.withdrawal_address_set,
+          withdrawal_address_masked: portfolio.withdrawal_address_masked,
+          cycle_blocked_reason: portfolio.cycle_blocked_reason,
+          suggested_action: portfolio.suggested_action,
+          onboarding_progress: consumed.onboarding ?? null,
+        }));
+      } catch (err) {
+        const msg = (err as Error).message;
+        if (msg === "User not found" && consumed.onboarding) {
+          res.json(sanitizeForMira({
+            telegram_id: String(consumed.telegramId),
+            has_strategy: false,
+            onboarding_progress: consumed.onboarding,
+          }));
+          return;
+        }
+        if (msg === "User not found") {
+          res.status(404).json({ error: msg });
+          return;
+        }
+        throw err;
+      }
     } catch (err) {
       const msg = (err as Error).message;
-      if (msg === "User not found") {
-        res.status(404).json({ error: msg });
-        return;
-      }
       res.status(500).json({ error: msg });
     }
   });

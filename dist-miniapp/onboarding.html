@@ -832,9 +832,6 @@
       transform: translateY(16px);
     }
 
-    .slide-final .slide-footer { display: none; }
-    .slide-final .nav-arrow    { display: none; }
-
     /* ── Wizard ── */
     .slide-wizard .slide-content { justify-content: flex-start; }
     .slide-wizard .slide-footer {
@@ -2205,35 +2202,6 @@
       </section>
 
       <!-- ═══════════════════════════════════════════
-           SLIDE 5 — CTA
-      ═══════════════════════════════════════════ -->
-      <section class="slide slide-final" data-slide="5">
-        <div class="slide-content">
-          <div class="cta-center">
-            <div class="logo-wrap logo-wrap-sm cta-logo anim-item">
-              <img
-                src="/app/logos/gram-gravity-animated.svg"
-                alt=""
-                class="hero-logo-img"
-                width="64"
-                height="64"
-                decoding="async"
-              />
-            </div>
-            <h2 class="title anim-item">One deposit to start DCA</h2>
-            <p class="subtitle anim-item">Fund once from any chain — Gramity runs your strategy on autopilot</p>
-            <div class="cta-buttons">
-              <button class="btn btn-cta-hero anim-item" id="btnStartDCA">
-                ✦ Create DCA Strategy
-              </button>
-              <p class="cta-meta anim-item">~2 min setup · <span>0% platform fee</span></p>
-              <button class="btn btn-ghost anim-item" id="btnLearnMore">Talk with Mira →</button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═══════════════════════════════════════════
            WIZARD — Step 1 of 4: Connect wallet
       ═══════════════════════════════════════════ -->
       <section class="slide slide-wizard" data-slide="6">
@@ -2663,11 +2631,11 @@
         });
       }
 
-      var WIZARD_CONNECT = 7;
-      var WIZARD_DEPOSIT = 8;
-      var WIZARD_SETUP = 9;
-      var WIZARD_CONFIRM = 10;
-      var WIZARD_FINAL = 11;
+      var WIZARD_CONNECT = 6;
+      var WIZARD_DEPOSIT = 7;
+      var WIZARD_SETUP = 8;
+      var WIZARD_CONFIRM = 9;
+      var WIZARD_FINAL = 10;
 
       function updateArrows() {
         var inWizard = current >= WIZARD_CONNECT;
@@ -2708,8 +2676,7 @@
       btnPrev.addEventListener('click', prev);
 
       document.getElementById('btnGetStarted').addEventListener('click', next);
-      document.getElementById('btnToFinal').addEventListener('click', function () { goTo(6); });
-      document.getElementById('btnStartDCA').addEventListener('click', function () { goTo(WIZARD_CONNECT); });
+      document.getElementById('btnToFinal').addEventListener('click', function () { goTo(WIZARD_CONNECT); });
       document.querySelectorAll('.btn-slide-next').forEach(function (btn) {
         btn.addEventListener('click', next);
       });
@@ -2741,6 +2708,25 @@
         }
       }
 
+      function buildMiraOnboardingProgress() {
+        if (typeof saveBridgeState === 'function') saveBridgeState();
+        if (typeof saveSetupState === 'function') saveSetupState();
+        return {
+          source: 'onboarding',
+          strategy: wiz.selectedStrategy,
+          amount_usdt: wiz.amountPerCycle,
+          frequency: wiz.frequency,
+          ton_connected: wiz.tonConnected,
+          evm_connected: wiz.evmConnected,
+          bridge_amount: wiz.bridgeAmount,
+          bridge_chain: wiz.bridgeChain || null,
+          agent_wallet_address: wiz.agentWalletAddress || null,
+          agent_usdt_balance: wiz.agentUsdtBalance,
+          withdrawal_address: wiz.withdrawAddress || null,
+          mode: wiz.mode,
+        };
+      }
+
       async function openMiraWithContext(btn) {
         if (!assertAuth()) return;
         var label = btn ? btn.textContent : '';
@@ -2757,7 +2743,10 @@
               'Content-Type': 'application/json',
               'X-Telegram-Init-Data': initData,
             },
-            body: JSON.stringify({ source: 'onboarding' }),
+            body: JSON.stringify({
+              source: 'onboarding',
+              onboarding_progress: buildMiraOnboardingProgress(),
+            }),
           });
           if (res.ok) {
             var data = await res.json();
@@ -2780,9 +2769,6 @@
       }
 
       document.getElementById('btnOpenMiraSlide').addEventListener('click', function () {
-        openMiraWithContext(this);
-      });
-      document.getElementById('btnLearnMore').addEventListener('click', function () {
         openMiraWithContext(this);
       });
 

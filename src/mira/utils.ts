@@ -38,7 +38,11 @@ function getContextSecret(): string {
   return process.env.MIRA_CONTEXT_SECRET ?? process.env.MASTER_ENCRYPTION_KEY ?? "gramity-mira-dev";
 }
 
-export function signContextToken(telegramId: number, jti: string): string {
+export function signContextToken(
+  telegramId: number,
+  jti: string,
+  extra?: Record<string, unknown>
+): string {
   const header = base64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
   const payload = base64url(
     JSON.stringify({
@@ -46,6 +50,7 @@ export function signContextToken(telegramId: number, jti: string): string {
       jti,
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + 300,
+      ...extra,
     })
   );
   const sig = createHmac("sha256", getContextSecret())
@@ -57,7 +62,9 @@ export function signContextToken(telegramId: number, jti: string): string {
   return `${header}.${payload}.${sig}`;
 }
 
-export function verifyContextToken(token: string): { telegramId: number; jti: string } | null {
+export function verifyContextToken(
+  token: string
+): { telegramId: number; jti: string; onboarding?: Record<string, unknown> } | null {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
@@ -74,13 +81,16 @@ export function verifyContextToken(token: string): { telegramId: number; jti: st
       sub?: string;
       jti?: string;
       exp?: number;
+      onboarding?: Record<string, unknown>;
     };
     if (!body.sub || !body.jti) return null;
     if (body.exp && body.exp < Math.floor(Date.now() / 1000)) return null;
 
     const telegramId = Number(body.sub);
     if (!telegramId || isNaN(telegramId)) return null;
-    return { telegramId, jti: body.jti };
+    const onboarding =
+      body.onboarding && typeof body.onboarding === "object" ? body.onboarding : undefined;
+    return { telegramId, jti: body.jti, onboarding };
   } catch {
     return null;
   }

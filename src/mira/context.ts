@@ -6,7 +6,10 @@ import {
   buildMiraDeeplink,
 } from "./utils.js";
 
-export async function createContextHandoff(telegramId: number): Promise<{
+export async function createContextHandoff(
+  telegramId: number,
+  extra?: Record<string, unknown>
+): Promise<{
   token: string;
   mira_deeplink: string;
 }> {
@@ -15,7 +18,7 @@ export async function createContextHandoff(telegramId: number): Promise<{
     `INSERT INTO mira_context_tokens (jti, telegram_id) VALUES ($1, $2)`,
     [jti, telegramId]
   );
-  const token = signContextToken(telegramId, jti);
+  const token = signContextToken(telegramId, jti, extra);
   return {
     token,
     mira_deeplink: buildMiraDeeplink(token),
@@ -25,7 +28,7 @@ export async function createContextHandoff(telegramId: number): Promise<{
 /** Returns telegram_id if token is valid and not yet consumed; marks as consumed. */
 export async function consumeContextToken(
   token: string
-): Promise<{ telegramId: number } | null> {
+): Promise<{ telegramId: number; onboarding?: Record<string, unknown> } | null> {
   const parsed = verifyContextToken(token);
   if (!parsed) return null;
 
@@ -38,7 +41,7 @@ export async function consumeContextToken(
   );
 
   if (rows.length === 0) return null;
-  return { telegramId: parsed.telegramId };
+  return { telegramId: parsed.telegramId, onboarding: parsed.onboarding };
 }
 
 export async function isContextTokenConsumed(token: string): Promise<boolean> {
