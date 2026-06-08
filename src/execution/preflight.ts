@@ -4,11 +4,10 @@
  * without touching execution state.
  */
 
+import { GAS_RESERVE_TON } from "../constants/dca.js";
 import { getUserWalletContext } from "../services/userWallet.js";
 import { getUsdtBalance, getTonBalance } from "../services/tonapi.js";
 import type { Plan } from "../db/index.js";
-
-export const GAS_RESERVE = 0.8; // TON
 
 export type PreflightFailReason =
   | "insufficient_usdt"
@@ -89,14 +88,14 @@ export async function preflightCheck(plan: Plan): Promise<PreflightResult> {
     tonBalance = 0;
   }
 
-  if (tonBalance < GAS_RESERVE) {
+  if (tonBalance < GAS_RESERVE_TON) {
     return {
       ok: false,
       reason: "insufficient_gas",
-      message: `Need ${GAS_RESERVE} TON for gas, have ${tonBalance.toFixed(3)}`,
+      message: `Need ${GAS_RESERVE_TON} TON for gas, have ${tonBalance.toFixed(3)}`,
       userMessage:
         `⛽ *Low Gas — Cycle Skipped*\n\n` +
-        `Agent wallet needs ${GAS_RESERVE} TON for network fees.\n` +
+        `Agent wallet needs ${GAS_RESERVE_TON} TON for network fees.\n` +
         `Current: ${tonBalance.toFixed(3)} TON\n\n` +
         `👉 Send TON to:\n\`${walletAddress}\``,
       walletAddress,

@@ -2245,6 +2245,7 @@
         updateArrows();
         animateSlide(current);
         resetSlide(prev);
+        if (index === 6) fetchPopularTokens();
       }
 
       function next() { goTo(current + 1); }
@@ -2608,13 +2609,16 @@
           ]);
         }).then(function (data) {
           var items = [];
-          var acct = data[0], jData = data[1], tonPrice = data[2] || 3.5, popular = data[3] || { byEq: {} };
+          var acct = data[0], jData = data[1], tonPrice = data[2] || 3.5, popular = data[3] || { byEq: {}, bySymbol: {} };
+          var tonMeta = popular.bySymbol.TON || {};
           if (acct) {
             var ton = Number(acct.balance || 0) / 1e9;
             if (ton >= 0.001) {
               var tonUsd = ton * tonPrice;
               items.push({
-                logoId: 'logo-ton', name: 'TON', chain: 'TON',
+                logoId: tonMeta.logo_id || 'logo-ton',
+                logoUrl: tonMeta.logo_url || null,
+                name: 'TON', chain: 'TON',
                 amount: ton.toFixed(3), usd: tonUsd.toFixed(2), rawBal: tonUsd,
                 isUsdtStable: false, isUsdtJetton: false,
               });
@@ -2632,7 +2636,8 @@
               var usdPrice = b.price && b.price.prices && b.price.prices.USD;
               var usd = usdPrice ? (bal * usdPrice).toFixed(2) : (isUsdt ? bal.toFixed(2) : null);
               items.push({
-                logoId: logoIdForSymbol(symbol),
+                logoId: tokenMeta.logo_id || 'logo-wallet',
+                logoUrl: tokenMeta.logo_url || null,
                 name: b.jetton.symbol, chain: 'TON',
                 amount: formatTokenAmount(bal),
                 usd: usd, rawBal: bal,
@@ -2689,7 +2694,10 @@
         'logo-phantom':  '/app/logos/phantom.svg',
       };
 
-      function renderBalIcon(logoId) {
+      function renderBalIcon(logoId, logoUrl) {
+        if (logoUrl) {
+          return '<div class="bal-icon"><img src="' + logoUrl + '" alt="" width="22" height="22"/></div>';
+        }
         if (WALLET_LOGO_IMGS[logoId]) {
           return '<div class="bal-icon"><img src="' + WALLET_LOGO_IMGS[logoId] + '" alt="" class="wallet-logo-img" width="22" height="22"/></div>';
         }
@@ -2699,7 +2707,7 @@
       function renderBalRow(item) {
         return '<div class="balance-row">' +
           '<div class="bal-left">' +
-          renderBalIcon(item.logoId) +
+          renderBalIcon(item.logoId, item.logoUrl) +
           '<div><div class="bal-name">' + item.name + '</div><div class="bal-chain">' + item.chain + '</div></div>' +
           '</div>' +
           '<div class="bal-right">' +

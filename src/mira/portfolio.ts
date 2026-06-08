@@ -4,6 +4,8 @@ import {
   getLastExecutions,
   getTotalInvested,
 } from "../db/index.js";
+import { GAS_RESERVE_TON } from "../constants/dca.js";
+import { preflightCheck } from "../execution/preflight.js";
 import {
   getTonPriceUsd,
   getUsdtBalance,
@@ -85,12 +87,23 @@ export async function buildMiraPortfolio(telegramId: number) {
   const totalInvested = await getTotalInvested(plan.id).catch(() => 0);
   const executions = await getLastExecutions(plan.id, 10).catch(() => []);
 
+  const nextCycleRequiresUsdt = Number(plan.usdt_amount);
+  const preflight = await preflightCheck(plan);
+  const canRunNextCycle = preflight.ok;
+  const topUpHint = canRunNextCycle
+    ? undefined
+    : `Top up agent wallet with $${nextCycleRequiresUsdt} USDT + ${GAS_RESERVE_TON} TON gas`;
+
   return {
     telegram_id: telegramId,
     total_usd: totalUsd,
     est_value_usd: estValueUsd,
     ton_balance_usd: tonBalanceUsd,
     usdt_balance: usdtBalance,
+    next_cycle_requires_usdt: nextCycleRequiresUsdt,
+    next_cycle_requires_gas_ton: GAS_RESERVE_TON,
+    can_run_next_cycle: canRunNextCycle,
+    top_up_hint: topUpHint,
     lp_value_usd: lpValue,
     total_invested_usd: totalInvested,
     cycles_done: plan.cycles_completed,

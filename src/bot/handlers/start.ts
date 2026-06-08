@@ -7,6 +7,7 @@ import { InlineKeyboard } from "grammy";
 import { Address } from "@ton/ton";
 import type { GramityContext } from "../session.js";
 import { RAILWAY_PUBLIC_URL } from "../../config.js";
+import { MIN_DCA_USDT } from "../../constants/dca.js";
 import {
   getPlanByTelegramId,
   upsertPlan,
@@ -183,7 +184,7 @@ export async function continueToDepositStep(
       `\`${normalizedAddress.slice(0, 6)}…${normalizedAddress.slice(-4)}\`\n\n` +
       `*Fund your Gramity deposit address with USDT (on TON):*\n` +
       `\`${depositAddress}\`\n\n` +
-      `Minimum: $25 USDT\n\n` +
+      `Minimum: $${MIN_DCA_USDT} USDT\n\n` +
       `📡 I'm watching for your deposit and will notify you automatically.\n` +
       `You can tap the button right after sending 👇`,
     {
@@ -242,8 +243,8 @@ async function showAmountKeyboard(ctx: GramityContext, balance: number) {
 async function handleCustomAmount(ctx: GramityContext, text: string) {
   const amount = parseFloat(text.replace(",", ".").replace(/[^0-9.]/g, ""));
 
-  if (isNaN(amount) || amount < 1) {
-    await ctx.reply("❌ Enter an amount in USD, e.g.: `30`", {
+  if (isNaN(amount) || amount < MIN_DCA_USDT) {
+    await ctx.reply(`❌ Minimum per cycle is $${MIN_DCA_USDT} USDT. Enter e.g.: \`30\``, {
       parse_mode: "Markdown",
     });
     return;
@@ -285,7 +286,7 @@ export async function handleCallbackQuery(ctx: GramityContext) {
     const raw = data.slice(7);
     if (raw === "custom") {
       ctx.session.step = "waiting_custom_amount";
-      await ctx.reply("Enter amount in USDT (minimum $1):");
+      await ctx.reply(`Enter amount in USDT (minimum $${MIN_DCA_USDT}):`);
     } else {
       ctx.session.amount = Number(raw);
       ctx.session.step = "waiting_frequency";
@@ -390,6 +391,11 @@ async function handleActivate(ctx: GramityContext) {
 
   if (!telegramId || !amount || !frequency || !tonAddress) {
     await ctx.reply("❌ Something went wrong. Start over: /start");
+    return;
+  }
+
+  if (amount < MIN_DCA_USDT) {
+    await ctx.reply(`❌ Minimum per cycle is $${MIN_DCA_USDT} USDT. Tap /start to try again.`);
     return;
   }
 

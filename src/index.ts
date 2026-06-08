@@ -20,11 +20,22 @@ import {
   BOT_WALLET_ADDRESS,
   OMNISTON_WS_URL,
 } from "./config.js";
+import { POPULAR_TON_JETTONS, logoUrlFor } from "./shared/popular-ton-jettons.js";
 import { getAllVerifiedJettons, getTonBalance, getUsdtBalance } from "./services/tonapi.js";
 import { createUserWallet, createNamedWallet, getUserWalletContext } from "./services/userWallet.js";
 import { executeFullExit } from "./execution/exit.js";
 import { sendJettonTransfer } from "./services/jetton.js";
 import { registerMiraRoutes } from "./mira/routes.js";
+import {
+  MIN_DCA_USDT,
+  MIN_SCAN_USD,
+  DEMO_MIN_USDT,
+  GAS_RESERVE_TON,
+  ECONOMICS_HINT_THRESHOLD_USDT,
+  minPlanAmountUsdt,
+  validatePlanAmount,
+  buildEconomicsHint,
+} from "./constants/dca.js";
 
 // ─── Express app ──────────────────────────────────────────────────────────────
 
@@ -226,18 +237,12 @@ app.post("/api/withdraw/all", tgAuth, async (req, res) => {
   }
 });
 
-// Popular tokens (static list + prices from TonAPI)
+// Popular tokens (shared registry + prices from TonAPI)
 app.get("/api/tokens/popular", async (_req, res) => {
   try {
-    const TOKENS = [
-      { symbol: "TON",   address: "ton" },
-      { symbol: "tsTON", address: "EQC98_qAmNEptUtPc7W6xdHh_ZHrBUFpw5Ft_IzNU20QAJav" },
-      { symbol: "STON",  address: "EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmn32ehfw" },
-      { symbol: "NOT",   address: "EQAvlWFDxGF2lXm67y4yzC17wYKD9A0guwPkMs1gOsM__NOT" },
-      { symbol: "USDT",  address: "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs" },
-    ];
-
-    const addrs = TOKENS.map((t) => t.address).filter((a) => a !== "ton").join(",");
+    const addrs = POPULAR_TON_JETTONS.map((t) => t.address)
+      .filter((a) => a !== "ton")
+      .join(",");
     const prices: Record<string, number | null> = {};
     try {
       const r = await fetch(
@@ -252,12 +257,16 @@ app.get("/api/tokens/popular", async (_req, res) => {
       }
     } catch { /* non-fatal */ }
 
-    res.json(TOKENS.map((t) => ({
-      symbol: t.symbol,
-      address: t.address,
-      price_usd: prices[t.address] ?? null,
-      decimals: 9,
-    })));
+    res.json(
+      POPULAR_TON_JETTONS.map((t) => ({
+        symbol: t.symbol,
+        address: t.address,
+        price_usd: t.address === "ton" ? (prices["ton"] ?? null) : (prices[t.address] ?? null),
+        decimals: 9,
+        logo_url: logoUrlFor(t),
+        logo_id: t.logoId,
+      }))
+    );
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
@@ -316,6 +325,16 @@ app.post("/api/deposit-initiated", tgAuth, async (req, res) => {
   }
 });
 
+app.get("/api/dca/limits", (_req, res) => {
+  res.json({
+    min_dca_usdt: MIN_DCA_USDT,
+    min_scan_usd: MIN_SCAN_USD,
+    demo_min_usdt: DEMO_MIN_USDT,
+    gas_reserve_ton: GAS_RESERVE_TON,
+    economics_hint_threshold_usdt: ECONOMICS_HINT_THRESHOLD_USDT,
+  });
+});
+
 // Create / update DCA plan from Mini App
 app.post("/api/plans", tgAuth, async (req, res) => {
   try {
@@ -326,13 +345,17 @@ app.post("/api/plans", tgAuth, async (req, res) => {
       res.status(400).json({ error: "ton_address is required" });
       return;
     }
+    const isDemoMode = demo_mode === true || demo_mode === "true";
     const amount = Number(amount_usdt);
-    if (!amount || isNaN(amount) || amount < 1) {
-      res.status(400).json({ error: "amount_usdt must be >= 1" });
+    const amountError = validatePlanAmount(amount, isDemoMode);
+    if (amountError) {
+      res.status(400).json({
+        error: amountError,
+        min_usdt: minPlanAmountUsdt(isDemoMode),
+        demo_mode: isDemoMode,
+      });
       return;
     }
-
-    const isDemoMode = demo_mode === true || demo_mode === "true";
 
     type FreqType = "weekly" | "biweekly" | "monthly" | "daily" | "minutely" | "hourly" | "demo";
     const VALID_FREQS: FreqType[] = ["daily", "weekly", "biweekly", "monthly", "minutely", "hourly", "demo"];
@@ -406,7 +429,16 @@ app.post("/api/plans", tgAuth, async (req, res) => {
     }
 
     console.log(`[API/plans] Strategy created user=${telegramId} amount=${amount} freq=${normalizedFreq} demo=${isDemoMode}`);
-    res.json({ ok: true, message: isDemoMode ? "Demo strategy created" : "Strategy created successfully" });
+
+    const { getTonPriceUsd } = await import("./services/tonapi.js");
+    const tonPrice = await getTonPriceUsd().catch(() => 5);
+    const economics_hint = buildEconomicsHint(amount, tonPrice);
+
+    res.json({
+      ok: true,
+      message: isDemoMode ? "Demo strategy created" : "Strategy created successfully",
+      ...(economics_hint ? { economics_hint } : {}),
+    });
   } catch (err) {
     console.error("[API/plans] Error:", err);
     res.status(500).json({ error: (err as Error).message });

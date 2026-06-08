@@ -15,6 +15,7 @@ import {
 import type { WalletContext } from "../wallet.js";
 import { sendJettonTransfer } from "../services/jetton.js";
 import { getAllVerifiedJettons, getTonBalance } from "../services/tonapi.js";
+import { isPopularJettonAddress } from "../shared/popular-ton-jettons.js";
 import { sleep } from "../wallet.js";
 
 type TypedContract = OpenedContract<WalletContractV4> & {
@@ -49,8 +50,10 @@ export async function sweepAllTokens(
 
   console.log(`[SWEEP] Starting sweep from ${address} → ${toAddress}`);
 
-  const jettons = await getAllVerifiedJettons(address);
-  console.log(`[SWEEP] Found ${jettons.length} verified jetton(s):`, jettons.map((j) => j.symbol).join(", ") || "none");
+  const jettons = (await getAllVerifiedJettons(address)).filter((j) =>
+    isPopularJettonAddress(j.jettonAddress)
+  );
+  console.log(`[SWEEP] Found ${jettons.length} popular jetton(s):`, jettons.map((j) => j.symbol).join(", ") || "none");
 
   const jettonsSent: string[] = [];
 

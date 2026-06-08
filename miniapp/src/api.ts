@@ -55,6 +55,8 @@ export interface PopularToken {
   address: string;
   price_usd: number | null;
   decimals: number;
+  logo_url: string | null;
+  logo_id: string;
 }
 
 export interface DepositConfig {

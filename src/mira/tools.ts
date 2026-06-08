@@ -3,6 +3,7 @@ import {
   updatePlan,
   getPool,
 } from "../db/index.js";
+import { MIN_DCA_USDT } from "../constants/dca.js";
 import { createUserWallet } from "../services/userWallet.js";
 import { RAILWAY_PUBLIC_URL } from "../config.js";
 import { buildMiraPortfolio } from "./portfolio.js";
@@ -44,8 +45,10 @@ export async function toolCreateStrategy(args: Record<string, unknown>) {
   if (!telegramId) throw new Error("telegram_id required");
 
   const amount = Number(args.amount_usdt);
-  if (!amount || isNaN(amount) || amount < 1) {
-    throw new Error("amount_usdt must be >= 1");
+  if (!amount || isNaN(amount) || amount < MIN_DCA_USDT) {
+    throw new Error(
+      `amount_usdt must be >= ${MIN_DCA_USDT}: завершите онбординг в Mini App или пополните agent wallet`
+    );
   }
 
   const frequency = String(args.frequency ?? "weekly") as FreqType;
@@ -142,18 +145,21 @@ export function getMcpManifest() {
     name: "gramity",
     version: "1.0.0",
     description:
-      "Gramity — custodial DCA executor on TON mainnet. Conversational control via Mira; no funds flow through Mira.",
+      "Gramity — custodial DCA executor on TON mainnet. Post-onboarding control plane via Mira; onboarding must be completed in Mini App first. No funds flow through Mira.",
     endpoint: `${base}/mcp`,
     constraints: {
       mainnet: true,
       custodial: true,
       no_funds_via_mira: true,
+      min_amount_usdt: MIN_DCA_USDT,
+      demo_available: true,
+      onboarding_required: true,
     },
     tools: [
       {
         name: "get_portfolio",
         description:
-          "Returns portfolio summary, active strategies, and masked withdrawal address.",
+          "Returns portfolio summary, usdt_balance, can_run_next_cycle, next_cycle_requires_usdt, and masked withdrawal address. Use top_up_hint when can_run_next_cycle is false.",
         inputSchema: {
           type: "object",
           required: ["telegram_id"],
@@ -163,13 +169,13 @@ export function getMcpManifest() {
       {
         name: "create_strategy",
         description:
-          "Create or update DCA strategy. Withdrawal address locked at onboarding — cannot be changed.",
+          `Update an existing DCA strategy (min $${MIN_DCA_USDT} USDT/cycle). Requires completed Mini App onboarding — cannot create plans or change withdrawal address via Mira.`,
         inputSchema: {
           type: "object",
           required: ["telegram_id", "amount_usdt", "frequency", "strategy"],
           properties: {
             telegram_id: { type: "string" },
-            amount_usdt: { type: "number" },
+            amount_usdt: { type: "number", minimum: MIN_DCA_USDT },
             frequency: { type: "string" },
             strategy: { type: "string" },
           },

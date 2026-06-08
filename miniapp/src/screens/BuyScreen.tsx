@@ -1,12 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api, type PopularToken } from "../api";
 
-const POPULAR_TOKENS: PopularToken[] = [
-  { symbol: "TON", address: "ton", price_usd: null, decimals: 9 },
-  { symbol: "tsTON", address: "EQC98_qAmNEptUtPc7W6xdHh_ZHrBUFpw5Ft_IzNU20QAJav", price_usd: null, decimals: 9 },
-  { symbol: "STON", address: "EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmn32ehfw", price_usd: null, decimals: 9 },
-  { symbol: "NOT", address: "EQAvlWFDxGF2lXm67y4yzC17wYKD9A0guwPkMs1gOsM__NOT", price_usd: null, decimals: 9 },
-];
 
 const S: Record<string, React.CSSProperties> = {
   root: { padding: 16 },
@@ -40,7 +34,7 @@ const S: Record<string, React.CSSProperties> = {
 };
 
 export function BuyScreen() {
-  const [tokens, setTokens] = useState<PopularToken[]>(POPULAR_TOKENS);
+  const [tokens, setTokens] = useState<PopularToken[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [msgs, setMsgs] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<string | null>(null);
