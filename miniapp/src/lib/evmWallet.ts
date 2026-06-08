@@ -42,15 +42,36 @@ export async function connectMetaMask(): Promise<{
 
   if (!eip1193) {
     try {
-      await connectMetaMaskWallet();
+      const conn = await connectMetaMaskWallet();
       eip1193 = (await getMetaMaskConnectProvider()) as Eip1193Provider;
+      const provider = new BrowserProvider(eip1193);
+      const signer = await provider.getSigner(conn.accounts[0]);
+      const network = await provider.getNetwork();
+      return {
+        provider,
+        signer,
+        address: conn.accounts[0],
+        chainId: Number(network.chainId),
+      };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.toLowerCase().includes("reject") || msg.includes("4001")) {
         throw new WalletError("Подключение отклонено", "USER_REJECTED");
       }
+      if (msg.includes("-32002") || msg.toLowerCase().includes("pending")) {
+        throw new WalletError(
+          "Подтвердите подключение в MetaMask и вернитесь в Telegram",
+          "CONNECT_PENDING"
+        );
+      }
+      if (msg.toLowerCase().includes("timeout")) {
+        throw new WalletError(
+          "Подтвердите подключение в MetaMask и вернитесь в Telegram",
+          "CONNECT_TIMEOUT"
+        );
+      }
       throw new WalletError(
-        "Не удалось открыть MetaMask. Подтвердите подключение в приложении MetaMask.",
+        "Не удалось подключить MetaMask. Подтвердите запрос в приложении и вернитесь в Telegram.",
         "CONNECT_FAILED"
       );
     }

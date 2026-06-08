@@ -2886,6 +2886,12 @@
       });
 
       /* MetaMask connect — extension (desktop) or MetaMask Connect SDK (mobile deeplink via tg.openLink) */
+      window.addEventListener('gramity-metamask-ready', function () {
+        if (window.GramityMetaMask && window.GramityMetaMask.warm) {
+          window.GramityMetaMask.warm();
+        }
+      }, { once: true });
+
       function getExtensionProvider() {
         if (!window.ethereum) return null;
         if (window.ethereum.providers && window.ethereum.providers.length) {
@@ -2967,6 +2973,7 @@
         var hintEl = btn.querySelector('div').children[1];
 
         labelEl.textContent = getExtensionProvider() ? 'Connecting…' : 'Opening MetaMask…';
+        if (hintEl) hintEl.textContent = 'Approve in MetaMask, then return to Telegram';
         btn.style.borderColor = '';
 
         var attempt = getExtensionProvider()
@@ -2982,6 +2989,9 @@
             labelEl.textContent = 'Loading MetaMask…';
           } else if (err && err.message === 'no_extension') {
             labelEl.textContent = 'Open MetaMask app to connect';
+          } else if (err && (String(err.message || '').indexOf('timeout') !== -1 || String(err.message || '').indexOf('return to Telegram') !== -1)) {
+            labelEl.textContent = 'Waiting for MetaMask…';
+            if (hintEl) hintEl.textContent = 'Approve connection in MetaMask, then switch back here';
           } else {
             labelEl.textContent = 'Connection cancelled';
           }
@@ -2989,7 +2999,7 @@
             labelEl.textContent = 'Connect MetaMask';
             if (hintEl) hintEl.textContent = 'Opens MetaMask app · ETH · Base · BNB · Polygon';
             btn.style.borderColor = '';
-          }, 4000);
+          }, 8000);
         });
       });
 

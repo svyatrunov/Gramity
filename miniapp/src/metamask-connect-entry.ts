@@ -1,6 +1,7 @@
 import {
   connectMetaMaskWallet,
   getMetaMaskConnectProvider,
+  warmMetaMaskConnectClient,
   isMobileDevice,
   isInsideTelegramMiniApp,
 } from "./lib/metamaskConnect";
@@ -10,6 +11,7 @@ declare global {
     GramityMetaMask?: {
       connect: typeof connectMetaMaskWallet;
       getProvider: typeof getMetaMaskConnectProvider;
+      warm: typeof warmMetaMaskConnectClient;
       isMobileDevice: typeof isMobileDevice;
       isInsideTelegramMiniApp: typeof isInsideTelegramMiniApp;
     };
@@ -19,6 +21,7 @@ declare global {
 window.GramityMetaMask = {
   connect: connectMetaMaskWallet,
   getProvider: getMetaMaskConnectProvider,
+  warm: warmMetaMaskConnectClient,
   isMobileDevice,
   isInsideTelegramMiniApp,
 };

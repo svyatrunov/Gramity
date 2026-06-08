@@ -13,15 +13,22 @@ const SUPPORTED_NETWORKS: Record<string, string> = {
   "0x89": "https://rpc.ankr.com/polygon",
 };
 
+const MOBILE_CONNECT_TIMEOUT_MS = 120_000;
+
 let clientPromise: Promise<MetamaskConnectEVM> | null = null;
 
 type TelegramWebApp = {
   initData?: string;
   openLink?: (url: string) => void;
+  onEvent?: (event: string, handler: () => void) => void;
 };
 
 function getTelegramWebApp(): TelegramWebApp | undefined {
   return (window as unknown as { Telegram?: { WebApp?: TelegramWebApp } }).Telegram?.WebApp;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export function isMobileDevice(): boolean {
@@ -40,15 +47,46 @@ export function isInsideTelegramMiniApp(): boolean {
   return Boolean(tg?.initData && tg.initData.includes("hash="));
 }
 
-function normalizeMetaMaskLink(link: string): string {
-  if (link.startsWith("metamask://")) {
-    return link.replace("metamask://", "https://metamask.app.link/");
+function isAndroidDevice(): boolean {
+  return /Android/i.test(navigator.userAgent ?? "");
+}
+
+/** Android: intent:// bypasses Branch.io in-app-browser fallback inside Telegram WebView. */
+function buildAndroidMetaMaskIntent(metamaskLink: string): string {
+  const path = metamaskLink.replace(/^metamask:\/\//, "");
+  const fallback = encodeURIComponent("https://metamask.io/download/");
+  return `intent://${path}#Intent;scheme=metamask;package=io.metamask;S.browser_fallback_url=${fallback};end`;
+}
+
+function toMetamaskScheme(link: string): string {
+  if (link.startsWith("metamask://")) return link;
+  if (link.includes("metamask.app.link") || link.includes("link.metamask.io")) {
+    try {
+      const u = new URL(link);
+      return `metamask://${u.pathname.replace(/^\//, "")}${u.search}`;
+    } catch {
+      return link;
+    }
+  }
+  return link;
+}
+
+function resolveMetaMaskOpenUrl(link: string): string {
+  const schemeLink = toMetamaskScheme(link);
+
+  if (isAndroidDevice() && schemeLink.startsWith("metamask://")) {
+    return buildAndroidMetaMaskIntent(schemeLink);
+  }
+
+  // iOS: app.link via Safari (Universal Links) — never window.location inside TG WebView
+  if (schemeLink.startsWith("metamask://")) {
+    return schemeLink.replace("metamask://", "https://metamask.app.link/");
   }
   return link;
 }
 
 function openMobileLink(link: string): void {
-  const url = normalizeMetaMaskLink(link);
+  const url = resolveMetaMaskOpenUrl(link);
   const tg = getTelegramWebApp();
   if (isInsideTelegramMiniApp() && tg?.openLink) {
     tg.openLink(url);
@@ -68,6 +106,7 @@ function installTelegramOpenLinkPatch(): void {
     const href = typeof url === "string" ? url : url?.toString() ?? "";
     if (
       href.startsWith("metamask://") ||
+      href.startsWith("intent://") ||
       href.includes("metamask.app.link") ||
       href.includes("link.metamask.io")
     ) {
@@ -81,6 +120,7 @@ function installTelegramOpenLinkPatch(): void {
 export function getMetaMaskConnectClient(): Promise<MetamaskConnectEVM> {
   if (!clientPromise) {
     installTelegramOpenLinkPatch();
+    const inTelegram = isInsideTelegramMiniApp();
     clientPromise = createEVMClient({
       dapp: {
         name: "Gramity",
@@ -92,7 +132,8 @@ export function getMetaMaskConnectClient(): Promise<MetamaskConnectEVM> {
       },
       ui: {
         headless: true,
-        preferExtension: !isMobileDevice(),
+        // Force MWP mobile deeplink in Telegram — extension path hangs in WebView
+        preferExtension: inTelegram ? false : !isMobileDevice(),
       },
       mobile: {
         useDeeplink: true,
@@ -103,13 +144,101 @@ export function getMetaMaskConnectClient(): Promise<MetamaskConnectEVM> {
   return clientPromise;
 }
 
+/** Pre-open relay WebSocket before user taps Connect (helps MWP handshake in TMA). */
+export function warmMetaMaskConnectClient(): void {
+  if (isInsideTelegramMiniApp() && isMobileDevice()) {
+    void getMetaMaskConnectClient();
+  }
+}
+
+async function readConnectedSession(
+  client: MetamaskConnectEVM
+): Promise<{ accounts: string[]; chainId: string } | null> {
+  try {
+    const provider = client.getProvider();
+    const accounts = (await provider.request({ method: "eth_accounts", params: [] })) as string[];
+    if (!accounts?.length) return null;
+    const chainId = (await provider.request({ method: "eth_chainId", params: [] })) as string;
+    return { accounts, chainId };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * MWP connect in Telegram: WebView freezes while MetaMask is foreground.
+ * Relay must reconnect when user returns — nudge on visibility + long timeout.
+ */
+async function connectWithTelegramResume(
+  client: MetamaskConnectEVM,
+  chainIds: string[]
+): Promise<{ accounts: string[]; chainId: string }> {
+  let finished = false;
+  let connectError: unknown;
+
+  const nudgeRelay = async () => {
+    if (finished || document.visibilityState !== "visible") return;
+    await sleep(700);
+    await readConnectedSession(client);
+  };
+
+  const onVisible = () => void nudgeRelay();
+  document.addEventListener("visibilitychange", onVisible);
+  getTelegramWebApp()?.onEvent?.("viewportChanged", onVisible);
+
+  const connectPromise = client
+    .connect({ chainIds })
+    .then((result) => {
+      finished = true;
+      return result;
+    })
+    .catch((err) => {
+      connectError = err;
+      throw err;
+    });
+
+  const deadline = Date.now() + MOBILE_CONNECT_TIMEOUT_MS;
+  while (!finished && Date.now() < deadline) {
+    const raced = await Promise.race([
+      connectPromise.then((r) => ({ ok: true as const, result: r })).catch(() => ({ ok: false as const })),
+      sleep(1500).then(() => ({ ok: false as const })),
+    ]);
+    if (raced.ok) {
+      document.removeEventListener("visibilitychange", onVisible);
+      return raced.result;
+    }
+    const session = await readConnectedSession(client);
+    if (session) {
+      finished = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      return session;
+    }
+  }
+
+  document.removeEventListener("visibilitychange", onVisible);
+
+  if (!finished) {
+    const session = await readConnectedSession(client);
+    if (session) return session;
+    if (connectError) throw connectError;
+    throw new Error("MetaMask connect timeout — approve in MetaMask and return to Telegram");
+  }
+
+  throw new Error("MetaMask connect failed");
+}
+
 export async function connectMetaMaskWallet(): Promise<{
   accounts: string[];
   chainId: string;
 }> {
   const client = await getMetaMaskConnectClient();
-  const result = await client.connect({ chainIds: [...CHAIN_IDS] });
-  return { accounts: result.accounts, chainId: result.chainId };
+  const chainIds = [...CHAIN_IDS];
+
+  if (isInsideTelegramMiniApp() && isMobileDevice()) {
+    return connectWithTelegramResume(client, chainIds);
+  }
+
+  return client.connect({ chainIds });
 }
 
 export async function getMetaMaskConnectProvider() {
