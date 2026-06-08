@@ -23,7 +23,6 @@
       --font: -apple-system, BlinkMacSystemFont, sans-serif;
       --slide-count: 10;
       --gram-logo-size: min(56vw, 190px);
-      --gram-glow-size: min(92vw, 400px);
     }
 
     html, body {
@@ -65,11 +64,6 @@
       padding-bottom: max(24px, env(safe-area-inset-bottom));
       overflow: hidden;
       position: relative;
-    }
-
-    .slide-hero,
-    .slide-final {
-      overflow: visible;
     }
 
     .slide-content {
@@ -199,63 +193,13 @@
       text-align: center;
     }
 
-    /* ── Gram logo: glow on slide bg, mark on top ── */
-    .gram-logo-glow {
-      position: absolute;
-      left: 50%;
-      z-index: 0;
-      width: var(--gram-glow-size);
-      height: var(--gram-glow-size);
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      overflow: visible;
-    }
-
-    .gram-logo-glow--hero {
-      top: calc(max(10vh, 48px) + min(15dvh, 96px));
-    }
-
-    .gram-logo-glow--cta {
-      top: 30%;
-    }
-
-    .gram-logo-glow object {
-      width: 100%;
-      height: 100%;
-      display: block;
-      overflow: visible;
-    }
-
-    .gram-logo-stage {
-      position: relative;
-      z-index: 1;
-      width: var(--gram-logo-size);
-      height: var(--gram-logo-size);
-      max-height: min(30dvh, 190px);
-      flex: 1 1 auto;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: visible;
-    }
-
-    .gram-logo-stage .gram-logo-mark {
-      width: 100%;
-      height: 100%;
-      display: block;
-      overflow: visible;
-      pointer-events: none;
-    }
-
     /* ── Hero (slide 0) ── */
     .slide-hero .slide-content {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      overflow: visible;
-      position: relative;
-      z-index: 1;
+      overflow: hidden;
     }
 
     .hero-upper-zone {
@@ -281,8 +225,34 @@
       gap: 0;
     }
 
-    #heroLogo,
-    #ctaLogo {
+    .logo-wrap {
+      flex: 1 1 auto;
+      width: var(--gram-logo-size);
+      height: var(--gram-logo-size);
+      max-height: min(30dvh, 190px);
+      padding: 0;
+      overflow: visible;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-wrap-sm {
+      flex: 0 0 auto;
+      width: 64px;
+      height: 64px;
+      max-height: none;
+    }
+
+    .logo-wrap .hero-logo-img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      overflow: visible;
+      object-fit: contain;
+    }
+
+    #heroLogo {
       will-change: opacity, transform;
       opacity: 0;
       transform: scale(0.82) translateY(10px);
@@ -809,13 +779,6 @@
 
     .cta-logo {
       margin-bottom: 8px;
-      flex: 0 0 auto;
-    }
-
-    .slide-final .slide-content {
-      position: relative;
-      z-index: 1;
-      overflow: visible;
     }
 
     .cta-buttons {
@@ -1926,20 +1889,18 @@
            SLIDE 0 — Hero
       ═══════════════════════════════════════════ -->
       <section class="slide slide-hero" data-slide="0">
-        <div class="gram-logo-glow gram-logo-glow--hero" aria-hidden="true">
-          <object type="image/svg+xml" data="/app/logos/gram-gravity-glow.svg" tabindex="-1"> </object>
-        </div>
         <div class="slide-content">
           <div class="hero-upper-zone">
             <div class="hero-center">
-              <div class="gram-logo-stage" id="heroLogo">
-                <object
-                  class="gram-logo-mark"
-                  type="image/svg+xml"
-                  data="/app/logos/gram-gravity-mark.svg"
-                  tabindex="-1"
-                  aria-hidden="true"
-                > </object>
+              <div class="logo-wrap" id="heroLogo">
+                <img
+                  src="/app/logos/gram-gravity-animated.svg"
+                  alt=""
+                  class="hero-logo-img"
+                  width="190"
+                  height="190"
+                  decoding="async"
+                />
               </div>
               <div class="hero-text">
                 <h1 class="hero-wordmark hero-line">Gramity</h1>
@@ -2247,19 +2208,17 @@
            SLIDE 5 — CTA
       ═══════════════════════════════════════════ -->
       <section class="slide slide-final" data-slide="5">
-        <div class="gram-logo-glow gram-logo-glow--cta" aria-hidden="true">
-          <object type="image/svg+xml" data="/app/logos/gram-gravity-glow.svg" tabindex="-1"> </object>
-        </div>
         <div class="slide-content">
           <div class="cta-center">
-            <div class="gram-logo-stage cta-logo anim-item" id="ctaLogo">
-              <object
-                class="gram-logo-mark"
-                type="image/svg+xml"
-                data="/app/logos/gram-gravity-mark.svg"
-                tabindex="-1"
-                aria-hidden="true"
-              > </object>
+            <div class="logo-wrap logo-wrap-sm cta-logo anim-item">
+              <img
+                src="/app/logos/gram-gravity-animated.svg"
+                alt=""
+                class="hero-logo-img"
+                width="64"
+                height="64"
+                decoding="async"
+              />
             </div>
             <h2 class="title anim-item">One deposit to start DCA</h2>
             <p class="subtitle anim-item">Fund once from any chain — Gramity runs your strategy on autopilot</p>
