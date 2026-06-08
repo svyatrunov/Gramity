@@ -310,7 +310,7 @@
     .hero-meta .mira-accent { color: rgba(167, 139, 250, 0.85); }
 
     .mira-slide-center { text-align: center; max-width: 320px; margin: 0 auto; }
-    .mira-slide-title  { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+    .mira-slide-title  { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
     .mira-slide-desc   { font-size: 13px; color: var(--text-secondary); line-height: 1.68; margin-bottom: 16px; }
     .mira-examples {
       text-align: left; padding: 14px 16px; margin-bottom: 16px;
@@ -425,6 +425,9 @@
 
     .card-body h3 { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
     .card-body p  { font-size: 12px; color: var(--text-secondary); line-height: 1.68; }
+
+    .slide[data-slide="1"] .slide-content { overflow: hidden; }
+    .slide[data-slide="1"] .cards { gap: 12px; }
 
     /* ── Protocol logos (inline SVG) ── */
     .logo-svg { display: block; }
@@ -1945,38 +1948,15 @@
                 <p>Your USDT becomes a working LP position on STON.fi (~5.4% APY)</p>
               </div>
             </div>
-          </div>
-
-          <div class="time-savings anim-item">
-            <p class="time-savings-title">One agent wallet — zero context switching</p>
-            <p class="time-savings-desc">No more hopping between wallets, chains, transfers, staking and liquidity pools — each manual session costs at least <strong>5 minutes</strong>.</p>
-            <p class="time-savings-highlight">With daily DCA, Gramity automates it all and saves you <strong>30+ hours per year</strong>.</p>
-          </div>
-
-          <div class="strategy-grid anim-item" id="strategyGrid">
-            <button type="button" class="strategy-card selected" data-strategy="multiply">
-              <span class="strategy-check">✓</span>
-              <div class="strategy-icon">⚡</div>
-              <div class="strategy-name">Multiply Tokens</div>
-              <div class="strategy-desc">Swap → stake → LP</div>
-            </button>
-            <button type="button" class="strategy-card" data-strategy="stake">
-              <span class="strategy-check">✓</span>
-              <div class="strategy-icon">🛡</div>
-              <div class="strategy-name">TON Stake</div>
-              <div class="strategy-desc">Liquid staking only</div>
-            </button>
-            <button type="button" class="strategy-card" data-strategy="lp">
-              <span class="strategy-check">✓</span>
-              <div class="strategy-icon">💧</div>
-              <div class="strategy-name">Liquidity Pool</div>
-              <div class="strategy-desc">STON.fi LP position</div>
-            </button>
-            <button type="button" class="strategy-card locked" data-strategy="partners">
-              <div class="strategy-icon">🤝</div>
-              <div class="strategy-name">Partners</div>
-              <div class="strategy-desc">Coming soon</div>
-            </button>
+            <div class="card anim-item">
+              <div class="card-icon">
+                <img src="/app/logos/gram-gravity-animated.svg" width="40" height="40" alt="" style="width:100%;height:100%;object-fit:contain"/>
+              </div>
+              <div class="card-body">
+                <h3>Save 30+ hours a year</h3>
+                <p>Gramity automates DCA and strategy — no manual buys, swaps or LP ops</p>
+              </div>
+            </div>
           </div>
         </div>
         <div class="slide-footer">
@@ -2085,7 +2065,7 @@
                     stroke-dasharray="115" stroke-dashoffset="115"/>
               <path class="fp fp-out" style="--da:63"
                     d="M195,115 L255,115"
-                    stroke="#0098EA" stroke-width="2.2" fill="none"
+                    stroke="#4a8aff" stroke-width="2.2" fill="none"
                     stroke-dasharray="63" stroke-dashoffset="63"
                     filter="url(#glow-blue)"/>
 
@@ -2093,7 +2073,7 @@
               <path d="M62,90 C108,90 132,115 143,115" stroke="#0052FF" stroke-width="0.4" fill="none" opacity="0.18"/>
               <path d="M62,140 C108,140 132,115 143,115" stroke="#F0B90B" stroke-width="0.4" fill="none" opacity="0.18"/>
               <path d="M62,190 C120,190 138,115 143,115" stroke="#8247E5" stroke-width="0.4" fill="none" opacity="0.18"/>
-              <path d="M195,115 L255,115" stroke="#0098EA" stroke-width="0.6" fill="none" opacity="0.25"/>
+              <path d="M195,115 L255,115" stroke="#4a8aff" stroke-width="0.6" fill="none" opacity="0.25"/>
 
               <circle cx="40" cy="40" r="22" fill="#12122a" stroke="#627EEA" stroke-width="1.2" stroke-opacity="0.7"/>
               <image href="/app/logos/eth.png" x="18" y="18" width="44" height="44" clip-path="url(#cp-fd-eth)" preserveAspectRatio="xMidYMid slice"/>
@@ -2111,18 +2091,18 @@
               <image href="/app/logos/polygon.png" x="18" y="168" width="44" height="44" clip-path="url(#cp-fd-poly)" preserveAspectRatio="xMidYMid slice"/>
               <text x="40" y="225" text-anchor="middle" font-size="9.5" fill="#999" font-family="system-ui,sans-serif">Polygon</text>
 
-              <circle cx="168" cy="115" r="27" fill="#000000" stroke="rgba(255,255,255,0.35)" stroke-width="1.8" class="fund-gram-hub"/>
-              <image href="/app/logos/gram-gravity-animated.svg" x="141" y="88" width="54" height="54" clip-path="url(#cp-fd-ston)" preserveAspectRatio="xMidYMid slice" class="fund-gram-hub"/>
-              <text x="168" y="156" text-anchor="middle" font-size="9.5" fill="#ffffff" font-family="system-ui,sans-serif" font-weight="600">Gramity</text>
+              <circle cx="168" cy="115" r="27" fill="#0a0a12" stroke="rgba(139,92,246,0.5)" stroke-width="1.8"/>
+              <image href="/app/logos/ston.png" x="141" y="88" width="54" height="54" clip-path="url(#cp-fd-ston)" preserveAspectRatio="xMidYMid slice"/>
+              <text x="168" y="156" text-anchor="middle" font-size="9.5" fill="#ffffff" font-family="system-ui,sans-serif" font-weight="600">STON.fi</text>
 
-              <circle cx="278" cy="115" r="23" fill="#051520" stroke="#0098EA" stroke-width="1.8"/>
-              <image href="/app/logos/ton.png" x="255" y="92" width="46" height="46" clip-path="url(#cp-fd-ton)" preserveAspectRatio="xMidYMid slice"/>
-              <text x="278" y="151" text-anchor="middle" font-size="8.5" fill="#0098EA" font-family="system-ui,sans-serif" font-weight="700">TON</text>
-              <text x="278" y="163" text-anchor="middle" font-size="8" fill="#6aabcc" font-family="system-ui,sans-serif">agentic wallet</text>
+              <circle cx="278" cy="115" r="23" fill="#000000" stroke="rgba(255,255,255,0.35)" stroke-width="1.8" class="fund-gram-hub"/>
+              <image href="/app/logos/gram-gravity-animated.svg" x="255" y="92" width="46" height="46" clip-path="url(#cp-fd-ton)" preserveAspectRatio="xMidYMid slice" class="fund-gram-hub"/>
+              <text x="278" y="151" text-anchor="middle" font-size="8.5" fill="#ffffff" font-family="system-ui,sans-serif" font-weight="700">Gramity</text>
+              <text x="278" y="163" text-anchor="middle" font-size="8" fill="#8ba4cc" font-family="system-ui,sans-serif">Argentiq Wallet</text>
             </svg>
           </div>
 
-          <p class="bridge-caption anim-item">ETH · Base · BNB · Polygon USDT → Gramity agent wallet on TON</p>
+          <p class="bridge-caption anim-item">ETH · Base · BNB · Polygon USDT → Gramity Argentiq Wallet</p>
         </div>
         <div class="slide-footer">
           <div class="dots dots-clone"></div>
@@ -2169,7 +2149,7 @@
         </div>
         <div class="slide-footer">
           <div class="dots dots-clone"></div>
-          <button class="btn btn-link anim-item" id="btnToFinal">Get started →</button>
+          <button class="btn btn-link anim-item btn-slide-next" type="button">Get started →</button>
         </div>
       </section>
 
@@ -2180,18 +2160,12 @@
         <div class="slide-content">
           <div class="mira-slide-center">
             <h2 class="mira-slide-title anim-item">🤖 Talk with Mira</h2>
-            <p class="mira-slide-desc anim-item">After <em>Start</em> in @GramityBot, Mira walks you through Gramity — ideology, community gravity, and why compounding together beats solo DCA.</p>
-            <ul class="mira-perks anim-item">
-              <li>Stronger community pull — more capital, more yield for everyone</li>
-              <li>Rewards for long-term holders bridging from other chains</li>
-              <li>Soulbound tokens & NFT perks for active strategists</li>
-            </ul>
             <div class="mira-examples anim-item">
               <div>"Why Gramity vs manual DCA?"</div>
               <div>"What strategy fits me?"</div>
               <div>"How does LP auto-reinvest work?"</div>
             </div>
-            <p class="mira-tagline anim-item">Gramity executes. Mira explains the why.</p>
+            <p class="mira-tagline anim-item">Gramity executes. Mira explains.</p>
             <button class="btn btn-mira-purple anim-item" id="btnOpenMiraSlide">Talk with Mira →</button>
           </div>
         </div>
@@ -2676,7 +2650,6 @@
       btnPrev.addEventListener('click', prev);
 
       document.getElementById('btnGetStarted').addEventListener('click', next);
-      document.getElementById('btnToFinal').addEventListener('click', function () { goTo(WIZARD_CONNECT); });
       document.querySelectorAll('.btn-slide-next').forEach(function (btn) {
         btn.addEventListener('click', next);
       });
