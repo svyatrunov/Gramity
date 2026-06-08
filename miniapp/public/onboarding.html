@@ -3125,9 +3125,14 @@
             return r.json();
           })
           .then(function (session) {
-            openMetaMaskUrl(session.metamaskUrl);
+            openMetaMaskUrl(getMetaMaskSessionOpenUrl(session));
             return pollEvmWalletSession(session.token, btn, labelEl, hintEl);
           });
+      }
+
+      function getMetaMaskSessionOpenUrl(session) {
+        // link.metamask.io/dapp/ is for MetaMask mobile — on desktop it redirects to metamask.io/download
+        return isMobileDevice() ? session.metamaskUrl : session.pageUrl;
       }
 
       function pollEvmWalletSession(token, btn, labelEl, hintEl) {
@@ -3186,11 +3191,6 @@
         });
       }
 
-      function shouldUseMetaMaskAppBrowser() {
-        // Telegram WebView (mobile + desktop) never has window.ethereum — use in-app browser + JWT session
-        return !getExtensionProvider();
-      }
-
       function handleMetaMaskAccounts(btn, accounts, provider, walletBalance) {
         if (!accounts || !accounts.length) return;
         wiz.evmAddress   = accounts[0];
@@ -3228,20 +3228,24 @@
         var hintEl = btn.querySelector('div').children[1];
 
         btn.disabled = true;
-        labelEl.textContent = getExtensionProvider()
+        var hasExt = !!getExtensionProvider();
+        var mobile = isMobileDevice();
+        labelEl.textContent = hasExt
           ? 'Connecting…'
-          : 'Opening MetaMask…';
+          : mobile
+            ? 'Opening MetaMask…'
+            : 'Connecting via MetaMask…';
         if (hintEl) {
-          hintEl.textContent = getExtensionProvider()
+          hintEl.textContent = hasExt || !mobile
             ? 'Approve in MetaMask extension popup'
             : 'Approve in MetaMask, then return to Telegram';
         }
         btn.style.borderColor = '';
 
         var attempt;
-        if (getExtensionProvider()) {
+        if (hasExt) {
           attempt = connectViaExtension(btn);
-        } else if (shouldUseMetaMaskAppBrowser()) {
+        } else if (mobile) {
           attempt = connectViaMetaMaskApp(btn).catch(function (err) {
             if (isAppBrowserTimeout(err) && window.GramityMetaMask && window.GramityMetaMask.connect) {
               console.warn('[MetaMask] App browser failed, falling back to extension relay');
@@ -3250,7 +3254,11 @@
             throw err;
           });
         } else {
-          attempt = connectViaMwp(btn);
+          // Desktop TMA: MWP relay to Chrome extension; fallback opens pageUrl in system browser
+          attempt = connectViaMwp(btn).catch(function (err) {
+            console.warn('[MetaMask] Desktop MWP failed, opening browser session', err);
+            return connectViaMetaMaskApp(btn);
+          });
         }
 
         attempt.then(function (res) {

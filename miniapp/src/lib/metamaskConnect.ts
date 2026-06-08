@@ -101,6 +101,15 @@ export function openMetaMaskLink(link: string): void {
   openMobileLink(link);
 }
 
+/** Mobile: link.metamask.io opens MetaMask in-app browser. Desktop: direct pageUrl (extension in system browser). */
+export function resolveMetaMaskSessionOpenUrl(session: {
+  metamaskUrl: string;
+  pageUrl: string;
+}): string {
+  if (isMobileDevice()) return session.metamaskUrl;
+  return session.pageUrl;
+}
+
 /** Route metamask:// / app.link through tg.openLink (Telegram WebView blocks raw deeplinks). */
 function installTelegramOpenLinkPatch(): void {
   if (!isInsideTelegramMiniApp()) return;
