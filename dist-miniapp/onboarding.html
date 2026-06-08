@@ -224,6 +224,46 @@
     .hero-title    { font-size: 32px; font-weight: 700; letter-spacing: -0.03em; }
     .hero-subtitle { font-size: 16px; color: var(--text-secondary); }
     .hero-tagline  { font-size: 13px; color: rgba(74,138,255,0.7); margin-top: -4px; }
+    .hero-meta     { font-size: 12px; color: var(--text-secondary); margin-top: 6px; line-height: 1.5; }
+    .hero-meta .mira-accent { color: #a78bfa; }
+
+    .mira-slide-center { text-align: center; max-width: 320px; margin: 0 auto; }
+    .mira-slide-title  { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+    .mira-slide-desc   { font-size: 13px; color: var(--text-secondary); line-height: 1.68; margin-bottom: 16px; }
+    .mira-examples {
+      text-align: left; padding: 14px 16px; margin-bottom: 16px;
+      background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.25);
+      border-radius: var(--radius); font-size: 13px; line-height: 1.75; color: rgba(255,255,255,0.85);
+    }
+    .mira-examples div { font-style: italic; opacity: 0.9; }
+    .mira-tagline { font-size: 13px; font-weight: 600; margin-bottom: 14px; }
+    .btn-mira-purple {
+      background: transparent; color: #a78bfa;
+      border: 1px solid #a78bfa; padding: 14px 28px;
+      width: 100%; max-width: 320px; font-size: 15px; font-weight: 600;
+    }
+
+    .deposit-step-card {
+      background: rgba(74,255,140,0.06); border: 1px solid rgba(74,255,140,0.2);
+      border-radius: var(--radius); padding: 16px; margin-bottom: 14px;
+    }
+    .deposit-step-title { font-size: 18px; font-weight: 700; color: var(--green); margin-bottom: 4px; }
+    .deposit-step-heading {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--text-secondary); margin: 14px 0 8px;
+    }
+    .deposit-addr-row {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(0,0,0,0.25); border-radius: 10px; padding: 10px 12px;
+    }
+    .deposit-addr-text { flex: 1; font-size: 11px; color: var(--accent); word-break: break-all; line-height: 1.4; }
+    .btn-copy-addr {
+      flex-shrink: 0; padding: 6px 10px; font-size: 11px; font-weight: 600;
+      background: rgba(74,138,255,0.15); border: 1px solid rgba(74,138,255,0.3);
+      border-radius: 8px; color: var(--accent); cursor: pointer;
+    }
+    .deposit-meta-line { font-size: 12px; color: var(--text-secondary); line-height: 1.68; margin-bottom: 6px; }
+    .deposit-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
 
     /* ── Cards ── */
     .cards { display: flex; flex-direction: column; gap: 18px; }
@@ -1184,15 +1224,14 @@
     }
     .btn-mira-ghost {
       background: transparent;
-      color: var(--text-primary);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #a78bfa;
+      border: 1px solid #a78bfa;
       padding: 14px 28px;
       width: 100%;
       max-width: 320px;
       font-size: 15px;
       font-weight: 600;
     }
-    .btn-mira-ghost:disabled { opacity: 0.45; cursor: not-allowed; }
     .btn-create-dca.success {
       background: rgba(74, 255, 140, 0.15);
       color: var(--green);
@@ -1327,13 +1366,6 @@
         </g>
       </symbol>
 
-      <symbol id="logo-phantom" viewBox="0 0 512 512">
-        <clipPath id="cp-ph"><circle cx="256" cy="256" r="256"/></clipPath>
-        <g clip-path="url(#cp-ph)">
-          <image href="/app/logos/phantom.svg" width="512" height="512" preserveAspectRatio="xMidYMid slice"/>
-        </g>
-      </symbol>
-
       <symbol id="logo-eth" viewBox="0 0 40 40">
         <image href="/app/logos/eth.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
       </symbol>
@@ -1411,6 +1443,7 @@
             <h1 class="hero-title anim-item">Gramity</h1>
             <p class="hero-subtitle anim-item">Your money works while you sleep</p>
             <p class="hero-tagline anim-item">STON.fi Hackathon · Omniston v1beta8 · ~5.4% APY</p>
+            <p class="hero-meta anim-item">~16 min/week saved · non-custodial · 0% platform fee · <span class="mira-accent">AI-managed via Mira</span></p>
           </div>
         </div>
         <div class="slide-footer">
@@ -1601,12 +1634,12 @@
 
           <div class="partners">
             <div class="partner-badge anim-item">
-              <span class="partner-icon"><img src="/app/logos/omniston.png" width="28" height="28" alt="Omniston"/></span>
-              Omniston
-            </div>
-            <div class="partner-badge anim-item">
               <span class="partner-icon"><img src="/app/logos/ton.png" width="28" height="28" alt="TON"/></span>
               TON
+            </div>
+            <div class="partner-badge anim-item">
+              <span class="partner-icon"><img src="/app/logos/omniston.png" width="28" height="28" alt="Omniston"/></span>
+              Omniston
             </div>
             <div class="partner-badge anim-item">
               <span class="partner-icon"><img src="/app/logos/tonstakers.png" width="28" height="28" alt="Tonstakers"/></span>
@@ -1621,6 +1654,28 @@
         <div class="slide-footer">
           <div class="dots dots-clone"></div>
           <button class="btn btn-link anim-item" id="btnToFinal">Get started →</button>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════
+           SLIDE 5.5 — Powered by Mira AI
+      ═══════════════════════════════════════════ -->
+      <section class="slide" data-slide="5.5">
+        <div class="slide-content">
+          <div class="mira-slide-center">
+            <h2 class="mira-slide-title anim-item">🤖 Powered by Mira AI</h2>
+            <p class="mira-slide-desc anim-item">After setup, manage your DCA through natural conversation in Telegram.</p>
+            <div class="mira-examples anim-item">
+              <div>"How's my DCA doing?"</div>
+              <div>"Increase to $50/week"</div>
+              <div>"Pause until next month"</div>
+            </div>
+            <p class="mira-tagline anim-item">Gramity executes. Mira explains.</p>
+            <button class="btn btn-mira-purple anim-item" id="btnOpenMiraSlide">Open Mira →</button>
+          </div>
+        </div>
+        <div class="slide-footer">
+          <div class="dots dots-clone"></div>
         </div>
       </section>
 
@@ -1695,18 +1750,8 @@
               <span class="logo-circle logo-circle-lg"><img src="/app/logos/metamask.svg" alt="" class="wallet-logo-img" width="28" height="28"/></span>
               <div style="flex:1;text-align:left">
                 <div>Connect MetaMask</div>
-                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Opens MetaMask app · ETH · Base · BNB · Polygon</div>
+                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Opens in mobile browser · ETH · Base · BNB · Polygon</div>
               </div>
-            </button>
-
-            <!-- Phantom coming soon -->
-            <button class="connect-btn disabled">
-              <span class="logo-circle logo-circle-lg"><img src="/app/logos/phantom.svg" alt="" class="wallet-logo-img" width="28" height="28"/></span>
-              <div style="flex:1;text-align:left">
-                <div>Phantom</div>
-                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Solana deposits</div>
-              </div>
-              <span class="connect-btn-badge badge-soon">Coming soon</span>
             </button>
           </div>
 
@@ -1861,9 +1906,9 @@
               <div class="token-apy">~5.4% APY</div>
             </div>
 
-            <!-- STON (coming soon) -->
+            <!-- STON (Q3 2026) -->
             <div class="token-card anim-item locked" data-token="ston">
-              <div class="coming-soon-badge">Coming soon</div>
+              <div class="coming-soon-badge">Q3 2026</div>
               <div class="token-logo">
                 <svg width="32" height="32"><use href="#logo-ston"/></svg>
               </div>
@@ -1871,9 +1916,9 @@
               <div class="token-apy">DEX token</div>
             </div>
 
-            <!-- Multi-token (coming soon) -->
+            <!-- Multi-token (Q3 2026) -->
             <div class="token-card anim-item locked" data-token="multi">
-              <div class="coming-soon-badge">Coming soon</div>
+              <div class="coming-soon-badge">Q3 2026</div>
               <div class="token-logo" style="font-size:22px;line-height:32px">🔀</div>
               <div class="token-name">Multi-token</div>
               <div class="token-apy">50/50 split</div>
@@ -2031,42 +2076,39 @@
             <div class="ts-header">⏱ Time saved vs manual DCA</div>
             <div class="ts-rows">
               <div class="ts-row">
-                <span class="step-name">
-                  <svg width="14" height="14"><use href="#logo-omniston"/></svg>
-                  Bridge EVM → TON
-                </span>
-                <span class="step-time">~2 min</span>
+                <span class="step-name">🔵 Bridge EVM → TON</span>
+                <span class="step-time">5 min</span>
               </div>
               <div class="ts-row">
                 <span class="step-name">
                   <svg width="14" height="14"><use href="#logo-omniston"/></svg>
                   Omniston swap
                 </span>
-                <span class="step-time">~1 min</span>
+                <span class="step-time">3 min</span>
               </div>
               <div class="ts-row">
                 <span class="step-name">
                   <svg width="14" height="14"><use href="#logo-tonstakers"/></svg>
                   Tonstakers stake
                 </span>
-                <span class="step-time">~2 min</span>
+                <span class="step-time">3 min</span>
               </div>
               <div class="ts-row">
                 <span class="step-name">
                   <svg width="14" height="14"><use href="#logo-ston"/></svg>
                   STON.fi LP add
                 </span>
-                <span class="step-time">~2 min</span>
+                <span class="step-time">5 min</span>
               </div>
             </div>
             <hr class="ts-divider"/>
             <div class="ts-total">
               <span class="label">Per cycle (manually)</span>
-              <span class="value">~7 min</span>
+              <span class="value">~16 min</span>
             </div>
             <div class="ts-total" style="margin-top:4px">
               <span class="label" style="color:var(--text-secondary)">Per year</span>
-              <span class="value" id="timeSavedYear" style="color:var(--accent)">~6 hours</span>
+              <span class="value" id="timeSavedYear" style="color:var(--accent)">~97 hours</span>
             </div>
             <div class="ts-gramity">
               <span class="label">With Gramity</span>
@@ -2083,23 +2125,50 @@
             ✦ Create DCA Strategy
           </button>
 
-          <div id="depositSuccessCard" class="deposit-success-card anim-item" style="display:none">
-            <div class="deposit-success-header">✓ Strategy created — fund to start</div>
-            <p class="deposit-success-hint">Send USDT on TON to your agent wallet. First cycle runs after deposit.</p>
-            <code id="depositAddrDisplay" class="deposit-addr"></code>
-            <button class="btn btn-primary anim-item" id="btnOpenDeposit" style="margin-top:10px;width:100%">💰 Deposit USDT</button>
-          </div>
-
           <div class="mira-section anim-item">
             <div class="mira-divider"><span>or</span></div>
             <p class="mira-section-title">🤖 Manage via AI conversation</p>
             <p class="mira-section-desc">After setup, control your DCA through @Mira — portfolio, pause, update amount.</p>
-            <button class="btn btn-mira-ghost anim-item" id="btnManageMira" disabled title="Create your strategy first">
+            <button class="btn btn-mira-ghost anim-item" id="btnManageMira">
               Continue with Mira →
             </button>
           </div>
 
           <p class="cta-meta anim-item" id="ctaMeta">~2 min setup · non-custodial · 0% platform fee</p>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════
+           WIZARD SLIDE 11 — Step 6: Fund Agent Wallet
+      ═══════════════════════════════════════════ -->
+      <section class="slide slide-wizard" data-slide="11">
+        <div class="wizard-header anim-item">
+          <div style="width:28px"></div>
+          <span class="wizard-step">Step 6 of 6</span>
+          <div style="width:28px"></div>
+        </div>
+        <div class="wizard-step-bar anim-item">
+          <div class="wizard-step-fill" style="width:100%"></div>
+        </div>
+        <div class="slide-content">
+          <div class="deposit-step-card anim-item">
+            <div class="deposit-step-title">✅ Strategy Created!</div>
+            <div class="deposit-step-heading">Fund your agent wallet</div>
+            <p class="deposit-meta-line">Send USDT to start your first cycle:</p>
+            <div class="deposit-addr-row anim-item">
+              <span class="deposit-addr-text" id="depositStepAddr">—</span>
+              <button class="btn-copy-addr" id="btnCopyDepositAddr" type="button">Copy</button>
+            </div>
+            <p class="deposit-meta-line" style="margin-top:12px">Network: TON (any USDT jetton)</p>
+            <p class="deposit-meta-line">Minimum: <span id="depositStepMin">$10</span> USDT</p>
+            <p class="deposit-meta-line" style="margin-top:8px">First cycle runs within 24h of deposit.</p>
+          </div>
+        </div>
+        <div class="slide-footer">
+          <div class="deposit-actions">
+            <button class="btn btn-primary anim-item" id="btnTrackInBot">Track in Bot →</button>
+            <button class="btn btn-mira-ghost anim-item" id="btnManageMiraDeposit">Manage with Mira →</button>
+          </div>
         </div>
       </section>
 
@@ -2113,7 +2182,12 @@
       /* ── Telegram WebApp + auth gate ── */
       var tg = window.Telegram && window.Telegram.WebApp;
       var BOT_AUTH_URL = 'https://t.me/GramityBot';
-      var initData = (tg && tg.initData) || '';
+      function getInitData() {
+        if (tg && tg.initData && tg.initData.indexOf('hash=') !== -1) return tg.initData;
+        var p = new URLSearchParams(window.location.search);
+        return p.get('tgWebAppData') || '';
+      }
+      var initData = getInitData();
       var HAS_TG_AUTH = initData.indexOf('hash=') !== -1;
 
       if (tg) {
@@ -2159,8 +2233,10 @@
       }
 
       /* ── Constants ── */
-      var TOTAL     = 11;
-      var DOT_COUNT = 5;
+      var TOTAL     = 13;
+      var DOT_COUNT = 6;
+      var MIRA_FALLBACK = 'tg://resolve?domain=mira';
+      var BOT_DEEPLINK  = 'tg://resolve?domain=GramityBot';
       var APY       = 0.054;
 
       /* ── State ── */
@@ -2207,7 +2283,7 @@
       }
 
       function updateArrows() {
-        var inWizard = current >= 6;
+        var inWizard = current >= 7;
         btnPrev.classList.toggle('hidden', current === 0 || inWizard);
         btnNext.classList.toggle('hidden', current >= TOTAL - 1 || inWizard);
       }
@@ -2236,7 +2312,7 @@
         updateArrows();
         animateSlide(current);
         resetSlide(prev);
-        if (index === 6) fetchPopularTokens();
+        if (index === 7) fetchPopularTokens();
       }
 
       function next() { goTo(current + 1); }
@@ -2246,8 +2322,23 @@
       btnPrev.addEventListener('click', prev);
 
       document.getElementById('btnGetStarted').addEventListener('click', next);
-      document.getElementById('btnToFinal').addEventListener('click', function () { goTo(5); });
-      document.getElementById('btnStartDCA').addEventListener('click', function () { goTo(6); });
+      document.getElementById('btnToFinal').addEventListener('click', function () { goTo(6); });
+      document.getElementById('btnStartDCA').addEventListener('click', function () { goTo(7); });
+
+      function openTelegramLink(url) {
+        var tgApp = window.Telegram && window.Telegram.WebApp;
+        try {
+          if (tgApp && tgApp.openTelegramLink) tgApp.openTelegramLink(url);
+          else if (tgApp && tgApp.openLink) tgApp.openLink(url);
+          else window.location.href = url;
+        } catch (e) {
+          window.location.href = url;
+        }
+      }
+
+      document.getElementById('btnOpenMiraSlide').addEventListener('click', function () {
+        openTelegramLink(MIRA_FALLBACK);
+      });
       document.getElementById('btnLearnMore').addEventListener('click', function () {
         var url = 'https://t.me/GramityBot';
         if (tg && tg.openLink) tg.openLink(url);
@@ -2692,7 +2783,6 @@
         'logo-ston':     '/app/logos/ston.png',
         'logo-tston':    '/app/logos/tston.svg',
         'logo-metamask': '/app/logos/metamask.svg',
-        'logo-phantom':  '/app/logos/phantom.svg',
       };
 
       function renderBalIcon(logoId, logoUrl) {
@@ -2774,21 +2864,21 @@
 
       document.getElementById('btnConnectTonStrip').addEventListener('click', function () {
         document.getElementById('btnConnectTon').click(); // delegate to step1 handler
-        goTo(6);
+        goTo(7);
       });
 
       document.getElementById('btnConnectMMStrip').addEventListener('click', function () {
         document.getElementById('btnConnectMM').click();
-        goTo(6);
+        goTo(7);
       });
 
       /* ══════════════════════════════════════════════════════
          WIZARD STEP 1 — Connect & Scan
       ══════════════════════════════════════════════════════ */
 
-      document.getElementById('btnWizardBack6').addEventListener('click', function () { goTo(5); });
-      document.getElementById('btnSkipConnect').addEventListener('click', function ()  { goTo(7); });
-      document.getElementById('btnWizardNext6').addEventListener('click', function ()  { goTo(7); });
+      document.getElementById('btnWizardBack6').addEventListener('click', function () { goTo(6); });
+      document.getElementById('btnSkipConnect').addEventListener('click', function ()  { goTo(8); });
+      document.getElementById('btnWizardNext6').addEventListener('click', function ()  { goTo(8); });
 
       /* TonConnect button → open modal (or disconnect if already connected) */
       document.getElementById('btnConnectTon').addEventListener('click', function () {
@@ -2839,6 +2929,30 @@
       document.getElementById('tonAddrForScan').addEventListener('keydown', function (e) {
         if (e.key === 'Enter') document.getElementById('btnScanTon').click();
       });
+
+      function isMobileDevice() {
+        return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+      }
+
+      function needsExternalBrowserForMetaMask() {
+        if (window.GramityMetaMask && window.GramityMetaMask.needsExternalBrowser) {
+          return window.GramityMetaMask.needsExternalBrowser();
+        }
+        return !!(tg && tg.initData && tg.initData.indexOf('hash=') !== -1) &&
+          isMobileDevice() && !getExtensionProvider();
+      }
+
+      function redirectToExternalBrowserForMetaMask() {
+        if (window.GramityMetaMask && window.GramityMetaMask.redirectToExternalBrowser) {
+          window.GramityMetaMask.redirectToExternalBrowser();
+          return;
+        }
+        var url = new URL(window.location.origin + '/app/onboarding.html');
+        url.searchParams.set('mm_connect', '1');
+        if (initData) url.searchParams.set('tgWebAppData', initData);
+        if (tg && tg.openLink) tg.openLink(url.toString());
+        else window.location.href = url.toString();
+      }
 
       /* MetaMask connect — extension (desktop) or MetaMask Connect SDK (mobile deeplink) */
       function getExtensionProvider() {
@@ -2919,6 +3033,19 @@
       document.getElementById('btnConnectMM').addEventListener('click', function () {
         var btn = this;
         var labelEl = btn.querySelector('div').children[0];
+        var hintEl = btn.querySelector('div').children[1];
+
+        if (needsExternalBrowserForMetaMask()) {
+          labelEl.textContent = 'Opening browser…';
+          if (hintEl) hintEl.textContent = 'Confirm MetaMask connection there';
+          btn.style.borderColor = 'rgba(0,152,234,0.35)';
+          redirectToExternalBrowserForMetaMask();
+          setTimeout(function () {
+            labelEl.textContent = 'Open in browser ↑';
+            if (hintEl) hintEl.textContent = 'Tap link if browser did not open';
+          }, 2500);
+          return;
+        }
 
         labelEl.textContent = getExtensionProvider() ? 'Connecting…' : 'Opening MetaMask…';
         btn.style.borderColor = '';
@@ -2941,10 +3068,48 @@
           }
           setTimeout(function () {
             labelEl.textContent = 'Connect MetaMask';
+            if (hintEl) hintEl.textContent = 'Opens in mobile browser · ETH · Base · BNB · Polygon';
             btn.style.borderColor = '';
           }, 4000);
         });
       });
+
+      /* Auto-connect MetaMask when opened in system browser from Telegram */
+      (function tryAutoMetaMaskConnect() {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('mm_connect') !== '1') return;
+        if (needsExternalBrowserForMetaMask()) return;
+
+        params.delete('mm_connect');
+        var qs = params.toString();
+        history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash);
+
+        function runAutoConnect() {
+          goTo(7);
+          var btn = document.getElementById('btnConnectMM');
+          var labelEl = btn && btn.querySelector('div').children[0];
+          if (labelEl) labelEl.textContent = 'Opening MetaMask…';
+
+          var attempt = getExtensionProvider()
+            ? connectViaExtension(btn)
+            : connectViaMetaMaskSdk(btn);
+
+          attempt.then(function (res) {
+            handleMetaMaskAccounts(btn, res.accounts, res.provider);
+          }).catch(function (err) {
+            console.error('[MetaMask auto]', err);
+            if (labelEl) labelEl.textContent = 'Connect MetaMask';
+          });
+        }
+
+        if (window.GramityMetaMask) {
+          setTimeout(runAutoConnect, 500);
+        } else {
+          window.addEventListener('gramity-metamask-ready', function () {
+            setTimeout(runAutoConnect, 500);
+          }, { once: true });
+        }
+      })();
 
       /* Disconnect wallet */
       document.getElementById('btnDisconnectWallet').addEventListener('click', function () {
@@ -3195,11 +3360,11 @@
         updateSliderUI();
       }
 
-      document.getElementById('btnWizardBack7').addEventListener('click', function () { goTo(6); });
+      document.getElementById('btnWizardBack7').addEventListener('click', function () { goTo(7); });
       document.getElementById('btnWizardNext7').addEventListener('click', function () {
         wiz.amountPerCycle = parseInt(sliderEl.value, 10) || FALLBACK_DEFAULT;
         updateProjectionBox();
-        goTo(8);
+        goTo(9);
       });
 
       document.getElementById('btnTryDemo5').addEventListener('click', function () {
@@ -3236,8 +3401,8 @@
          WIZARD STEP 3 — Accumulate
       ══════════════════════════════════════════════════════ */
 
-      document.getElementById('btnWizardBack8').addEventListener('click', function () { goTo(7); });
-      document.getElementById('btnWizardNext8').addEventListener('click', function () { goTo(9); });
+      document.getElementById('btnWizardBack8').addEventListener('click', function () { goTo(8); });
+      document.getElementById('btnWizardNext8').addEventListener('click', function () { goTo(10); });
 
       function calcProjection(amount, freq, apy) {
         var n = cyclesPerYear(freq);
@@ -3309,7 +3474,7 @@
       // Run once on load to set correct initial state
       checkWithdrawalReady();
 
-      document.getElementById('btnWizardBack9').addEventListener('click', function () { goTo(8); });
+      document.getElementById('btnWizardBack9').addEventListener('click', function () { goTo(9); });
       document.getElementById('btnWizardNext9').addEventListener('click', function () {
         if (wiz.sameWallet) {
           if (!wiz.tonAddress) {
@@ -3336,7 +3501,7 @@
           wiz.withdrawAddress = addr;
         }
         buildSummary();
-        goTo(10);
+        goTo(11);
       });
 
       document.getElementById('checkRowSame').addEventListener('click', function () {
@@ -3371,82 +3536,86 @@
          WIZARD STEP 5 — Summary
       ══════════════════════════════════════════════════════ */
 
-      document.getElementById('btnWizardBack10').addEventListener('click', function () { goTo(9); });
+      document.getElementById('btnWizardBack10').addEventListener('click', function () { goTo(10); });
 
       var planCreated = false;
       var agentDepositAddress = '';
 
-      function enableMiraButton() {
-        var miraBtn = document.getElementById('btnManageMira');
-        if (miraBtn) {
-          miraBtn.disabled = false;
-          miraBtn.removeAttribute('title');
+      function showDepositStep(data) {
+        var address = data.agent_wallet_address || data.deposit_address || '';
+        var amount = data.amount_usdt || wiz.amountPerCycle;
+        agentDepositAddress = address;
+        var addrEl = document.getElementById('depositStepAddr');
+        var minEl = document.getElementById('depositStepMin');
+        if (addrEl && address) addrEl.textContent = address;
+        if (minEl) minEl.textContent = '$' + amount;
+      }
+
+      async function openMiraWithContext(btn) {
+        if (!assertAuth()) return;
+        var label = btn ? btn.textContent : '';
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = '⏳ Opening Mira…';
+        }
+        var tg = window.Telegram && window.Telegram.WebApp;
+        var opened = false;
+
+        if (planCreated) {
+          try {
+            var controller = new AbortController();
+            var timeoutId = setTimeout(function () { controller.abort(); }, 3000);
+            var res = await fetch('/api/mira/create-context', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Telegram-Init-Data': initData,
+              },
+              signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+            if (res.ok) {
+              var data = await res.json();
+              if (data.mira_deeplink) {
+                openTelegramLink(data.mira_deeplink);
+                opened = true;
+              }
+            }
+          } catch (e) {
+            console.warn('[openMiraWithContext]', e);
+          }
+        }
+
+        if (!opened) openTelegramLink(MIRA_FALLBACK);
+
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = label || 'Manage with Mira →';
         }
       }
 
-      function showDepositCard(address) {
-        agentDepositAddress = address || '';
-        var card = document.getElementById('depositSuccessCard');
-        var addrEl = document.getElementById('depositAddrDisplay');
-        if (card && addrEl && address) {
-          addrEl.textContent = address;
-          card.style.display = 'block';
-        }
-      }
-
-      document.getElementById('btnOpenDeposit').addEventListener('click', function () {
-        if (!agentDepositAddress) return;
-        var url = '/app/deposit.html?wallet=' + encodeURIComponent(agentDepositAddress);
-        var tgApp = window.Telegram && window.Telegram.WebApp;
-        if (tgApp && tgApp.openLink) tgApp.openLink(url);
-        else window.location.href = url;
+      document.getElementById('btnManageMira').addEventListener('click', function () {
+        openMiraWithContext(this);
       });
 
-      document.getElementById('btnManageMira').addEventListener('click', async function () {
-        if (!assertAuth()) return;
-        if (!planCreated) {
-          var tgGate = window.Telegram && window.Telegram.WebApp;
-          var msg = 'Create your DCA strategy first, then continue with Mira.';
-          if (tgGate && tgGate.showAlert) tgGate.showAlert(msg);
-          else alert(msg);
-          return;
-        }
+      document.getElementById('btnManageMiraDeposit').addEventListener('click', function () {
+        openMiraWithContext(this);
+      });
+
+      document.getElementById('btnTrackInBot').addEventListener('click', function () {
+        openTelegramLink(BOT_DEEPLINK);
+      });
+
+      document.getElementById('btnCopyDepositAddr').addEventListener('click', function () {
+        if (!agentDepositAddress) return;
         var btn = this;
-        btn.disabled = true;
-        btn.textContent = '⏳ Opening Mira…';
-        var tg = window.Telegram && window.Telegram.WebApp;
-        try {
-          var res = await fetch('/api/mira/create-context', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Telegram-Init-Data': initData,
-            },
-          });
-          if (!res.ok) {
-            var errData = await res.json().catch(function () { return {}; });
-            var errMsg = errData.error || 'Failed to open Mira. Try again.';
-            if (tg && tg.showAlert) tg.showAlert('❌ ' + errMsg);
-            else alert('Error: ' + errMsg);
-            btn.disabled = false;
-            btn.textContent = 'Continue with Mira →';
-            return;
-          }
-          var data = await res.json();
-          var deeplink = data.mira_deeplink;
-          if (deeplink) {
-            if (tg && tg.openTelegramLink) tg.openTelegramLink(deeplink);
-            else if (tg && tg.openLink) tg.openLink(deeplink);
-            else window.location.href = deeplink;
-          }
-          btn.disabled = false;
-          btn.textContent = 'Continue with Mira →';
-        } catch (e) {
-          console.error('[btnManageMira]', e);
-          if (tg && tg.showAlert) tg.showAlert('❌ Network error. Please try again.');
-          else alert('Network error. Please try again.');
-          btn.disabled = false;
-          btn.textContent = 'Continue with Mira →';
+        var copyText = agentDepositAddress;
+        function onCopied() {
+          btn.textContent = 'Copied!';
+          setTimeout(function () { btn.textContent = 'Copy'; }, 2000);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(copyText).then(onCopied).catch(function () {});
         }
       });
 
@@ -3491,15 +3660,14 @@
           if (res.ok) {
             var okData = await res.json().catch(function () { return {}; });
             planCreated = true;
+            okData.amount_usdt = okData.amount_usdt || wiz.amountPerCycle;
+            showDepositStep(okData);
             btn.textContent = '✓ Strategy created';
             btn.classList.add('success');
-            enableMiraButton();
-            if (okData.deposit_address) showDepositCard(okData.deposit_address);
-            var ctaMeta = document.getElementById('ctaMeta');
-            if (ctaMeta) ctaMeta.textContent = 'Fund your agent wallet above · then manage via Mira';
             if (tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred) {
               tg.HapticFeedback.notificationOccurred('success');
             }
+            goTo(12);
           } else {
             var errData = await res.json().catch(function () { return {}; });
             var errMsg  = errData.error || 'Failed to create strategy. Please try again.';
@@ -3524,13 +3692,8 @@
         }
       });
 
-      function calcTimeSaved(freq) {
-        var perCycle = 7;
-        var cycles   = cyclesPerYear(freq);
-        var totalMin = perCycle * cycles;
-        if (totalMin < 60) return totalMin + ' min/year';
-        var h = (totalMin / 60).toFixed(0);
-        return '~' + h + ' hours/year';
+      function calcTimeSaved() {
+        return '~97 hours';
       }
 
       function buildSummary() {
@@ -3557,22 +3720,18 @@
       var _origAnimateSlide = animateSlide;
       animateSlide = function (index) {
         _origAnimateSlide(index);
-        if (index === 7) {
+        if (index === 8) {
           initSlider7();
         }
-        if (index === 8) {
+        if (index === 9) {
           // pipeline explainer — no dynamic updates needed
         }
-        if (index === 9) {
+        if (index === 10) {
           document.getElementById('sameWalletCheck').classList.toggle('checked', wiz.sameWallet);
           document.getElementById('withdrawInputGroup').classList.toggle('visible', !wiz.sameWallet);
           checkWithdrawalReady();
-          // pre-fill withdraw address from scan if available
-          if (wiz.tonAddress && wiz.sameWallet) {
-            // nothing to do, checkbox handles it
-          }
         }
-        if (index === 10) {
+        if (index === 11) {
           buildSummary();
         }
       };

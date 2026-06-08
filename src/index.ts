@@ -398,7 +398,7 @@ app.post("/api/plans", tgAuth, async (req, res) => {
     else                                    nextExec.setDate(nextExec.getDate() + 7);
 
     const { upsertPlan } = await import("./db/index.js");
-    await upsertPlan({
+    const plan = await upsertPlan({
       telegram_id:       telegramId,
       ton_address:       String(ton_address),
       agent_wallet:      null,
@@ -431,7 +431,12 @@ app.post("/api/plans", tgAuth, async (req, res) => {
     const { InlineKeyboard } = await import("grammy");
     const { RAILWAY_PUBLIC_URL } = await import("./config.js");
     const depositUrl = `${RAILWAY_PUBLIC_URL}/app/deposit.html?wallet=${encodeURIComponent(depositAddress)}`;
-    const depositKb = new InlineKeyboard().webApp("💰 Deposit USDT", depositUrl);
+    const strategyLabel = STRATEGY_LABELS[String(strategy)] ?? "TON + Stake + LP";
+    const freqLabel = FREQ_LABELS[normalizedFreq] ?? normalizedFreq;
+    const planKb = new InlineKeyboard()
+      .text("📊 Track Status", "status_check")
+      .row()
+      .url("🤖 Manage with Mira", "https://t.me/mira");
 
     if (isDemoMode) {
       await bot.api.sendMessage(
@@ -440,23 +445,28 @@ app.post("/api/plans", tgAuth, async (req, res) => {
           `2 cycles × $${amount.toFixed(0)} USDT\n` +
           `Interval: 5 seconds\n` +
           `Withdrawal: \`${String(ton_address).slice(0, 8)}…${String(ton_address).slice(-6)}\`\n\n` +
-          `*Fund agent wallet (USDT on TON):*\n\`${depositAddress}\`\n\n` +
-          `Starting in 5 seconds...`,
-        { parse_mode: "Markdown", reply_markup: depositKb }
+          `━━━━━━━━━━━━━━━━━━━━\n` +
+          `*FUND YOUR AGENT WALLET*\n` +
+          `Send USDT here to start:\n\n` +
+          `\`${depositAddress}\`\n\n` +
+          `Starting in 5 seconds...\n` +
+          `━━━━━━━━━━━━━━━━━━━━`,
+        { parse_mode: "Markdown", reply_markup: planKb }
       );
     } else {
       await bot.api.sendMessage(
         telegramId,
-        `✅ *DCA Strategy Created*\n\n` +
-          `Strategy: ${STRATEGY_LABELS[String(strategy)] ?? "TON + Stake + LP"}\n` +
-          `Amount: $${amount.toFixed(0)} USDT / cycle\n` +
-          `Frequency: ${FREQ_LABELS[normalizedFreq] ?? normalizedFreq}\n` +
-          `Est. APY: ~5.4%\n` +
-          `Withdrawal: \`${String(ton_address).slice(0, 8)}…${String(ton_address).slice(-6)}\`\n\n` +
-          `*Fund agent wallet (USDT on TON):*\n\`${depositAddress}\`\n\n` +
-          `First cycle runs after deposit (within 24h).\n\n` +
-          `/status — check position · Mira — manage via AI`,
-        { parse_mode: "Markdown", reply_markup: depositKb }
+        `✅ *DCA Strategy Created!*\n\n` +
+          `Strategy:  ${strategyLabel}\n` +
+          `Amount:    $${amount.toFixed(0)} USDT / ${freqLabel}\n` +
+          `Est. APY:  ~5.4%\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━\n` +
+          `*FUND YOUR AGENT WALLET*\n` +
+          `Send USDT here to start:\n\n` +
+          `\`${depositAddress}\`\n\n` +
+          `First cycle runs within 24h of deposit.\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━`,
+        { parse_mode: "Markdown", reply_markup: planKb }
       );
     }
 
@@ -469,6 +479,9 @@ app.post("/api/plans", tgAuth, async (req, res) => {
     res.json({
       ok: true,
       message: isDemoMode ? "Demo strategy created" : "Strategy created successfully",
+      plan_id: plan.id,
+      agent_wallet_address: depositAddress,
+      amount_usdt: amount,
       deposit_address: depositAddress,
       deposit_url: depositUrl,
       ...(economics_hint ? { economics_hint } : {}),
