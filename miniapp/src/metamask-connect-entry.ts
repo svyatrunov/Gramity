@@ -1,3 +1,4 @@
+import { openGramityExternalUrl } from "./lib/openGramityExternal";
 import {
   connectMetaMaskWallet,
   getMetaMaskConnectProvider,
@@ -5,7 +6,6 @@ import {
   isMobileDevice,
   isInsideTelegramMiniApp,
   openMetaMaskLink,
-  openExternalBrowser,
   resolveMetaMaskSessionOpenUrl,
 } from "./lib/metamaskConnect";
 
@@ -18,7 +18,7 @@ declare global {
       isMobileDevice: typeof isMobileDevice;
       isInsideTelegramMiniApp: typeof isInsideTelegramMiniApp;
       openLink: typeof openMetaMaskLink;
-      openExternalBrowser: typeof openExternalBrowser;
+      openExternalBrowser: typeof openGramityExternalUrl;
       resolveSessionOpenUrl: typeof resolveMetaMaskSessionOpenUrl;
     };
   }
@@ -31,7 +31,7 @@ window.GramityMetaMask = {
   isMobileDevice,
   isInsideTelegramMiniApp,
   openLink: openMetaMaskLink,
-  openExternalBrowser,
+  openExternalBrowser: openGramityExternalUrl,
   resolveSessionOpenUrl: resolveMetaMaskSessionOpenUrl,
 };
 

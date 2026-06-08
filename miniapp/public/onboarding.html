@@ -2794,15 +2794,19 @@
       }
 
       function openMetaMaskUrl(url) {
+        var isHttp = /^https?:\/\//.test(url);
+        var isMmHost = url.indexOf('link.metamask.io') !== -1 || url.indexOf('metamask.app.link') !== -1;
+        if (isHttp && !isMmHost) {
+          if (window.GramityMetaMask && window.GramityMetaMask.openExternalBrowser) {
+            window.GramityMetaMask.openExternalBrowser(url);
+            return;
+          }
+        }
         if (window.GramityMetaMask && window.GramityMetaMask.openLink) {
           window.GramityMetaMask.openLink(url);
           return;
         }
-        if (tg && tg.openLink) {
-          tg.openLink(url);
-          return;
-        }
-        window.open(url, '_blank');
+        console.warn('[MetaMask] SDK not loaded, cannot open:', url.slice(0, 60));
       }
 
       function getMetaMaskSessionOpenUrl(session) {
@@ -2832,6 +2836,7 @@
         });
       }
       function getExtensionProvider() {
+        if (isInsideTelegramMiniApp()) return null;
         if (!window.ethereum) return null;
         if (window.ethereum.providers && window.ethereum.providers.length) {
           return window.ethereum.providers.find(function (p) {
@@ -3021,7 +3026,7 @@
           attempt = connectViaExtension(btn);
         } else if (mobile) {
           attempt = connectViaMetaMaskApp(btn).catch(function (err) {
-            if (isAppBrowserTimeout(err) && window.GramityMetaMask && window.GramityMetaMask.connect) {
+            if (isAppBrowserTimeout(err) && isInsideTelegramMiniApp() && window.GramityMetaMask && window.GramityMetaMask.connect) {
               console.warn('[MetaMask] App browser failed, falling back to extension relay');
               return connectViaMwp(btn);
             }

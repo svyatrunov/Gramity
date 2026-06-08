@@ -3,9 +3,9 @@
  */
 import { createEVMClient } from "@metamask/connect-evm";
 import type { MetamaskConnectEVM } from "@metamask/connect-evm";
+import { openGramityExternalUrl } from "./openGramityExternal";
 
 const CHAIN_IDS = ["0x1", "0x2105", "0x38", "0x89"] as const;
-type HexChainId = (typeof CHAIN_IDS)[number];
 
 const SUPPORTED_NETWORKS: Record<string, string> = {
   "0x1": "https://rpc.ankr.com/eth",
@@ -13,8 +13,6 @@ const SUPPORTED_NETWORKS: Record<string, string> = {
   "0x38": "https://rpc.ankr.com/bsc",
   "0x89": "https://rpc.ankr.com/polygon",
 };
-
-const MOBILE_CONNECT_TIMEOUT_MS = 120_000;
 
 let clientPromise: Promise<MetamaskConnectEVM> | null = null;
 
@@ -26,10 +24,6 @@ type TelegramWebApp = {
 
 function getTelegramWebApp(): TelegramWebApp | undefined {
   return (window as unknown as { Telegram?: { WebApp?: TelegramWebApp } }).Telegram?.WebApp;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export function isMobileDevice(): boolean {
@@ -101,23 +95,7 @@ function isMetaMaskDeeplinkHost(link: string): boolean {
 
 /** Open dapp page in the system browser (Chrome + MetaMask extension on desktop TMA). */
 export function openExternalBrowser(link: string): void {
-  const url = link.trim();
-  if (!url) return;
-
-  // Desktop TMA: window.open opens the external browser but often returns null — do not fall through to tg.openLink (double tab).
-  if (isInsideTelegramMiniApp() && !isMobileDevice()) {
-    window.open(url, "_blank", "noopener,noreferrer");
-    return;
-  }
-
-  const tg = getTelegramWebApp();
-  if (isInsideTelegramMiniApp() && tg?.openLink) {
-    tg.openLink(url);
-    return;
-  }
-
-  const popup = window.open(url, "_blank", "noopener,noreferrer");
-  if (!popup) window.location.assign(url);
+  openGramityExternalUrl(link);
 }
 
 function openMobileLink(link: string): void {
@@ -203,94 +181,18 @@ export function warmMetaMaskConnectClient(): void {
   }
 }
 
-async function readConnectedSession(
-  client: MetamaskConnectEVM
-): Promise<{ accounts: string[]; chainId: string } | null> {
-  try {
-    const provider = client.getProvider();
-    const accounts = (await provider.request({ method: "eth_accounts", params: [] })) as string[];
-    if (!accounts?.length) return null;
-    const chainId = (await provider.request({ method: "eth_chainId", params: [] })) as string;
-    return { accounts, chainId };
-  } catch {
-    return null;
-  }
-}
-
-/**
- * MWP connect in Telegram: WebView freezes while MetaMask is foreground.
- * Relay must reconnect when user returns — nudge on visibility + long timeout.
- */
-async function connectWithTelegramResume(
-  client: MetamaskConnectEVM,
-  chainIds: readonly HexChainId[]
-): Promise<{ accounts: string[]; chainId: string }> {
-  let finished = false;
-  let connectError: unknown;
-
-  const nudgeRelay = async () => {
-    if (finished || document.visibilityState !== "visible") return;
-    await sleep(700);
-    await readConnectedSession(client);
-  };
-
-  const onVisible = () => void nudgeRelay();
-  document.addEventListener("visibilitychange", onVisible);
-  getTelegramWebApp()?.onEvent?.("viewportChanged", onVisible);
-
-  const connectPromise = client
-    .connect({ chainIds: [...chainIds] })
-    .then((result) => {
-      finished = true;
-      return result;
-    })
-    .catch((err) => {
-      connectError = err;
-      throw err;
-    });
-
-  const deadline = Date.now() + MOBILE_CONNECT_TIMEOUT_MS;
-  while (!finished && Date.now() < deadline) {
-    const raced = await Promise.race([
-      connectPromise.then((r) => ({ ok: true as const, result: r })).catch(() => ({ ok: false as const })),
-      sleep(1500).then(() => ({ ok: false as const })),
-    ]);
-    if (raced.ok) {
-      document.removeEventListener("visibilitychange", onVisible);
-      return raced.result;
-    }
-    const session = await readConnectedSession(client);
-    if (session) {
-      finished = true;
-      document.removeEventListener("visibilitychange", onVisible);
-      return session;
-    }
-  }
-
-  document.removeEventListener("visibilitychange", onVisible);
-
-  if (!finished) {
-    const session = await readConnectedSession(client);
-    if (session) return session;
-    if (connectError) throw connectError;
-    throw new Error("MetaMask connect timeout — approve in MetaMask and return to Telegram");
-  }
-
-  throw new Error("MetaMask connect failed");
-}
-
 export async function connectMetaMaskWallet(): Promise<{
   accounts: string[];
   chainId: string;
 }> {
-  const client = await getMetaMaskConnectClient();
-  const chainIds = [...CHAIN_IDS];
-
-  if (isInsideTelegramMiniApp() && isMobileDevice()) {
-    return connectWithTelegramResume(client, chainIds);
+  if (isInsideTelegramMiniApp()) {
+    throw new Error(
+      "Open Gramity in the MetaMask browser session — MWP relay is disabled inside Telegram"
+    );
   }
 
-  return client.connect({ chainIds: [...chainIds] });
+  const client = await getMetaMaskConnectClient();
+  return client.connect({ chainIds: [...CHAIN_IDS] });
 }
 
 export async function getMetaMaskConnectProvider() {

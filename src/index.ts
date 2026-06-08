@@ -545,6 +545,16 @@ app.post("/api/evm-wallet/connected", async (req, res) => {
       return;
     }
 
+    const session = resolved.session;
+    if (session.status === "connected" && session.evmAddress === address) {
+      res.json({ ok: true, already: true });
+      return;
+    }
+    if (session.status !== "pending" && session.status !== "opened") {
+      res.status(409).json({ error: `Session not open for connect (status=${session.status})` });
+      return;
+    }
+
     updateEvmWalletSession(resolved.session.id, {
       status: "connected",
       evmAddress: address,
