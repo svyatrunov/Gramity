@@ -84,13 +84,11 @@ export async function handleStart(ctx: GramityContext) {
     const execs       = await getLastExecutions(existingPlan.id, 1).catch(() => []);
     const lastExec    = execs[0];
 
-    const miraUrl = `https://t.me/mira?start=gramity_${telegramId}`;
     const kb = new InlineKeyboard()
       .text("📊 Status", "status_check")
       .text(existingPlan.active ? "⏸ Pause" : "▶️ Resume", existingPlan.active ? "pause" : "resume")
       .row()
-      .webApp("🚀 Open App", appUrl)
-      .url("💬 Talk with Mira", miraUrl);
+      .webApp("🚀 Open App", appUrl);
 
     await ctx.reply(
       `👋 Welcome back!\n\n` +
@@ -113,11 +111,8 @@ export async function handleStart(ctx: GramityContext) {
   // ── New user — Open App button ─────────────────────────────────────────────
   ctx.session.step = "idle";
 
-  const miraOnboardUrl = `https://t.me/mira?start=gramity_onboard_${telegramId}`;
   const kb = new InlineKeyboard()
-    .webApp("🚀 Open App", appUrl)
-    .row()
-    .url("💬 Talk with Mira", miraOnboardUrl);
+    .webApp("🚀 Open App", appUrl);
 
   await ctx.reply(
     `👋 Welcome to *Gramity* — automated DCA on TON.\n\n` +
@@ -129,7 +124,7 @@ export async function handleStart(ctx: GramityContext) {
       `  › Compounds LP on STON.fi (~5.4% APY)\n\n` +
       `*Rewards auto-reinvest* in your LP position.\n` +
       `~5.4% APY · 0% platform fee\n\n` +
-      `*Talk with Mira* to learn Gramity ideology, community gravity, Soulbound perks & NFT rewards — or tap *Open App* to set up in ~2 minutes 👇`,
+      `Tap *Open App* to set up in ~2 minutes 👇`,
     { parse_mode: "Markdown", reply_markup: kb }
   );
 }

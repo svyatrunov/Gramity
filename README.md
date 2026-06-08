@@ -1,7 +1,7 @@
 # Gramity — Agentic DCA Wallet on TON
 
 > Built for **STON.fi Vibe Coding Hackathon Cohort 2**  
-> Track: **STON.fi** (Omniston v1beta8) + **Mira AI**  
+> Track: **STON.fi** (Omniston v1beta8)  
 > Live: [https://gramity-production.up.railway.app](https://gramity-production.up.railway.app)
 
 [![Live on Mainnet](https://img.shields.io/badge/TON-Mainnet-blue)]()
@@ -37,26 +37,6 @@ Manually executing DCA into LP positions requires:
 3. ⚡ **Tonstakers** liquid staking → tsTON (5.4% APY)
 4. 💎 **STON.fi DEX v2** LP position created
 5. 🔒 **LP tokens** sent directly to your locked withdrawal wallet
-
----
-
-## Mira AI Integration
-
-Gramity exposes an MCP server for conversational control after Mini App onboarding.
-
-- **MCP manifest:** [/.well-known/mcp.json](https://gramity-production.up.railway.app/.well-known/mcp.json)
-- **Endpoint:** `POST /mcp` — tools: `get_portfolio`, `create_strategy`, `pause_strategy`
-- **Handoff:** Mini App → `POST /api/mira/create-context` → `@Mira` deeplink with portfolio context
-
-**Example dialog:**
-
-```
-User: "How's my Gramity DCA doing?"
-Mira: [calls get_portfolio] "2 cycles complete. $14 invested. +0.8%"
-
-User: "Increase to $25/week"
-Mira: [calls create_strategy] "Done. Next cycle uses $25."
-```
 
 ---
 
@@ -116,7 +96,7 @@ Mira: [calls create_strategy] "Done. Next cycle uses $25."
 | Staking | Tonstakers SDK |
 | EVM | ethers.js v6 |
 | Frontend | Telegram Mini App |
-| AI control | Mira MCP integration |
+| Mini App | Telegram Web App onboarding |
 
 ---
 

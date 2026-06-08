@@ -11,7 +11,7 @@ Your money works while you sleep
 
 STON.fi Hackathon · ~5.4% APY
 
-0% platform fee · AI-managed via Mira
+0% platform fee
 
 → Get started
 
@@ -65,20 +65,6 @@ LP tokens go **directly to your wallet** — Gramity never holds them
 **Partners:** TON · STON.fi · Tonstakers
 
 → Get started
-
----
-
-## Slide 5.5 — Powered by Mira AI
-
-After setup, manage your DCA through natural conversation in Telegram.
-
-- "How's my DCA doing?"
-- "Increase to $50/week"
-- "Pause until next month"
-
-Gramity executes. Mira explains.
-
-→ Open Mira
 
 ---
 
@@ -164,10 +150,7 @@ Frequency: Daily · Weekly · Monthly
 | Withdraw | Set later |
 | Funded | $XX USDT on agent wallet |
 
-Ready to start DCA, or discuss amount and frequency with Mira first.
-
-✦ Create Strategy  
-Discuss with Mira →
+✦ Create Strategy
 
 ---
 
@@ -181,6 +164,6 @@ Send USDT here · TON network · Min $10 · First cycle within 24h
 
 Optional: Set withdrawal wallet (required before cycles run)
 
+→ View Dashboard  
 → Track in Bot  
-→ Deposit from EVM chains  
-→ Manage with Mira
+→ Deposit from EVM chains

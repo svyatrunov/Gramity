@@ -1,4 +1,4 @@
-export const MIN_DCA_USDT = 10;
+export const MIN_DCA_USDT = 5;
 export const MIN_SCAN_USD = 5;
 /** Quick Start on mainnet — real cycles, short interval */
 export const QUICK_MIN_USDT = 2;

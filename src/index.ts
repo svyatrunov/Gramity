@@ -856,9 +856,7 @@ async function handleCreatePlan(
       "Multiply Tokens";
     const freqLabel = formatPlanFrequency(normalizedFreq, isQuickMode);
     const planKb = new InlineKeyboard()
-      .text("📊 Track Status", "status_check")
-      .row()
-      .url("💬 Talk with Mira", "https://t.me/mira");
+      .text("📊 Track Status", "status_check");
 
     const withdrawalLine = normalizedAddress
       ? `Withdrawal: \`${normalizedAddress.slice(0, 8)}…${normalizedAddress.slice(-6)}\`\n\n`

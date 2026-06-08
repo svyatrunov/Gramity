@@ -1905,7 +1905,7 @@
               <div class="hero-text">
                 <h1 class="hero-wordmark hero-line">Gramity</h1>
                 <p class="hero-tagline hero-line">DCA Agentic Wallets</p>
-                <p class="hero-meta hero-line">powered by <span class="mira-accent">Mira AI</span> · STON.fi · TON</p>
+                <p class="hero-meta hero-line">powered by STON.fi · TON</p>
               </div>
             </div>
           </div>
@@ -2154,28 +2154,6 @@
       </section>
 
       <!-- ═══════════════════════════════════════════
-           SLIDE 5.5 — Powered by Mira AI
-      ═══════════════════════════════════════════ -->
-      <section class="slide" data-slide="5.5">
-        <div class="slide-content">
-          <div class="mira-slide-center">
-            <h2 class="mira-slide-title anim-item">🤖 Talk with Mira</h2>
-            <div class="mira-examples anim-item">
-              <div>"Why Gramity vs manual DCA?"</div>
-              <div>"What strategy fits me?"</div>
-              <div>"How does LP auto-reinvest work?"</div>
-            </div>
-            <p class="mira-tagline anim-item">Gramity executes. Mira explains.</p>
-            <button class="btn btn-mira-purple anim-item" id="btnOpenMiraSlide">Talk with Mira →</button>
-          </div>
-        </div>
-        <div class="slide-footer">
-          <div class="dots dots-clone"></div>
-          <button class="btn btn-link anim-item btn-slide-next" type="button">Get started →</button>
-        </div>
-      </section>
-
-      <!-- ═══════════════════════════════════════════
            WIZARD — Step 1 of 4: Connect wallet
       ═══════════════════════════════════════════ -->
       <section class="slide slide-wizard" data-slide="6">
@@ -2363,15 +2341,15 @@
             <div class="amount-row anim-item">
               <span class="amount-prefix">$</span>
               <input class="amount-input" id="amountInput" type="number"
-                     inputmode="decimal" min="10" max="2000" step="1" value="50"/>
+                     inputmode="decimal" min="5" max="2000" step="1" value="5"/>
               <span class="amount-suffix">USDT</span>
             </div>
 
             <div class="slider-wrap anim-item">
               <input type="range" class="dca-slider" id="amountSlider"
-                     min="10" max="2000" step="1" value="50"/>
+                     min="5" max="2000" step="1" value="5"/>
               <div class="slider-ticks">
-                <span id="amountSliderMin">$10</span>
+                <span id="amountSliderMin">$5</span>
                 <span id="amountSliderMax">$2,000</span>
               </div>
             </div>
@@ -2433,7 +2411,7 @@
             </div>
             <div class="summary-row">
               <span class="summary-label">Amount</span>
-              <span class="summary-value" id="summaryAmount">$50 USDT / weekly</span>
+              <span class="summary-value" id="summaryAmount">$5 USDT / weekly</span>
             </div>
             <div class="summary-row">
               <span class="summary-label">APY</span>
@@ -2449,13 +2427,9 @@
             </div>
           </div>
 
-          <p class="anim-item" style="font-size:13px;color:var(--text-secondary);line-height:1.5;margin-top:8px">
-            Ready to start DCA, or discuss amount and frequency with Mira first.
-          </p>
         </div>
         <div class="slide-footer" style="gap:10px;display:flex;flex-direction:column">
           <button class="btn btn-create-dca anim-item" id="btnCreateStrategy">✦ Create Strategy</button>
-          <button class="btn btn-mira-ghost anim-item" id="btnMiraBeforeCreate" type="button">Talk with Mira →</button>
         </div>
       </section>
 
@@ -2488,9 +2462,9 @@
         </div>
         <div class="slide-footer">
           <div class="deposit-actions">
-            <button class="btn btn-primary anim-item" id="btnTrackInBot">Track in Bot →</button>
+            <button class="btn btn-primary anim-item" id="btnOpenDashboard">View Dashboard →</button>
+            <button class="btn btn-ghost anim-item" id="btnTrackInBot">Track in Bot →</button>
             <button class="btn btn-mira-ghost anim-item" id="btnOpenEvmDeposit">Deposit from EVM chains →</button>
-            <button class="btn btn-mira-ghost anim-item" id="btnManageMiraDeposit">Talk with Mira →</button>
           </div>
         </div>
       </section>
@@ -2555,7 +2529,6 @@
       }
 
       /* ── Constants ── */
-      var MIRA_FALLBACK = 'https://t.me/mira';
       var BOT_DEEPLINK  = 'https://t.me/GramityBot';
       var APY       = 0.054;
 
@@ -2605,11 +2578,11 @@
         });
       }
 
-      var WIZARD_CONNECT = 6;
-      var WIZARD_DEPOSIT = 7;
-      var WIZARD_SETUP = 8;
-      var WIZARD_CONFIRM = 9;
-      var WIZARD_FINAL = 10;
+      var WIZARD_CONNECT = 5;
+      var WIZARD_DEPOSIT = 6;
+      var WIZARD_SETUP = 7;
+      var WIZARD_CONFIRM = 8;
+      var WIZARD_FINAL = 9;
 
       function updateArrows() {
         var inWizard = current >= WIZARD_CONNECT;
@@ -2680,70 +2653,6 @@
           window.open(url, '_blank');
         }
       }
-
-      function buildMiraOnboardingProgress() {
-        if (typeof saveBridgeState === 'function') saveBridgeState();
-        if (typeof saveSetupState === 'function') saveSetupState();
-        return {
-          source: 'onboarding',
-          strategy: wiz.selectedStrategy,
-          amount_usdt: wiz.amountPerCycle,
-          frequency: wiz.frequency,
-          ton_connected: wiz.tonConnected,
-          evm_connected: wiz.evmConnected,
-          bridge_amount: wiz.bridgeAmount,
-          bridge_chain: wiz.bridgeChain || null,
-          agent_wallet_address: wiz.agentWalletAddress || null,
-          agent_usdt_balance: wiz.agentUsdtBalance,
-          withdrawal_address: wiz.withdrawAddress || null,
-          mode: wiz.mode,
-        };
-      }
-
-      async function openMiraWithContext(btn) {
-        if (!assertAuth()) return;
-        var label = btn ? btn.textContent : '';
-        if (btn) {
-          btn.disabled = true;
-          btn.textContent = '⏳ Opening Mira…';
-        }
-        var opened = false;
-
-        try {
-          var res = await fetch('/api/mira/create-context', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Telegram-Init-Data': initData,
-            },
-            body: JSON.stringify({
-              source: 'onboarding',
-              onboarding_progress: buildMiraOnboardingProgress(),
-            }),
-          });
-          if (res.ok) {
-            var data = await res.json();
-            var link = data.mira_deeplink || data.deeplink;
-            if (link) {
-              openTelegramLink(link);
-              opened = true;
-            }
-          }
-        } catch (e) {
-          console.warn('[openMiraWithContext]', e);
-        }
-
-        if (!opened) openTelegramLink(MIRA_FALLBACK);
-
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = label || 'Talk with Mira →';
-        }
-      }
-
-      document.getElementById('btnOpenMiraSlide').addEventListener('click', function () {
-        openMiraWithContext(this);
-      });
 
       /* ── Keyboard ── */
       document.addEventListener('keydown', function (e) {
@@ -2964,7 +2873,7 @@
         demoMode:        false,
         mode:            'live',
         frequency:       'weekly',
-        amountPerCycle:  50,
+        amountPerCycle:  5,
         selectedStrategy: 'multiply',
         withdrawAddress: '',
         evmWalletBalance: null,
@@ -2973,7 +2882,7 @@
         bridgeChain: '',
       };
 
-      var AMOUNT_MIN = 10;
+      var AMOUNT_MIN = 5;
       var AMOUNT_MAX = 2000;
 
       var CHAIN_LABELS = {
@@ -4124,7 +4033,7 @@
         buildSummary();
       }
 
-      document.getElementById('btnWizardBackConnect').addEventListener('click', function () { goTo(5); });
+      document.getElementById('btnWizardBackConnect').addEventListener('click', function () { goTo(4); });
       document.getElementById('btnWizardNextConnect').addEventListener('click', function () {
         if (this.disabled) return;
         goTo(WIZARD_DEPOSIT);
@@ -4182,11 +4091,6 @@
         }
       });
 
-      document.getElementById('btnMiraBeforeCreate').addEventListener('click', function () {
-        saveSetupState();
-        openMiraWithContext(this);
-      });
-
       document.querySelectorAll('#freqTabsSetup .freq-tab').forEach(function (tab) {
         tab.addEventListener('click', function () { setSetupFrequency(tab.dataset.freq); });
       });
@@ -4228,12 +4132,12 @@
         if (tonConnectUI && !wiz.tonConnected) tonConnectUI.openModal();
       });
 
-      document.getElementById('btnTrackInBot').addEventListener('click', function () {
-        openTelegramLink(BOT_DEEPLINK);
+      document.getElementById('btnOpenDashboard').addEventListener('click', function () {
+        window.location.href = '/app/dashboard.html';
       });
 
-      document.getElementById('btnManageMiraDeposit').addEventListener('click', function () {
-        openMiraWithContext(this);
+      document.getElementById('btnTrackInBot').addEventListener('click', function () {
+        openTelegramLink(BOT_DEEPLINK);
       });
 
       document.getElementById('btnCopyDepositAddr').addEventListener('click', function () {

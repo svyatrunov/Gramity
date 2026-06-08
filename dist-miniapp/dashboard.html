@@ -2,150 +2,376 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
-  <title>Gramity Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
+  <title>Gramity — Dashboard</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    :root{
-      --bg:#0d0d0f;--surface:#18181c;--surface2:#22222a;
-      --accent:#6c63ff;--accent2:#a78bfa;
-      --green:#22c55e;--red:#ef4444;--yellow:#f59e0b;
-      --text:#f1f1f3;--muted:#8b8b9e;--border:#2a2a35;
-    }
-    html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;-webkit-font-smoothing:antialiased}
-    body{overflow-x:hidden;padding-bottom:env(safe-area-inset-bottom,0)}
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    .header{
-      background:var(--surface);border-bottom:1px solid var(--border);
-      padding:16px 20px 12px;position:sticky;top:0;z-index:10;
-    }
-    .header-row{display:flex;align-items:center;justify-content:space-between}
-    .logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:18px}
-    .logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent2)}
-    .status-pill{
-      display:inline-flex;align-items:center;gap:5px;
-      padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;
-    }
-    .status-active{background:rgba(34,197,94,0.15);color:var(--green)}
-    .status-paused{background:rgba(245,158,11,0.15);color:var(--yellow)}
-
-    .scroll-body{padding:16px 16px 24px;display:flex;flex-direction:column;gap:14px}
-
-    /* Portfolio card */
-    .portfolio-card{
-      background:linear-gradient(135deg,#1a1a2e 0%,var(--surface2) 100%);
-      border:1px solid var(--border);border-radius:16px;padding:20px;
-    }
-    .portfolio-label{color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px}
-    .portfolio-value{font-size:32px;font-weight:700;letter-spacing:-1px}
-    .portfolio-pnl{font-size:13px;margin-top:4px}
-    .pnl-pos{color:var(--green)}
-    .pnl-neg{color:var(--red)}
-    .breakdown{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
-    .breakdown-item{background:var(--bg);border-radius:10px;padding:10px 12px}
-    .bd-label{font-size:11px;color:var(--muted);margin-bottom:3px}
-    .bd-value{font-size:15px;font-weight:600}
-
-    /* Strategy card */
-    .strategy-card{
-      background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;
-    }
-    .strategy-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-    .strategy-title{font-weight:700;font-size:16px}
-    .strategy-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px}
-    .strategy-row:last-child{border-bottom:none}
-    .strategy-row .label{color:var(--muted)}
-    .strategy-row .val{font-weight:600}
-
-    /* Next cycle */
-    .next-cycle{
-      background:var(--surface);border:1px solid var(--border);border-radius:16px;
-      padding:14px 16px;display:flex;align-items:center;gap:12px;
-    }
-    .cycle-icon{width:38px;height:38px;background:rgba(108,99,255,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
-    .cycle-label{color:var(--muted);font-size:12px;margin-bottom:2px}
-    .cycle-value{font-weight:600;font-size:14px}
-
-    /* History */
-    .section-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:0 4px}
-    .history-list{display:flex;flex-direction:column;gap:8px}
-    .history-item{
-      background:var(--surface);border:1px solid var(--border);border-radius:12px;
-      padding:12px 14px;display:flex;align-items:center;justify-content:space-between;
-    }
-    .hist-left{display:flex;align-items:center;gap:10px}
-    .hist-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-    .hist-dot.success{background:var(--green)}
-    .hist-dot.failed{background:var(--red)}
-    .hist-dot.partial{background:var(--yellow)}
-    .hist-date{font-size:13px;color:var(--muted)}
-    .hist-amount{font-size:14px;font-weight:600}
-
-    /* APY */
-    .apy-card{
-      background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;
-    }
-    .apy-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:14px}
-    .apy-row .label{color:var(--muted)}
-    .apy-row .val{font-weight:600;color:var(--green)}
-    .apy-total{font-weight:700;font-size:16px;color:var(--accent2) !important}
-
-    /* CTA buttons */
-    .cta-row{display:flex;gap:10px}
-    .cta-btn{
-      flex:1;padding:13px 0;border-radius:12px;border:none;font-size:14px;
-      font-weight:700;cursor:pointer;transition:opacity .15s;
-    }
-    .cta-btn:active{opacity:.7}
-    .cta-primary{background:var(--accent);color:#fff}
-    .cta-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
-    .cta-test{background:rgba(245,158,11,0.15);color:var(--yellow);border:1px solid rgba(245,158,11,0.3)}
-
-    /* Test warning modal */
-    .modal-overlay{
-      position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:50;
-      display:flex;align-items:flex-end;justify-content:center;
-      opacity:0;pointer-events:none;transition:opacity .2s;
-    }
-    .modal-overlay.open{opacity:1;pointer-events:all}
-    .modal-sheet{
-      background:var(--surface);border-radius:20px 20px 0 0;padding:24px 20px 32px;
-      width:100%;max-width:480px;transform:translateY(100%);transition:transform .25s;
-    }
-    .modal-overlay.open .modal-sheet{transform:translateY(0)}
-    .modal-title{font-size:17px;font-weight:700;margin-bottom:8px}
-    .modal-body{font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:18px}
-    .modal-body strong{color:var(--text)}
-    .modal-row{display:flex;gap:10px;margin-top:4px}
-
-    /* Loading / empty */
-    .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:60px 20px;color:var(--muted);text-align:center}
-    .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
-    @keyframes spin{to{transform:rotate(360deg)}}
-    .empty-icon{font-size:40px;margin-bottom:4px}
-    .empty-title{font-size:17px;font-weight:700;color:var(--text)}
-    .empty-sub{font-size:13px;margin-top:4px}
-
-    .error-banner{
-      background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);
-      border-radius:10px;padding:10px 14px;font-size:13px;color:var(--red);text-align:center;
+    :root {
+      --bg: #07070e;
+      --accent: #4a8aff;
+      --accent2: #2d6dcc;
+      --green: #4aff8c;
+      --red: #ff6b6b;
+      --yellow: #fbbf24;
+      --text-primary: #ffffff;
+      --text-secondary: #4a5568;
+      --border: rgba(255, 255, 255, 0.06);
+      --radius: 16px;
+      --font: -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    .toast{
-      position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0));left:50%;transform:translateX(-50%);
-      padding:10px 20px;border-radius:20px;font-size:14px;font-weight:600;
-      opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;z-index:200;color:#fff;
+    html, body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font);
+      font-size: 15px;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
     }
-    .toast.show{opacity:1}
 
-    .auth-gate{display:none;position:fixed;inset:0;z-index:9999;background:rgba(13,13,15,.98);align-items:center;justify-content:center;padding:24px;text-align:center}
-    .auth-gate.visible{display:flex}
-    .auth-gate-card{max-width:340px;padding:28px 22px;background:var(--surface2);border:1px solid var(--border);border-radius:16px}
-    .auth-gate-card h1{font-size:22px;margin-bottom:10px}
-    .auth-gate-card p{font-size:14px;color:var(--muted);line-height:1.5;margin-bottom:20px}
-    .auth-gate-card strong{color:var(--accent2)}
-    body.auth-locked #mainContent{pointer-events:none;filter:blur(5px)}
+    body {
+      overflow-x: hidden;
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+
+    .app {
+      max-width: 390px;
+      margin: 0 auto;
+      min-height: 100dvh;
+    }
+
+    .header {
+      padding: max(20px, env(safe-area-inset-top)) 20px 14px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: linear-gradient(to bottom, var(--bg) 80%, transparent);
+    }
+
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+
+    .logo-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: radial-gradient(circle at 50% 40%, #1a2030 0%, #080810 100%);
+      border: 1px solid rgba(74, 138, 255, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 11px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .status-active { background: rgba(74, 255, 140, 0.1); color: var(--green); border: 1px solid rgba(74, 255, 140, 0.25); }
+    .status-paused { background: rgba(251, 191, 36, 0.1); color: var(--yellow); border: 1px solid rgba(251, 191, 36, 0.25); }
+
+    .scroll-body {
+      padding: 4px 20px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 10px;
+    }
+
+    .portfolio-value {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .portfolio-pnl { font-size: 13px; margin-top: 4px; }
+    .pnl-pos { color: var(--green); }
+    .pnl-neg { color: var(--red); }
+
+    .breakdown {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .breakdown-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+
+    .bd-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 3px; }
+    .bd-value { font-size: 15px; font-weight: 600; }
+
+    .strategy-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+
+    .strategy-row:last-child { border-bottom: none; }
+    .strategy-row .label { color: var(--text-secondary); }
+    .strategy-row .val { font-weight: 600; }
+
+    .next-cycle {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .cycle-icon {
+      width: 40px;
+      height: 40px;
+      background: rgba(74, 138, 255, 0.12);
+      border: 1px solid rgba(74, 138, 255, 0.25);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .cycle-label { color: var(--text-secondary); font-size: 12px; margin-bottom: 2px; }
+    .cycle-value { font-weight: 600; font-size: 14px; }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 4px 2px 0;
+    }
+
+    .history-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .history-item {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .hist-left { display: flex; align-items: center; gap: 10px; }
+    .hist-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .hist-dot.success { background: var(--green); }
+    .hist-dot.failed { background: var(--red); }
+    .hist-dot.partial { background: var(--yellow); }
+    .hist-date { font-size: 12px; color: var(--text-secondary); }
+    .hist-amount { font-size: 14px; font-weight: 600; }
+
+    .apy-total { color: var(--accent) !important; font-weight: 700; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s;
+      width: 100%;
+      padding: 14px 20px;
+    }
+
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.45; cursor: default; pointer-events: none; }
+
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-primary);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-danger {
+      background: rgba(255, 107, 107, 0.12);
+      color: var(--red);
+      border: 1px solid rgba(255, 107, 107, 0.35);
+    }
+
+    .btn-warn {
+      background: rgba(251, 191, 36, 0.1);
+      color: var(--yellow);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+    }
+
+    .cta-row { display: flex; gap: 10px; }
+    .cta-row .btn { flex: 1; padding: 13px 10px; font-size: 14px; }
+    .cta-stack { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+
+    .hint-line {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-top: 6px;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+      z-index: 50;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+    .modal-sheet {
+      background: #0e0e16;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px 20px 0 0;
+      padding: 24px 20px max(28px, env(safe-area-inset-bottom));
+      width: 100%;
+      max-width: 390px;
+      transform: translateY(100%);
+      transition: transform 0.25s;
+    }
+
+    .modal-overlay.open .modal-sheet { transform: translateY(0); }
+
+    .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .modal-body { font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 18px; }
+    .modal-body strong { color: var(--text-primary); }
+    .modal-row { display: flex; gap: 10px; }
+
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 60px 20px;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-icon { font-size: 40px; margin-bottom: 4px; }
+    .empty-title { font-size: 17px; font-weight: 700; color: var(--text-primary); }
+    .empty-sub { font-size: 13px; margin-top: 4px; }
+
+    .error-banner {
+      background: rgba(255, 107, 107, 0.1);
+      border: 1px solid rgba(255, 107, 107, 0.3);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: var(--red);
+      text-align: center;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: calc(20px + env(safe-area-inset-bottom, 0));
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.25s;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 200;
+      color: #fff;
+      background: var(--accent);
+    }
+
+    .toast.show { opacity: 1; }
+    .toast.err { background: var(--red); }
+    .toast.ok { background: var(--green); color: #0a0a12; }
+
+    .auth-gate {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(7, 7, 14, 0.98);
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .auth-gate.visible { display: flex; }
+
+    .auth-gate-card {
+      max-width: 340px;
+      padding: 28px 22px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius);
+    }
+
+    .auth-gate-card h1 { font-size: 22px; margin-bottom: 10px; }
+    .auth-gate-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 20px; }
+    .auth-gate-card strong { color: var(--accent); }
+    body.auth-locked #mainContent { pointer-events: none; filter: blur(5px); }
   </style>
 </head>
 <body>
@@ -154,49 +380,57 @@
   <div class="auth-gate-card">
     <h1>Sign in via Telegram</h1>
     <p>Open <strong>@GramityBot</strong>, tap <em>Start</em>, then launch the dashboard from the bot.</p>
-    <button type="button" class="cta-btn cta-primary" id="btnOpenBot" style="width:100%">Open @GramityBot</button>
+    <button type="button" class="btn btn-primary" id="btnOpenBot">Open @GramityBot</button>
   </div>
 </div>
 
-<div id="mainContent">
-
-<div class="header">
-  <div class="header-row">
-    <div class="logo">
-      <div class="logo-dot"></div>
-      Gramity
+<div id="mainContent" class="app">
+  <div class="header">
+    <div class="header-row">
+      <div class="logo">
+        <span class="logo-mark">✦</span>
+        Gramity
+      </div>
+      <div id="statusPill"></div>
     </div>
-    <div id="statusPill"></div>
+  </div>
+
+  <div class="scroll-body" id="mainBody">
+    <div class="loading" id="loadingState">
+      <div class="spinner"></div>
+      <span>Loading your portfolio…</span>
+    </div>
   </div>
 </div>
 
-<div class="scroll-body" id="mainBody">
-  <div class="loading" id="loadingState">
-    <div class="spinner"></div>
-    <span>Loading your portfolio…</span>
-  </div>
-</div>
-
-<!-- Test warning modal -->
 <div class="modal-overlay" id="testModal">
   <div class="modal-sheet">
     <div class="modal-title">🧪 Run 3 Test Cycles</div>
     <div class="modal-body">
       This runs <strong>3 real DCA cycles immediately</strong> — no scheduler, regular schedule unchanged.<br><br>
-      <strong>Failure scenarios:</strong><br>
-      • <strong>Low TON gas</strong> — cycle skipped, nothing spent. Top up TON → retry.<br>
-      • <strong>Stake/LP fails</strong> — "partial": swap TON stays in wallet, used next cycle.<br>
-      • <strong>No USDT</strong> — test stops, strategy stays active.<br>
-      • <strong>Network error</strong> — logged, test continues.<br><br>
-      ⚠️ <strong>Real mainnet.</strong> Check /status after the test.
+      ⚠️ <strong>Real mainnet.</strong> Check Telegram for results after the test.
     </div>
     <div class="modal-row">
-      <button class="cta-btn cta-secondary" id="testCancelBtn" style="flex:0.6">Cancel</button>
-      <button class="cta-btn cta-primary" id="testConfirmBtn" style="flex:1">▶️ Run 3 cycles</button>
+      <button class="btn btn-ghost" id="testCancelBtn" style="flex:0.6">Cancel</button>
+      <button class="btn btn-primary" id="testConfirmBtn" style="flex:1">▶️ Run 3 cycles</button>
     </div>
   </div>
 </div>
-</div><!-- /mainContent -->
+
+<div class="modal-overlay" id="withdrawModal">
+  <div class="modal-sheet">
+    <div class="modal-title">📤 Withdraw everything?</div>
+    <div class="modal-body">
+      Gramity will <strong>exit LP</strong>, unstake tsTON, and send USDT to your withdrawal wallet. Strategy will be paused. This may take a few minutes.
+    </div>
+    <div class="modal-row">
+      <button class="btn btn-ghost" id="withdrawCancelBtn" style="flex:0.6">Cancel</button>
+      <button class="btn btn-danger" id="withdrawConfirmBtn" style="flex:1">Withdraw all</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
 
 <script>
 (function () {
@@ -204,14 +438,14 @@
   if (tg) {
     tg.ready();
     tg.expand();
-    if (tg.setHeaderColor) tg.setHeaderColor('#18181c');
-    if (tg.setBackgroundColor) tg.setBackgroundColor('#0d0d0f');
+    if (tg.setHeaderColor) tg.setHeaderColor('#07070e');
+    if (tg.setBackgroundColor) tg.setBackgroundColor('#07070e');
   }
 
-  var BASE_URL = window.location.origin;
   var initData = (tg && tg.initData) || '';
   var HAS_TG_AUTH = initData.indexOf('hash=') !== -1;
   var BOT_AUTH_URL = 'https://t.me/GramityBot';
+  var portfolioData = null;
 
   function openBotForAuth() {
     try {
@@ -230,21 +464,14 @@
     return;
   }
 
-  // Extract target strategy id from hash
-  var targetStrategyId = null;
-  if (window.location.hash) {
-    var m = window.location.hash.match(/strategy-([^&]+)/);
-    if (m) targetStrategyId = m[1];
-  }
-
   var FREQ_LABELS = {
-    weekly:   'weekly',
+    weekly: 'weekly',
     biweekly: 'every 2 weeks',
-    monthly:  'monthly',
-    daily:    'daily',
+    monthly: 'monthly',
+    daily: 'daily',
     minutely: 'every minute',
-    hourly:   'every hour',
-    demo:     'demo',
+    hourly: 'every hour',
+    demo: 'demo',
   };
 
   function fmt(v, d) {
@@ -271,12 +498,48 @@
     return e;
   }
 
+  function showToast(msg, kind) {
+    var toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.className = 'toast show' + (kind ? ' ' + kind : '');
+    setTimeout(function () { toast.className = 'toast'; }, 3200);
+  }
+
+  function apiPost(path, body) {
+    return fetch('/api' + path, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Telegram-Init-Data': initData,
+      },
+      body: body ? JSON.stringify(body) : '{}',
+    }).then(function (r) {
+      return r.json().then(function (data) {
+        if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+        return data;
+      });
+    });
+  }
+
+  function reloadPortfolio() {
+    return fetch('/api/portfolio', { headers: { 'X-Telegram-Init-Data': initData } })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        portfolioData = data;
+        render(data);
+      });
+  }
+
   function render(data) {
     var body = document.getElementById('mainBody');
     body.innerHTML = '';
 
-    if (!data) {
-      body.innerHTML = '<div class="loading"><div class="empty-icon">📊</div><div class="empty-title">No strategy yet</div><div class="empty-sub">Tap New Strategy to get started</div></div>';
+    if (!data || !data.plan) {
+      body.innerHTML = '<div class="loading"><div class="empty-icon">📊</div><div class="empty-title">No strategy yet</div><div class="empty-sub">Create your first DCA strategy to see the dashboard</div></div>';
       appendCTA(body, null);
       return;
     }
@@ -285,23 +548,19 @@
     var execs = data.executions || [];
     var invested = execs.reduce(function (s, e) { return s + (e.status === 'success' ? (e.usdt_spent || 0) : 0); }, 0);
 
-    // Status pill
     var pill = document.getElementById('statusPill');
-    if (plan) {
-      pill.innerHTML = '';
-      var pillEl = el('span', { class: 'status-pill ' + (plan.active ? 'status-active' : 'status-paused') });
-      pillEl.innerHTML = plan.active ? '⚡ Active' : '⏸ Paused';
-      pill.appendChild(pillEl);
-    }
+    pill.innerHTML = '';
+    var pillEl = el('span', { class: 'status-pill ' + (plan.active ? 'status-active' : 'status-paused') });
+    pillEl.textContent = plan.active ? '⚡ Active' : '⏸ Paused';
+    pill.appendChild(pillEl);
 
-    // Portfolio card
     var totalVal = (data.usdtBalance || 0) + (data.lpValue || 0);
-    var pCard = el('div', { class: 'portfolio-card' });
+    var pCard = el('div', { class: 'card' });
     pCard.innerHTML = [
-      '<div class="portfolio-label">Total Portfolio</div>',
+      '<div class="card-title">Total portfolio</div>',
       '<div class="portfolio-value">$' + fmt(totalVal) + '</div>',
       invested > 0 ? ('<div class="portfolio-pnl ' + (totalVal >= invested ? 'pnl-pos' : 'pnl-neg') + '">' +
-        (totalVal >= invested ? '+' : '') + '$' + fmt(totalVal - invested) + ' vs invested' + '</div>') : '',
+        (totalVal >= invested ? '+' : '') + '$' + fmt(totalVal - invested) + ' vs invested</div>') : '',
       '<div class="breakdown">',
       '  <div class="breakdown-item"><div class="bd-label">USDT on deposit</div><div class="bd-value">$' + fmt(data.usdtBalance) + '</div></div>',
       '  <div class="breakdown-item"><div class="bd-label">LP position</div><div class="bd-value">' + (data.lpValue != null ? '$' + fmt(data.lpValue) : '—') + '</div></div>',
@@ -311,40 +570,34 @@
     ].join('');
     body.appendChild(pCard);
 
-    // Strategy card
-    if (plan) {
-      var freqLabel = FREQ_LABELS[plan.frequency] || plan.frequency;
-      var sCard = el('div', { class: 'strategy-card' });
-      sCard.innerHTML = [
-        '<div class="strategy-header"><span class="strategy-title">DCA Strategy</span></div>',
-        '<div class="strategy-row"><span class="label">Amount per cycle</span><span class="val">$' + fmt(plan.usdt_amount, 0) + ' USDT</span></div>',
-        '<div class="strategy-row"><span class="label">Frequency</span><span class="val">' + freqLabel + '</span></div>',
-        '<div class="strategy-row"><span class="label">Mode</span><span class="val">' + (plan.strategy_mode || 'full') + '</span></div>',
-        '<div class="strategy-row"><span class="label">Cycles run</span><span class="val">' + execs.filter(function(e){return e.status==='success';}).length + '</span></div>',
-      ].join('');
-      body.appendChild(sCard);
+    var freqLabel = FREQ_LABELS[plan.frequency] || plan.frequency;
+    var sCard = el('div', { class: 'card' });
+    sCard.innerHTML = [
+      '<div class="card-title">DCA strategy</div>',
+      '<div class="strategy-row"><span class="label">Amount per cycle</span><span class="val">$' + fmt(plan.usdt_amount, 0) + ' USDT</span></div>',
+      '<div class="strategy-row"><span class="label">Frequency</span><span class="val">' + freqLabel + '</span></div>',
+      '<div class="strategy-row"><span class="label">Mode</span><span class="val">' + (plan.strategy_mode || 'full') + '</span></div>',
+      '<div class="strategy-row"><span class="label">Cycles run</span><span class="val">' + execs.filter(function (e) { return e.status === 'success'; }).length + '</span></div>',
+    ].join('');
+    body.appendChild(sCard);
 
-      // Next cycle
-      var ncCard = el('div', { class: 'next-cycle' });
-      ncCard.innerHTML =
-        '<div class="cycle-icon">⏰</div>' +
-        '<div><div class="cycle-label">Next cycle</div><div class="cycle-value">' + fmtDate(plan.next_execution_at) + '</div></div>';
-      body.appendChild(ncCard);
-    }
+    var ncCard = el('div', { class: 'card next-cycle' });
+    ncCard.innerHTML =
+      '<div class="cycle-icon">⏰</div>' +
+      '<div><div class="cycle-label">Next cycle</div><div class="cycle-value">' + fmtDate(plan.next_execution_at) + '</div></div>';
+    body.appendChild(ncCard);
 
-    // APY card
-    var apyCard = el('div', { class: 'apy-card' });
+    var apyCard = el('div', { class: 'card' });
     apyCard.innerHTML = [
-      '<div class="strategy-title" style="margin-bottom:10px">Yield Breakdown</div>',
-      '<div class="apy-row"><span class="label">tsTON staking</span><span class="val">~5.0%</span></div>',
-      '<div class="apy-row"><span class="label">LP + farming</span><span class="val">~0.4%</span></div>',
-      '<div class="apy-row" style="border-top:1px solid var(--border);margin-top:6px;padding-top:10px"><span class="label" style="font-weight:700;color:var(--text)">Total APY</span><span class="val apy-total">~5.4%</span></div>',
+      '<div class="card-title">Yield breakdown</div>',
+      '<div class="strategy-row"><span class="label">tsTON staking</span><span class="val" style="color:var(--green)">~5.0%</span></div>',
+      '<div class="strategy-row"><span class="label">LP + farming</span><span class="val" style="color:var(--green)">~0.4%</span></div>',
+      '<div class="strategy-row"><span class="label" style="font-weight:700;color:var(--text-primary)">Total APY</span><span class="val apy-total">~5.4%</span></div>',
     ].join('');
     body.appendChild(apyCard);
 
-    // History
     if (execs.length > 0) {
-      body.appendChild(el('div', { class: 'section-title' }, ['Recent Cycles']));
+      body.appendChild(el('div', { class: 'section-title' }, ['Recent cycles']));
       var histList = el('div', { class: 'history-list' });
       execs.slice(0, 5).forEach(function (e) {
         var item = el('div', { class: 'history-item' });
@@ -360,13 +613,14 @@
       body.appendChild(histList);
     }
 
-    appendCTA(body, plan);
+    appendCTA(body, plan, data);
   }
 
-  function appendCTA(body, plan) {
-    var row = el('div', { class: 'cta-row' });
+  function appendCTA(body, plan, data) {
+    var stack = el('div', { class: 'cta-stack' });
 
-    var newBtn = el('button', { class: 'cta-btn cta-primary' });
+    var row = el('div', { class: 'cta-row' });
+    var newBtn = el('button', { class: 'btn btn-primary' });
     newBtn.textContent = '+ New Strategy';
     newBtn.addEventListener('click', function () {
       window.location.href = '/app/onboarding.html';
@@ -374,58 +628,121 @@
     row.appendChild(newBtn);
 
     if (plan) {
-      var pauseBtn = el('button', { class: 'cta-btn cta-secondary' });
+      var pauseBtn = el('button', { class: 'btn btn-ghost' });
       pauseBtn.textContent = plan.active ? '⏸ Pause' : '▶️ Resume';
       pauseBtn.addEventListener('click', function () {
         if (tg && tg.sendData) {
           tg.sendData(JSON.stringify({ type: plan.active ? 'pause' : 'resume' }));
+          showToast(plan.active ? 'Pause requested' : 'Resume requested', 'ok');
         }
       });
       row.appendChild(pauseBtn);
     }
+    stack.appendChild(row);
 
-    body.appendChild(row);
-
-    // Test button — only when plan exists
     if (plan) {
-      var testBtn = el('button', { class: 'cta-btn cta-test', style: 'width:100%;margin-top:8px' });
-      testBtn.textContent = '🧪 Run Test (3 cycles)';
+      var withdrawCard = el('div', { class: 'card' });
+      withdrawCard.innerHTML = '<div class="card-title">Withdraw funds</div>';
+
+      var hasAddr = !!(plan.ton_address && plan.ton_address.length > 8);
+      var hint = el('p', { class: 'hint-line' });
+      hint.textContent = hasAddr
+        ? 'Funds go to your locked withdrawal wallet.'
+        : 'Set a withdrawal wallet in onboarding before withdrawing.';
+      withdrawCard.appendChild(hint);
+
+      var usdtBtn = el('button', { class: 'btn btn-ghost', style: 'margin-top:12px' });
+      usdtBtn.textContent = '💵 Withdraw USDT';
+      usdtBtn.disabled = !hasAddr || !(data && data.usdtBalance >= 0.01);
+      usdtBtn.addEventListener('click', function () {
+        usdtBtn.disabled = true;
+        usdtBtn.textContent = '⏳ Sending…';
+        apiPost('/withdraw/usdt')
+          .then(function (r) {
+            showToast('Sent $' + fmt(r.sent) + ' USDT', 'ok');
+            return reloadPortfolio();
+          })
+          .catch(function (err) {
+            showToast(err.message || 'Withdraw failed', 'err');
+          })
+          .finally(function () {
+            usdtBtn.disabled = false;
+            usdtBtn.textContent = '💵 Withdraw USDT';
+          });
+      });
+      withdrawCard.appendChild(usdtBtn);
+
+      var allBtn = el('button', { class: 'btn btn-danger', style: 'margin-top:10px' });
+      allBtn.textContent = '📤 Withdraw all (LP + tsTON + USDT)';
+      allBtn.disabled = !hasAddr;
+      allBtn.addEventListener('click', function () {
+        document.getElementById('withdrawModal').classList.add('open');
+      });
+      withdrawCard.appendChild(allBtn);
+
+      stack.appendChild(withdrawCard);
+
+      var testBtn = el('button', { class: 'btn btn-warn' });
+      testBtn.textContent = '🧪 Run test (3 cycles)';
       testBtn.addEventListener('click', function () {
         document.getElementById('testModal').classList.add('open');
       });
-      body.appendChild(testBtn);
+      stack.appendChild(testBtn);
     }
+
+    body.appendChild(stack);
   }
 
-  // Modal logic
   document.getElementById('testCancelBtn').addEventListener('click', function () {
     document.getElementById('testModal').classList.remove('open');
   });
+
   document.getElementById('testConfirmBtn').addEventListener('click', function () {
     var btn = this;
     btn.disabled = true;
     btn.textContent = '⏳ Starting…';
-    fetch('/api/test-run', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Telegram-Init-Data': initData,
-      },
-      body: JSON.stringify({ cycles: 3 }),
-    })
-      .then(function (r) { return r.json(); })
+    apiPost('/test-run', { cycles: 3 })
       .then(function () {
         document.getElementById('testModal').classList.remove('open');
-        // Show toast
-        var toast = document.getElementById('testToast');
-        if (toast) { toast.classList.add('show'); setTimeout(function () { toast.classList.remove('show'); }, 3000); }
+        showToast('Test started — watch Telegram', 'ok');
       })
-      .catch(function () {
+      .catch(function (err) {
+        showToast(err.message || 'Test failed', 'err');
+      })
+      .finally(function () {
         btn.disabled = false;
         btn.textContent = '▶️ Run 3 cycles';
       });
   });
+
+  document.getElementById('withdrawCancelBtn').addEventListener('click', function () {
+    document.getElementById('withdrawModal').classList.remove('open');
+  });
+
+  document.getElementById('withdrawConfirmBtn').addEventListener('click', function () {
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = '⏳ Processing…';
+    apiPost('/withdraw/all')
+      .then(function (r) {
+        document.getElementById('withdrawModal').classList.remove('open');
+        var msg = (r.summary && r.summary.length) ? r.summary.join(', ') : 'Withdrawal started';
+        showToast(msg, 'ok');
+        return reloadPortfolio();
+      })
+      .catch(function (err) {
+        showToast(err.message || 'Withdraw failed', 'err');
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = 'Withdraw all';
+      });
+  });
+
   document.getElementById('testModal').addEventListener('click', function (e) {
+    if (e.target === this) this.classList.remove('open');
+  });
+  document.getElementById('withdrawModal').addEventListener('click', function (e) {
     if (e.target === this) this.classList.remove('open');
   });
 
@@ -435,18 +752,16 @@
     var banner = el('div', { class: 'error-banner' });
     banner.textContent = msg || 'Failed to load portfolio. Please try again.';
     body.appendChild(banner);
-    appendCTA(body, null);
+    appendCTA(body, null, null);
   }
 
-  // Load data
-  fetch('/api/portfolio', {
-    headers: { 'X-Telegram-Init-Data': initData },
-  })
+  fetch('/api/portfolio', { headers: { 'X-Telegram-Init-Data': initData } })
     .then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     })
     .then(function (data) {
+      portfolioData = data;
       document.getElementById('loadingState').style.display = 'none';
       render(data);
     })
@@ -454,10 +769,7 @@
       document.getElementById('loadingState').style.display = 'none';
       renderError('Could not load portfolio: ' + err.message);
     });
-
 })();
 </script>
-
-<div class="toast" id="testToast" style="background:#f59e0b">🧪 Test started — watch Telegram for results</div>
 </body>
 </html>
