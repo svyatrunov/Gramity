@@ -110,7 +110,13 @@ export async function connectNativeEthereum(): Promise<{
     );
   }
   try {
-    const accounts = await requestFreshMetaMaskAccounts(eip1193);
+    let accounts = (await eip1193.request({ method: "eth_accounts" })) as string[];
+    if (!accounts?.length) {
+      accounts = (await eip1193.request({ method: "eth_requestAccounts" })) as string[];
+    }
+    if (!accounts?.length) {
+      throw new WalletError("MetaMask returned no accounts", "NOT_CONNECTED");
+    }
     const provider = new BrowserProvider(eip1193);
     const signer = await provider.getSigner(accounts[0]);
     const network = await provider.getNetwork();
@@ -175,6 +181,10 @@ export async function switchChain(chain: ChainConfig): Promise<void> {
     if (e.code === 4902) {
       try {
         await addChain(ethereum, chain);
+        await ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: hexId }],
+        });
       } catch (addErr: unknown) {
         const ae = addErr as { code?: number; message?: string };
         if (ae.code === 4001) {

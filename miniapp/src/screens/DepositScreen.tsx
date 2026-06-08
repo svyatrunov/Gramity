@@ -206,9 +206,11 @@ export function DepositScreen({
 
   const [approveStatus, setApproveStatus] = useState<TxStatus>("idle");
   const [sendStatus, setSendStatus] = useState<TxStatus>("idle");
+  const [depositStatus, setDepositStatus] = useState<TxStatus>("idle");
   const [approveHash, setApproveHash] = useState("");
   const [sendHash, setSendHash] = useState("");
   const [actionErr, setActionErr] = useState("");
+  const [switchingNetwork, setSwitchingNetwork] = useState(false);
   const [copied, setCopied] = useState(false);
   const [allowanceOk, setAllowanceOk] = useState(false);
   const [orderTrack, setOrderTrack] = useState<OrderTrackState | null>(null);
@@ -299,6 +301,29 @@ export function DepositScreen({
         });
     });
   }, [walletAddress]);
+
+  useEffect(() => {
+    if (!walletAddress || walletChainId === CHAINS[chainKey].chainId) return;
+    let cancelled = false;
+    setSwitchingNetwork(true);
+    void ensureWalletOnChain(CHAINS[chainKey], walletAddress)
+      .then((conn) => {
+        if (cancelled) return;
+        setProvider(conn.provider);
+        setWalletChainId(conn.chainId);
+        setConnectErr("");
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        setConnectErr(parseWalletError(e));
+      })
+      .finally(() => {
+        if (!cancelled) setSwitchingNetwork(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [walletAddress, chainKey, walletChainId]);
 
   const notifyOrderUpdate = useCallback(
     async (state: OrderTrackState) => {
@@ -502,17 +527,6 @@ export function DepositScreen({
     }
   };
 
-  const handleSwitchNetwork = async () => {
-    setConnectErr("");
-    try {
-      const conn = await ensureWalletOnChain(CHAINS[chainKey], walletAddress || undefined);
-      setProvider(conn.provider);
-      setWalletChainId(conn.chainId);
-    } catch (e: unknown) {
-      setConnectErr(parseWalletError(e));
-    }
-  };
-
   const copyDestination = useCallback(() => {
     if (!depositAddress) return;
     navigator.clipboard.writeText(depositAddress).then(() => {
@@ -521,68 +535,70 @@ export function DepositScreen({
     });
   }, [depositAddress]);
 
-  const handleApprove = async () => {
-    if (!quote) return;
-    const spender = getProtocolSpender(quote);
-    if (!spender) {
-      setActionErr("Could not resolve approve spender contract");
-      return;
-    }
+  const executeSend = async (
+    conn: Awaited<ReturnType<typeof ensureWalletOnChain>>
+  ) => {
+    if (!quote || !depositAddress || !omnistonWs) return;
 
-    setActionErr("");
-    setApproveStatus("pending");
-    try {
-      const conn = await ensureWalletOnChain(CHAINS[chainKey], walletAddress || undefined);
-      setProvider(conn.provider);
-      setWalletChainId(conn.chainId);
-      const hash = await approveToken(conn.signer, token, spender, BigInt(quote.inputUnits));
-      setApproveHash(hash);
-      await waitTx(conn.provider, hash);
-      setApproveStatus("confirmed");
-    } catch (e: unknown) {
-      setApproveStatus("failed");
-      setActionErr(parseWalletError(e));
-    }
+    const chain = CHAINS[chainKey];
+    const { htlcSecrets } = await registerCrossChainOrder(
+      omnistonWs,
+      quote,
+      chainKey,
+      conn.address,
+      depositAddress,
+      conn.signer
+    );
+
+    const pseudoHash = `order-${quote.quoteId.slice(0, 16)}`;
+    setSendHash(pseudoHash);
+    setSendStatus("confirmed");
+    startOrderTracking(quote.quoteId, htlcSecrets);
+
+    await (isTokenMode && activeSessionToken.current
+      ? api.evmDepositInitiated(activeSessionToken.current, {
+          txHash: pseudoHash,
+          amount: parseFloat(amount),
+          sourceChain: chain.label,
+          sourceToken: token.symbol,
+        })
+      : api.depositInitiated({
+          txHash: pseudoHash,
+          amount: parseFloat(amount),
+          sourceChain: chain.label,
+          sourceToken: token.symbol,
+        }));
   };
 
-  const handleSend = async () => {
+  const handleDeposit = async () => {
     if (!quote || !depositAddress || !omnistonWs) return;
 
     setActionErr("");
-    setSendStatus("pending");
+    setDepositStatus("pending");
     try {
       const chain = CHAINS[chainKey];
       const conn = await ensureWalletOnChain(chain, walletAddress || undefined);
       setProvider(conn.provider);
       setWalletChainId(conn.chainId);
-      const { htlcSecrets } = await registerCrossChainOrder(
-        omnistonWs,
-        quote,
-        chainKey,
-        conn.address,
-        depositAddress,
-        conn.signer
-      );
 
-      const pseudoHash = `order-${quote.quoteId.slice(0, 16)}`;
-      setSendHash(pseudoHash);
-      setSendStatus("confirmed");
-      startOrderTracking(quote.quoteId, htlcSecrets);
+      if (!allowanceOk) {
+        const spender = getProtocolSpender(quote);
+        if (!spender) {
+          throw new Error("Could not resolve approve spender contract");
+        }
+        setApproveStatus("pending");
+        const hash = await approveToken(conn.signer, token, spender, BigInt(quote.inputUnits));
+        setApproveHash(hash);
+        await waitTx(conn.provider, hash);
+        setApproveStatus("confirmed");
+        setAllowanceOk(true);
+      }
 
-      await (isTokenMode && activeSessionToken.current
-        ? api.evmDepositInitiated(activeSessionToken.current, {
-            txHash: pseudoHash,
-            amount: parseFloat(amount),
-            sourceChain: chain.label,
-            sourceToken: token.symbol,
-          })
-        : api.depositInitiated({
-            txHash: pseudoHash,
-            amount: parseFloat(amount),
-            sourceChain: chain.label,
-            sourceToken: token.symbol,
-          }));
+      await executeSend(conn);
+      setDepositStatus("confirmed");
     } catch (e: unknown) {
+      setDepositStatus("failed");
+      if (approveStatus === "pending") setApproveStatus("failed");
       setSendStatus("failed");
       setActionErr(parseWalletError(e));
     }
@@ -716,22 +732,9 @@ export function DepositScreen({
 
           {networkMismatch && (
             <div style={S.warn}>
-              ⚠️ MetaMask is on a different network.{" "}
-              <button
-                type="button"
-                onClick={handleSwitchNetwork}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "var(--tg-theme-link-color,#2481cc)",
-                  cursor: "pointer",
-                  textDecoration: "underline",
-                  padding: 0,
-                  fontSize: 13,
-                }}
-              >
-                Switch to {CHAINS[chainKey].label}
-              </button>
+              {switchingNetwork
+                ? `⏳ Switching to ${CHAINS[chainKey].label} in MetaMask…`
+                : `⚠️ Confirm network switch to ${CHAINS[chainKey].label} in MetaMask`}
             </div>
           )}
 
@@ -804,78 +807,59 @@ export function DepositScreen({
             Sending {amount} {token.symbol} → ≈{formatOutputUsdt(quote)} USDT on TON
           </p>
 
-          {!allowanceOk && (
-            <>
-              <button
-                style={approveStatus === "pending" ? S.btnDisabled : S.btn}
-                onClick={handleApprove}
-                disabled={approveStatus === "pending"}
+          <button
+            style={
+              depositStatus === "pending" || networkMismatch || switchingNetwork
+                ? S.btnDisabled
+                : S.btn
+            }
+            onClick={handleDeposit}
+            disabled={depositStatus === "pending" || networkMismatch || switchingNetwork}
+          >
+            {depositStatus === "pending"
+              ? approveStatus === "pending"
+                ? "Approve in MetaMask…"
+                : "Sign order in MetaMask…"
+              : depositStatus === "confirmed"
+                ? "✅ Deposit sent"
+                : `Confirm deposit · ${amount} ${token.symbol}`}
+          </button>
+          <div style={{ fontSize: 12, marginTop: 6, color: "var(--tg-theme-hint-color,#888)" }}>
+            {allowanceOk
+              ? "One signature · STON.fi cross-chain order"
+              : "Two steps in MetaMask: approve USDT, then sign order"}
+          </div>
+          {approveStatus === "confirmed" && approveHash && (
+            <div style={{ ...S.success, marginTop: 8 }}>
+              Approve:{" "}
+              <a
+                href={CHAINS[chainKey].explorerTx + approveHash}
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: "inherit" }}
               >
-                {approveStatus === "pending"
-                  ? "Approve…"
-                  : approveStatus === "confirmed"
-                    ? "✅ Approved"
-                    : `Approve ${amount} ${token.symbol}`}
-              </button>
-              <div style={{ fontSize: 12, marginTop: 6, color: "var(--tg-theme-hint-color,#888)" }}>
-                Exact amount only · STON.fi cross-chain resolver (not unlimited)
+                {shortAddress(approveHash)}
+              </a>
+            </div>
+          )}
+          {sendStatus === "confirmed" && (
+            <div style={{ ...S.success, marginTop: 8 }}>
+              Order registered. ID: {sendHash}
+              <div style={{ marginTop: 6, fontSize: 12 }}>
+                Bot notified — funds arrive after the route settles.
               </div>
-              {approveStatus === "confirmed" && approveHash && (
-                <div style={{ ...S.success, marginTop: 8 }}>
-                  Approve confirmed:{" "}
-                  <a
-                    href={CHAINS[chainKey].explorerTx + approveHash}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ color: "inherit" }}
-                  >
-                    {shortAddress(approveHash)}
-                  </a>
+              {orderTrack && (
+                <div style={{ marginTop: 8, fontSize: 12 }}>
+                  STON.fi: {orderTrack.message}
+                  {orderTrack.phase === "disclosing" && " · disclosing HTLC secret…"}
+                  {orderTrack.phase === "completed" && " · done"}
                 </div>
               )}
-            </>
+              {orderTrackErr && <div style={{ ...S.error, marginTop: 8 }}>{orderTrackErr}</div>}
+            </div>
           )}
 
-          {(allowanceOk || approveStatus === "confirmed") && (
-            <>
-              <button
-                style={sendStatus === "pending" ? S.btnDisabled : S.btn}
-                onClick={handleSend}
-                disabled={sendStatus === "pending"}
-              >
-                {sendStatus === "pending"
-                  ? "Sending…"
-                  : sendStatus === "confirmed"
-                    ? "✅ Sent"
-                    : "Send"}
-              </button>
-              {sendStatus === "pending" && (
-                <div style={{ fontSize: 12, marginTop: 6, color: "var(--tg-theme-hint-color,#888)" }}>
-                  Status: pending…
-                </div>
-              )}
-              {sendStatus === "confirmed" && (
-                <div style={{ ...S.success, marginTop: 8 }}>
-                  Order registered. ID: {sendHash}
-                  <div style={{ marginTop: 6, fontSize: 12 }}>
-                    Bot notified — funds arrive after the route settles.
-                  </div>
-                  {orderTrack && (
-                    <div style={{ marginTop: 8, fontSize: 12 }}>
-                      STON.fi: {orderTrack.message}
-                      {orderTrack.phase === "disclosing" && " · disclosing HTLC secret…"}
-                      {orderTrack.phase === "completed" && " · done"}
-                    </div>
-                  )}
-                  {orderTrackErr && (
-                    <div style={{ ...S.error, marginTop: 8 }}>{orderTrackErr}</div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-
-          {sendStatus === "failed" && <div style={S.error}>Send failed</div>}
+          {depositStatus === "failed" && <div style={S.error}>Deposit failed</div>}
           {actionErr && <div style={{ ...S.error, marginTop: 8 }}>{actionErr}</div>}
         </div>
       )}
