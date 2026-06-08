@@ -192,25 +192,77 @@
       text-align: center;
     }
 
-    /* ── Hero ── */
+    /* ── Hero (slide 0) ── */
+    .slide-hero .slide-content {
+      position: relative;
+      justify-content: flex-start;
+      overflow: hidden;
+    }
+
+    .hero-upper-zone {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 50%;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: max(2vh, 8px);
+      pointer-events: none;
+    }
+
     .hero-center {
+      height: 68%;
+      width: 100%;
+      max-width: 340px;
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       text-align: center;
-      gap: 12px;
+      pointer-events: auto;
     }
 
     .logo-wrap {
-      width: 140px;
-      padding: 38px;
+      flex: 1 1 0;
+      min-height: 0;
+      width: 100%;
+      max-width: min(68vw, 200px);
+      padding: 0;
       overflow: visible;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transform: scale(0.82) translateY(10px);
+    }
+
+    #heroLogo {
+      will-change: opacity, transform;
     }
 
     .logo-wrap svg {
       width: 100%;
+      height: 100%;
+      max-height: 100%;
       display: block;
       overflow: visible;
+    }
+
+    .hero-text {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(4px, 1.1vh, 10px);
+      width: 100%;
+      padding-top: clamp(2px, 0.8vh, 8px);
+    }
+
+    .hero-line {
+      opacity: 0;
+      transform: translateY(14px);
     }
 
     @keyframes gg-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }
@@ -221,10 +273,10 @@
     .gg-au { animation: gg-glow 5s ease-in-out infinite; }
     .gg-sp { animation: gg-star 2.5s ease-in-out infinite; }
 
-    .hero-title    { font-size: 32px; font-weight: 700; letter-spacing: -0.03em; }
-    .hero-subtitle { font-size: 16px; color: var(--text-secondary); }
-    .hero-tagline  { font-size: 13px; color: rgba(74,138,255,0.7); margin-top: -4px; }
-    .hero-meta     { font-size: 12px; color: var(--text-secondary); margin-top: 6px; line-height: 1.5; }
+    .hero-title    { font-size: clamp(24px, 6vw, 32px); font-weight: 700; letter-spacing: -0.03em; }
+    .hero-subtitle { font-size: clamp(13px, 3.6vw, 16px); color: var(--text-secondary); line-height: 1.4; }
+    .hero-tagline  { font-size: clamp(11px, 3vw, 13px); color: rgba(74,138,255,0.7); }
+    .hero-meta     { font-size: clamp(10px, 2.8vw, 12px); color: var(--text-secondary); line-height: 1.5; }
     .hero-meta .mira-accent { color: #a78bfa; }
 
     .mira-slide-center { text-align: center; max-width: 320px; margin: 0 auto; }
@@ -1537,19 +1589,31 @@
       <!-- Wallet logos — use &lt;img&gt; in UI; symbols for balance list fallback -->
 
       <symbol id="logo-eth" viewBox="0 0 40 40">
-        <image href="/app/logos/eth.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+        <clipPath id="cp-eth-s"><circle cx="20" cy="20" r="20"/></clipPath>
+        <g clip-path="url(#cp-eth-s)">
+          <image href="/app/logos/eth.png" x="0" y="0" width="40" height="40" preserveAspectRatio="xMidYMid slice"/>
+        </g>
       </symbol>
 
       <symbol id="logo-base" viewBox="0 0 40 40">
-        <image href="/app/logos/base.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+        <clipPath id="cp-base-s"><circle cx="20" cy="20" r="20"/></clipPath>
+        <g clip-path="url(#cp-base-s)">
+          <image href="/app/logos/base.png" x="0" y="0" width="40" height="40" preserveAspectRatio="xMidYMid slice"/>
+        </g>
       </symbol>
 
       <symbol id="logo-bnb" viewBox="0 0 40 40">
-        <image href="/app/logos/bnb.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+        <clipPath id="cp-bnb-s"><circle cx="20" cy="20" r="20"/></clipPath>
+        <g clip-path="url(#cp-bnb-s)">
+          <image href="/app/logos/bnb.png" x="0" y="0" width="40" height="40" preserveAspectRatio="xMidYMid slice"/>
+        </g>
       </symbol>
 
       <symbol id="logo-polygon" viewBox="0 0 40 40">
-        <image href="/app/logos/polygon.png" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>
+        <clipPath id="cp-poly-s"><circle cx="20" cy="20" r="20"/></clipPath>
+        <g clip-path="url(#cp-poly-s)">
+          <image href="/app/logos/polygon.png" x="0" y="0" width="40" height="40" preserveAspectRatio="xMidYMid slice"/>
+        </g>
       </symbol>
 
       <symbol id="logo-usdt" viewBox="0 0 40 40">
@@ -1580,42 +1644,46 @@
       <!-- ═══════════════════════════════════════════
            SLIDE 0 — Hero
       ═══════════════════════════════════════════ -->
-      <section class="slide" data-slide="0">
+      <section class="slide slide-hero" data-slide="0">
         <div class="slide-content">
-          <div class="hero-center">
-            <div class="logo-wrap anim-item" id="heroLogo">
-              <svg viewBox="0 0 200 200" overflow="visible" aria-hidden="true">
-                <defs>
-                  <radialGradient id="ggr" cx="100" cy="107" r="82" gradientUnits="userSpaceOnUse">
-                    <stop offset="0%" stop-color="#2d2d3c"/>
-                    <stop offset="40%" stop-color="#161622"/>
-                    <stop offset="72%" stop-color="#080810"/>
-                    <stop offset="100%" stop-color="#000000"/>
-                  </radialGradient>
-                  <filter id="gga" x="-55%" y="-55%" width="210%" height="210%">
-                    <feGaussianBlur stdDeviation="22"/>
-                  </filter>
-                  <filter id="ggh" x="-40%" y="-40%" width="180%" height="180%">
-                    <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="w"/>
-                    <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="n"/>
-                    <feMerge><feMergeNode in="w"/><feMergeNode in="n"/><feMergeNode in="SourceGraphic"/></feMerge>
-                  </filter>
-                  <filter id="ggs" x="-90%" y="-90%" width="280%" height="280%">
-                    <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="og"/>
-                    <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="ig"/>
-                    <feMerge><feMergeNode in="og"/><feMergeNode in="ig"/><feMergeNode in="SourceGraphic"/></feMerge>
-                  </filter>
-                </defs>
-                <path class="gg-au" d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1 L 169.5,73.9 Q 176,84 172.8,95.6 L 159.2,144.4 Q 156,156 145.3,161.4 L 110.7,178.6 Q 100,184 89.3,178.6 L 54.7,161.4 Q 44,156 40.8,144.4 L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z" fill="white" filter="url(#gga)" opacity="0.12"/>
-                <path class="gg-ho" d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1 L 169.5,73.9 Q 176,84 172.8,95.6 L 159.2,144.4 Q 156,156 145.3,161.4 L 110.7,178.6 Q 100,184 89.3,178.6 L 54.7,161.4 Q 44,156 40.8,144.4 L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z" fill="none" stroke="white" stroke-width="2.5" filter="url(#ggh)" opacity="0.6"/>
-                <path d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1 L 169.5,73.9 Q 176,84 172.8,95.6 L 159.2,144.4 Q 156,156 145.3,161.4 L 110.7,178.6 Q 100,184 89.3,178.6 L 54.7,161.4 Q 44,156 40.8,144.4 L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z" fill="url(#ggr)" stroke="white" stroke-width="1.5"/>
-                <path class="gg-sp" d="M 115,67 C 120,88 120,88 141,93 C 120,98 120,98 115,119 C 110,98 110,98 89,93 C 110,88 110,88 115,67 Z" fill="white" filter="url(#ggs)" opacity="0.9"/>
-              </svg>
+          <div class="hero-upper-zone">
+            <div class="hero-center">
+              <div class="logo-wrap" id="heroLogo">
+                <svg viewBox="0 0 200 200" overflow="visible" aria-hidden="true">
+                  <defs>
+                    <radialGradient id="ggr" cx="100" cy="107" r="82" gradientUnits="userSpaceOnUse">
+                      <stop offset="0%" stop-color="#2d2d3c"/>
+                      <stop offset="40%" stop-color="#161622"/>
+                      <stop offset="72%" stop-color="#080810"/>
+                      <stop offset="100%" stop-color="#000000"/>
+                    </radialGradient>
+                    <filter id="gga" x="-55%" y="-55%" width="210%" height="210%">
+                      <feGaussianBlur stdDeviation="22"/>
+                    </filter>
+                    <filter id="ggh" x="-40%" y="-40%" width="180%" height="180%">
+                      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="w"/>
+                      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="n"/>
+                      <feMerge><feMergeNode in="w"/><feMergeNode in="n"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <filter id="ggs" x="-90%" y="-90%" width="280%" height="280%">
+                      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="og"/>
+                      <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="ig"/>
+                      <feMerge><feMergeNode in="og"/><feMergeNode in="ig"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                  </defs>
+                  <path class="gg-au" d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1 L 169.5,73.9 Q 176,84 172.8,95.6 L 159.2,144.4 Q 156,156 145.3,161.4 L 110.7,178.6 Q 100,184 89.3,178.6 L 54.7,161.4 Q 44,156 40.8,144.4 L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z" fill="white" filter="url(#gga)" opacity="0.12"/>
+                  <path class="gg-ho" d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1 L 169.5,73.9 Q 176,84 172.8,95.6 L 159.2,144.4 Q 156,156 145.3,161.4 L 110.7,178.6 Q 100,184 89.3,178.6 L 54.7,161.4 Q 44,156 40.8,144.4 L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z" fill="none" stroke="white" stroke-width="2.5" filter="url(#ggh)" opacity="0.6"/>
+                  <path d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1 L 169.5,73.9 Q 176,84 172.8,95.6 L 159.2,144.4 Q 156,156 145.3,161.4 L 110.7,178.6 Q 100,184 89.3,178.6 L 54.7,161.4 Q 44,156 40.8,144.4 L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z" fill="url(#ggr)" stroke="white" stroke-width="1.5"/>
+                  <path class="gg-sp" d="M 115,67 C 120,88 120,88 141,93 C 120,98 120,98 115,119 C 110,98 110,98 89,93 C 110,88 110,88 115,67 Z" fill="white" filter="url(#ggs)" opacity="0.9"/>
+                </svg>
+              </div>
+              <div class="hero-text">
+                <h1 class="hero-title hero-line">Gramity</h1>
+                <p class="hero-subtitle hero-line">Your money works while you sleep</p>
+                <p class="hero-tagline hero-line">STON.fi Hackathon · ~5.4% APY</p>
+                <p class="hero-meta hero-line">0% platform fee · <span class="mira-accent">AI-managed via Mira</span></p>
+              </div>
             </div>
-            <h1 class="hero-title anim-item">Gramity</h1>
-            <p class="hero-subtitle anim-item">Your money works while you sleep</p>
-            <p class="hero-tagline anim-item">STON.fi Hackathon · ~5.4% APY</p>
-            <p class="hero-meta anim-item">0% platform fee · <span class="mira-accent">AI-managed via Mira</span></p>
           </div>
         </div>
         <div class="slide-footer">
@@ -1751,26 +1819,74 @@
         <div class="slide-content">
           <h2 class="slide-heading anim-item">Fund from anywhere</h2>
 
-          <div class="fund-simple anim-item">
-            <div class="fund-simple-row">
-              <div class="fund-simple-node">
-                <svg width="32" height="32"><use href="#logo-eth"/></svg>
-                <strong>EVM wallet</strong>
-                <span>USDT</span>
-              </div>
-              <div class="fund-simple-arrow">→</div>
-              <div class="fund-simple-node">
-                <svg width="32" height="32"><use href="#logo-ston"/></svg>
-                <strong>STON.fi</strong>
-                <span>Cross-chain bridge</span>
-              </div>
-              <div class="fund-simple-arrow">→</div>
-              <div class="fund-simple-node">
-                <svg width="32" height="32"><use href="#logo-ton"/></svg>
-                <strong>TON</strong>
-                <span>Agentic wallet</span>
-              </div>
-            </div>
+          <div class="fund-diagram anim-item">
+            <svg viewBox="0 0 310 232" class="fund-svg" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs>
+                <clipPath id="cp-fd-eth"><circle cx="40" cy="40" r="22"/></clipPath>
+                <clipPath id="cp-fd-base"><circle cx="40" cy="90" r="22"/></clipPath>
+                <clipPath id="cp-fd-bnb"><circle cx="40" cy="140" r="22"/></clipPath>
+                <clipPath id="cp-fd-poly"><circle cx="40" cy="190" r="22"/></clipPath>
+                <clipPath id="cp-fd-ston"><circle cx="168" cy="115" r="27"/></clipPath>
+                <clipPath id="cp-fd-ton"><circle cx="278" cy="115" r="23"/></clipPath>
+                <filter id="glow-blue" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="3" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+
+              <path class="fp fp1" style="--da:115"
+                    d="M62,40 C120,40 138,115 143,115"
+                    stroke="#627EEA" stroke-width="1.5" fill="none"
+                    stroke-dasharray="115" stroke-dashoffset="115"/>
+              <path class="fp fp2" style="--da:90"
+                    d="M62,90 C108,90 132,115 143,115"
+                    stroke="#0052FF" stroke-width="1.5" fill="none"
+                    stroke-dasharray="90" stroke-dashoffset="90"/>
+              <path class="fp fp3" style="--da:90"
+                    d="M62,140 C108,140 132,115 143,115"
+                    stroke="#F0B90B" stroke-width="1.5" fill="none"
+                    stroke-dasharray="90" stroke-dashoffset="90"/>
+              <path class="fp fp4" style="--da:115"
+                    d="M62,190 C120,190 138,115 143,115"
+                    stroke="#8247E5" stroke-width="1.5" fill="none"
+                    stroke-dasharray="115" stroke-dashoffset="115"/>
+              <path class="fp fp-out" style="--da:63"
+                    d="M195,115 L255,115"
+                    stroke="#0098EA" stroke-width="2.2" fill="none"
+                    stroke-dasharray="63" stroke-dashoffset="63"
+                    filter="url(#glow-blue)"/>
+
+              <path d="M62,40 C120,40 138,115 143,115" stroke="#627EEA" stroke-width="0.4" fill="none" opacity="0.18"/>
+              <path d="M62,90 C108,90 132,115 143,115" stroke="#0052FF" stroke-width="0.4" fill="none" opacity="0.18"/>
+              <path d="M62,140 C108,140 132,115 143,115" stroke="#F0B90B" stroke-width="0.4" fill="none" opacity="0.18"/>
+              <path d="M62,190 C120,190 138,115 143,115" stroke="#8247E5" stroke-width="0.4" fill="none" opacity="0.18"/>
+              <path d="M195,115 L255,115" stroke="#0098EA" stroke-width="0.6" fill="none" opacity="0.25"/>
+
+              <circle cx="40" cy="40" r="22" fill="#12122a" stroke="#627EEA" stroke-width="1.2" stroke-opacity="0.7"/>
+              <image href="/app/logos/eth.png" x="18" y="18" width="44" height="44" clip-path="url(#cp-fd-eth)" preserveAspectRatio="xMidYMid slice"/>
+              <text x="40" y="75" text-anchor="middle" font-size="9.5" fill="#999" font-family="system-ui,sans-serif">ETH</text>
+
+              <circle cx="40" cy="90" r="22" fill="#001233" stroke="#0052FF" stroke-width="1.2" stroke-opacity="0.7"/>
+              <image href="/app/logos/base.png" x="18" y="68" width="44" height="44" clip-path="url(#cp-fd-base)" preserveAspectRatio="xMidYMid slice"/>
+              <text x="40" y="125" text-anchor="middle" font-size="9.5" fill="#999" font-family="system-ui,sans-serif">Base</text>
+
+              <circle cx="40" cy="140" r="22" fill="#161000" stroke="#F0B90B" stroke-width="1.2" stroke-opacity="0.7"/>
+              <image href="/app/logos/bnb.png" x="18" y="118" width="44" height="44" clip-path="url(#cp-fd-bnb)" preserveAspectRatio="xMidYMid slice"/>
+              <text x="40" y="175" text-anchor="middle" font-size="9.5" fill="#999" font-family="system-ui,sans-serif">BNB</text>
+
+              <circle cx="40" cy="190" r="22" fill="#0e061e" stroke="#8247E5" stroke-width="1.2" stroke-opacity="0.7"/>
+              <image href="/app/logos/polygon.png" x="18" y="168" width="44" height="44" clip-path="url(#cp-fd-poly)" preserveAspectRatio="xMidYMid slice"/>
+              <text x="40" y="225" text-anchor="middle" font-size="9.5" fill="#999" font-family="system-ui,sans-serif">Polygon</text>
+
+              <circle cx="168" cy="115" r="27" fill="#0d1320" stroke="#4A8AFF" stroke-width="1.8"/>
+              <image href="/app/logos/ston.png" x="141" y="88" width="54" height="54" clip-path="url(#cp-fd-ston)" preserveAspectRatio="xMidYMid slice"/>
+              <text x="168" y="156" text-anchor="middle" font-size="9.5" fill="#4A8AFF" font-family="system-ui,sans-serif" font-weight="600">STON.fi</text>
+
+              <circle cx="278" cy="115" r="23" fill="#051520" stroke="#0098EA" stroke-width="1.8"/>
+              <image href="/app/logos/ton.png" x="255" y="92" width="46" height="46" clip-path="url(#cp-fd-ton)" preserveAspectRatio="xMidYMid slice"/>
+              <text x="278" y="151" text-anchor="middle" font-size="8.5" fill="#0098EA" font-family="system-ui,sans-serif" font-weight="700">TON</text>
+              <text x="278" y="163" text-anchor="middle" font-size="8" fill="#6aabcc" font-family="system-ui,sans-serif">agentic wallet</text>
+            </svg>
           </div>
 
           <p class="bridge-caption anim-item">ETH · Base · BNB · Polygon USDT via STON.fi cross-chain</p>
@@ -2445,23 +2561,63 @@
         var items = slide.querySelectorAll('.anim-item');
 
         if (typeof gsap !== 'undefined') {
-          gsap.set(items, { opacity: 0, y: 16 });
-
           if (index === 0) {
             var logo = slide.querySelector('#heroLogo');
-            var rest = slide.querySelectorAll('.anim-item:not(#heroLogo)');
-            gsap.fromTo(logo, { opacity: 0, scale: 0.8 }, {
-              opacity: 1, scale: 1, duration: 0.6, ease: 'power2.out',
-              onComplete: function () {
-                gsap.to(rest, { opacity: 1, y: 0, duration: 0.45, stagger: 0.12, ease: 'power2.out', delay: 0.1 });
-              }
+            var lines = slide.querySelectorAll('.hero-line');
+            var footerBtn = slide.querySelector('#btnGetStarted');
+            gsap.set(logo, { opacity: 0, scale: 0.82, y: 10 });
+            gsap.set(lines, { opacity: 0, y: 14 });
+            gsap.set(footerBtn, { opacity: 0, y: 16 });
+            gsap.to(logo, {
+              opacity: 1, scale: 1, y: 0,
+              duration: 0.9, ease: 'power3.out'
+            });
+            gsap.to(lines, {
+              opacity: 1, y: 0,
+              duration: 0.55, stagger: 0.11, ease: 'power2.out', delay: 0.42
+            });
+            gsap.to(footerBtn, {
+              opacity: 1, y: 0,
+              duration: 0.45, ease: 'power2.out', delay: 0.95
             });
           } else {
+            gsap.set(items, { opacity: 0, y: 16 });
             gsap.to(items, {
               opacity: 1, y: 0, duration: 0.45,
               stagger: index === 1 ? 0.12 : 0.1,
               ease: 'power2.out', delay: 0.05
             });
+          }
+        } else if (index === 0) {
+          var logoEl = slide.querySelector('#heroLogo');
+          var lineEls = slide.querySelectorAll('.hero-line');
+          var btnEl = slide.querySelector('#btnGetStarted');
+          if (logoEl) {
+            logoEl.style.opacity = '0';
+            logoEl.style.transform = 'scale(0.82) translateY(10px)';
+            logoEl.style.transition = 'opacity 0.9s ease, transform 0.9s ease';
+            setTimeout(function () {
+              logoEl.style.opacity = '1';
+              logoEl.style.transform = 'scale(1) translateY(0)';
+            }, 50);
+          }
+          lineEls.forEach(function (el, i) {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(14px)';
+            setTimeout(function () {
+              el.style.transition = 'opacity 0.55s ease, transform 0.55s ease';
+              el.style.opacity = '1';
+              el.style.transform = 'translateY(0)';
+            }, 420 + i * 110);
+          });
+          if (btnEl) {
+            btnEl.style.opacity = '0';
+            btnEl.style.transform = 'translateY(16px)';
+            setTimeout(function () {
+              btnEl.style.transition = 'opacity 0.45s ease, transform 0.45s ease';
+              btnEl.style.opacity = '1';
+              btnEl.style.transform = 'translateY(0)';
+            }, 950);
           }
         } else {
           items.forEach(function (el, i) {
@@ -2487,6 +2643,30 @@
         }
         var slide = slides[index];
         if (!slide) return;
+        if (index === 0) {
+          var logoReset = slide.querySelector('#heroLogo');
+          var lineReset = slide.querySelectorAll('.hero-line');
+          var btnReset = slide.querySelector('#btnGetStarted');
+          if (typeof gsap !== 'undefined') {
+            if (logoReset) gsap.set(logoReset, { opacity: 0, scale: 0.82, y: 10 });
+            gsap.set(lineReset, { opacity: 0, y: 14 });
+            if (btnReset) gsap.set(btnReset, { opacity: 0, y: 16 });
+          } else {
+            if (logoReset) {
+              logoReset.style.opacity = '0';
+              logoReset.style.transform = 'scale(0.82) translateY(10px)';
+            }
+            lineReset.forEach(function (el) {
+              el.style.opacity = '0';
+              el.style.transform = 'translateY(14px)';
+            });
+            if (btnReset) {
+              btnReset.style.opacity = '0';
+              btnReset.style.transform = 'translateY(16px)';
+            }
+          }
+          return;
+        }
         slide.querySelectorAll('.anim-item').forEach(function (el) {
           if (typeof gsap !== 'undefined') gsap.set(el, { opacity: 0, y: 16 });
           else { el.style.opacity = '0'; el.style.transform = 'translateY(16px)'; }
