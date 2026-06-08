@@ -14,8 +14,10 @@ import {
   getPoolApy,
 } from "../../services/tonapi.js";
 import { createUserWallet } from "../../services/userWallet.js";
-import { POOL_ADDRESS, STON_API_URL } from "../../config.js";
+import { POOL_ADDRESS, STON_API_URL, RAILWAY_PUBLIC_URL } from "../../config.js";
 import { InlineKeyboard } from "grammy";
+
+const MINI_APP_URL = `${RAILWAY_PUBLIC_URL}/app`;
 
 const fmt = (v: number | null | undefined, decimals = 2): string =>
   v != null && !isNaN(v) && isFinite(v) && v !== 0
@@ -163,7 +165,7 @@ export async function handleStatus(ctx: GramityContext) {
       comparisonBlock = lines.join("\n");
     }
 
-    const minutesPerCycle = 16;
+    const minutesPerCycle = 7;
     const hoursSaved      = (cycleCount * minutesPerCycle) / 60;
     const intervalHoursVal = FREQ_HOURS[plan.frequency] ?? 7 * 24;
     const cyclesPerYear    = Math.min((365 * 24) / Math.max(intervalHoursVal, 1), 365);
@@ -229,11 +231,13 @@ export async function handleStatus(ctx: GramityContext) {
   );
   const shareUrl = `https://t.me/share/url?url=https://t.me/gramity_bot&text=${shareText}`;
 
+  const dashboardUrl = `${MINI_APP_URL}/dashboard.html#strategy-${plan.id}`;
+
   const kb = new InlineKeyboard()
-    .text(plan.active ? "⏸ Pause" : "▶️ Resume", plan.active ? "pause" : "resume")
-    .text("💸 Withdraw", "withdraw")
+    .webApp("📱 Open Dashboard", dashboardUrl)
     .row()
-    .url("📤 Share result", shareUrl);
+    .text(plan.active ? "⏸ Pause" : "▶️ Resume", plan.active ? "pause" : "resume")
+    .webApp("+ New Strategy", `${MINI_APP_URL}/onboarding.html`);
 
   await ctx.reply(text, { parse_mode: "Markdown", reply_markup: kb });
 }

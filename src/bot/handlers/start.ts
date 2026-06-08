@@ -119,7 +119,7 @@ export async function handleStart(ctx: GramityContext) {
       `  › Stakes → tsTON via Tonstakers (~5% APY)\n` +
       `  › Provides liquidity on STON.fi (~5.4% APY)\n\n` +
       `*LP tokens go directly to your wallet.*\n` +
-      `0% platform fee · Non-custodial · ~16 min/week saved\n\n` +
+      `~5.4% APY · Non-custodial · 0% platform fee\n\n` +
       `Tap *Open App* to set up in ~2 minutes 👇`,
     { parse_mode: "Markdown", reply_markup: kb }
   );
@@ -406,6 +406,9 @@ async function handleActivate(ctx: GramityContext) {
       strategy_mode: "full",
       active: true,
       next_execution_at: firstDate.toISOString(),
+      demo_mode: false,
+      cycles_completed: 0,
+      max_cycles: null,
     });
 
     await createUserWallet(telegramId);

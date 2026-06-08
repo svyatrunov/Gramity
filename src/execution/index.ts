@@ -1,6 +1,12 @@
 /**
  * Strategy execution wrapper
  * Runs the 5-step engine for a given plan and logs results to DB.
+ *
+ * Each step is wrapped in executeWithTimeout + withRetry:
+ *   step1 (Omniston swap):    90 s timeout, 2 retries, 10 s delay
+ *   step3 (Tonstakers stake): 60 s timeout, 1 retry
+ *   step4 (STON.fi LP):       60 s timeout, 1 retry
+ *   step5 (Verify):           30 s timeout, no retry (read-only)
  */
 
 import { fromNano } from "@ton/ton";
@@ -11,8 +17,8 @@ import { step3Stake } from "../step3-stake.js";
 import { step4ProvideLiquidity } from "../step4-liquidity.js";
 import { step5Verify } from "../step5-verify.js";
 import { TSTON_ADDRESS } from "../config.js";
-import { logExecution, updatePlan, type Plan } from "../db/index.js";
-import { getTonPriceUsd, getUsdtBalance, getTonBalance } from "../services/tonapi.js";
+import { logExecution, updatePlan, setPlanLastError, type Plan } from "../db/index.js";
+import { getTonPriceUsd, getUsdtBalance, getLastTxHash } from "../services/tonapi.js";
 
 // ── Gas warning notifier injection (avoids circular dep with bot/index.ts) ────
 type GasNotifier = (telegramId: number, msg: string) => Promise<void>;
@@ -30,15 +36,68 @@ export interface ExecutionResult {
   apy1d: string;
   apy7d: string;
   status: "success" | "failed" | "partial";
+  txSwap: string | null;
+  txStake: string | null;
+  txLp: string | null;
+  failedStep: string | null;
 }
 
-/** Thrown when wallet has insufficient USDT — no execution logged, plan paused */
+/** Thrown when wallet has insufficient USDT — execution stops immediately */
 export class InsufficientFundsError extends Error {
   constructor(public readonly balance: number, public readonly required: number) {
     super(`Insufficient USDT: $${balance.toFixed(2)} < $${required}`);
     this.name = "InsufficientFundsError";
   }
 }
+
+// ── Timeout / retry helpers ───────────────────────────────────────────────────
+
+/**
+ * Races fn() against a hard timeout.
+ * Rejects with an error whose message includes the step name for DB logging.
+ */
+async function executeWithTimeout<T>(
+  fn: () => Promise<T>,
+  timeoutMs: number,
+  stepName: string
+): Promise<T> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(
+      () => reject(new Error(`${stepName} timeout after ${timeoutMs}ms`)),
+      timeoutMs
+    )
+  );
+  return Promise.race([fn(), timeout]);
+}
+
+/**
+ * Retries fn() up to `maxRetries` times on failure, with `delayMs` between attempts.
+ * Total attempts = maxRetries + 1.
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number,
+  delayMs: number,
+  stepName: string
+): Promise<T> {
+  let lastErr: Error = new Error("Unknown error");
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err instanceof Error ? err : new Error(String(err));
+      if (attempt < maxRetries) {
+        console.warn(
+          `[EXEC] ${stepName} attempt ${attempt + 1} failed, retrying in ${delayMs}ms: ${lastErr.message}`
+        );
+        await new Promise<void>((r) => setTimeout(r, delayMs));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+// ── Main execution function ───────────────────────────────────────────────────
 
 export async function executeStrategy(plan: Plan): Promise<ExecutionResult> {
   console.log(
@@ -47,37 +106,11 @@ export async function executeStrategy(plan: Plan): Promise<ExecutionResult> {
 
   const walletCtx = await getUserWalletContext(plan.telegram_id);
 
-  // ── Pre-flight: check TON balance (gas guard) ──────────────────────────────
-  const MIN_GAS_TON = 0.5;
-  const tonNano = await getTonBalance(walletCtx.address);
-  const tonBal = Number(tonNano) / 1e9;
-  if (tonBal < MIN_GAS_TON) {
-    const msg =
-      `⚠️ *Мало TON для газа*\n\n` +
-      `На кошельке: ${tonBal.toFixed(3)} TON\n` +
-      `Нужно минимум: ${MIN_GAS_TON} TON\n\n` +
-      `Пополни агентский кошелёк:\n\`${walletCtx.address}\`\n\n` +
-      `Следующий цикл может не выполниться.`;
-    if (_gasNotify) await _gasNotify(plan.telegram_id, msg);
-    console.log(`[GAS] Skipping execution for user ${plan.telegram_id} — low TON balance: ${tonBal}`);
-    return {
-      usdtSpent: 0,
-      tonReceived: 0,
-      tstonReceived: 0,
-      lpTokensAdded: 0,
-      lpPositionValue: "N/A",
-      apy1d: "N/A",
-      apy7d: "N/A",
-      status: "failed",
-    };
-  }
-
-  // ── Pre-flight: check USDT balance ─────────────────────────────────────────
+  // ── Safety-net USDT check (primary check is in preflight.ts / scheduler) ───
   const usdtBalance = await getUsdtBalance(walletCtx.address);
   console.log(`[EXEC] USDT balance: $${usdtBalance.toFixed(2)}, required: $${plan.usdt_amount}`);
 
   if (usdtBalance < plan.usdt_amount) {
-    // Pause the plan so it doesn't retry every cycle
     await updatePlan(plan.telegram_id, { active: false });
     throw new InsufficientFundsError(usdtBalance, plan.usdt_amount);
   }
@@ -92,57 +125,111 @@ export async function executeStrategy(plan: Plan): Promise<ExecutionResult> {
   let apy1d = "N/A";
   let apy7d = "N/A";
   let execStatus: "success" | "failed" | "partial" = "success";
+  let txSwap: string | null = null;
+  let txStake: string | null = null;
+  let txLp: string | null = null;
+  let failedStep: string | null = null;
 
   try {
-    // Step 1: USDT → TON
-    tonReceived = await step1Swap(walletCtx, plan.usdt_amount);
+    // ── Step 1: USDT → TON (90 s, retry 2×, 10 s delay) ──────────────────
+    tonReceived = await withRetry(
+      () => executeWithTimeout(() => step1Swap(walletCtx, plan.usdt_amount), 90_000, "step1_swap"),
+      2,
+      10_000,
+      "step1_swap"
+    );
     console.log(`[EXEC] Step 1 done: ${fromNano(tonReceived)} TON`);
+    txSwap = await getLastTxHash(walletCtx.address, 3_000);
+    if (txSwap) console.log(`[EXEC] Step 1 tx: ${txSwap}`);
 
-    // Step 2: Calculate split
+    // ── Step 2: Calculate split (pure calc, no timeout needed) ─────────────
     const splitInfo = await step2CalculateSplit(tonReceived);
     console.log(`[EXEC] Step 2 done: pool ${splitInfo.poolAddress}`);
 
-    // Step 3: TON → tsTON (skip in accumulate mode)
+    // ── Step 3: TON → tsTON (60 s, retry 1×) — skip in accumulate mode ───
     let resolvedTstonAddress = TSTON_ADDRESS;
     if (plan.strategy_mode !== "accumulate") {
-      const { tsTonReceived, tsTonAddress } = await step3Stake(
-        walletCtx,
-        splitInfo.stakeAmount
+      const { tsTonReceived, tsTonAddress } = await withRetry(
+        () =>
+          executeWithTimeout(
+            () => step3Stake(walletCtx, splitInfo.stakeAmount),
+            60_000,
+            "step3_stake"
+          ),
+        1,
+        5_000,
+        "step3_stake"
       );
       tstonReceived = tsTonReceived;
       resolvedTstonAddress = tsTonAddress || TSTON_ADDRESS;
       console.log(`[EXEC] Step 3 done: ${fromNano(tstonReceived)} tsTON`);
+      txStake = await getLastTxHash(walletCtx.address, 3_000);
+      if (txStake) console.log(`[EXEC] Step 3 tx: ${txStake}`);
     } else {
       console.log(`[EXEC] Step 3 skipped (accumulate mode)`);
     }
 
-    // Step 4: Provide liquidity (full mode only)
+    // ── Step 4: Provide liquidity (60 s, retry 1×) — full mode only ───────
     if (plan.strategy_mode === "full" && tstonReceived > 0n) {
-      const { lpTokensReceived } = await step4ProvideLiquidity(
-        walletCtx,
-        tstonReceived,
-        splitInfo.keepAmount,
-        splitInfo,
-        resolvedTstonAddress
+      const { lpTokensReceived } = await withRetry(
+        () =>
+          executeWithTimeout(
+            () =>
+              step4ProvideLiquidity(
+                walletCtx,
+                tstonReceived,
+                splitInfo.keepAmount,
+                splitInfo,
+                resolvedTstonAddress
+              ),
+            60_000,
+            "step4_lp"
+          ),
+        1,
+        5_000,
+        "step4_lp"
       );
       lpTokensAdded = lpTokensReceived;
       console.log(`[EXEC] Step 4 done: ${fromNano(lpTokensAdded)} LP tokens`);
+      txLp = await getLastTxHash(walletCtx.address, 3_000);
+      if (txLp) console.log(`[EXEC] Step 4 tx: ${txLp}`);
     } else if (plan.strategy_mode !== "full") {
       console.log(`[EXEC] Step 4 skipped (mode: ${plan.strategy_mode})`);
     }
 
-    // Step 5: Verify
-    const verifyResult = await step5Verify(walletCtx.address, splitInfo);
+    // ── Step 5: Verify (30 s, no retry — read-only) ────────────────────────
+    const verifyResult = await executeWithTimeout(
+      () => step5Verify(walletCtx.address, splitInfo),
+      30_000,
+      "step5_verify"
+    );
     lpPositionValue = verifyResult.lpValueUsd;
     apy1d = verifyResult.apy1d;
     apy7d = verifyResult.apy7d;
     console.log(`[EXEC] Step 5 done: LP value $${lpPositionValue}`);
   } catch (err) {
-    console.error("[EXEC] Error during execution:", err);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[EXEC] Error during execution (plan ${plan.id}):`, errMsg);
+
     execStatus = tonReceived === 0n ? "failed" : "partial";
+
+    // Extract step name from timeout messages for DB tracking
+    const timeoutMatch = errMsg.match(/^(step\d+\w*)\s+timeout/);
+    failedStep = timeoutMatch?.[1] ?? "unknown_step";
+
+    if (errMsg.includes("timeout")) {
+      console.error(`[CYCLE ${plan.id}] ${failedStep} TIMEOUT`);
+    }
+
+    // Persist last_error to DB for monitoring / /status display
+    try {
+      await setPlanLastError(plan.id, errMsg);
+    } catch (dbErr) {
+      console.error("[EXEC] Failed to persist last_error:", dbErr);
+    }
   }
 
-  // ── Log to DB ───────────────────────────────────────────────────────────────
+  // ── Log execution to DB ────────────────────────────────────────────────────
   try {
     await logExecution({
       plan_id: plan.id,
@@ -152,9 +239,9 @@ export async function executeStrategy(plan: Plan): Promise<ExecutionResult> {
       lp_tokens_added: lpTokensAdded > 0n ? Number(fromNano(lpTokensAdded)) : null,
       ton_price_usdt: tonPriceUsd > 0 ? tonPriceUsd : null,
       lp_position_value: lpPositionValue !== "N/A" ? Number(lpPositionValue) : null,
-      tx_swap: null,
-      tx_stake: null,
-      tx_lp: null,
+      tx_swap: txSwap,
+      tx_stake: txStake,
+      tx_lp: txLp,
       status: execStatus,
     });
   } catch (err) {
@@ -170,5 +257,9 @@ export async function executeStrategy(plan: Plan): Promise<ExecutionResult> {
     apy1d,
     apy7d,
     status: execStatus,
+    txSwap,
+    txStake,
+    txLp,
+    failedStep,
   };
 }

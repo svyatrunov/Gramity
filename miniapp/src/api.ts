@@ -58,7 +58,8 @@ export interface PopularToken {
 }
 
 export interface DepositConfig {
-  botWalletAddress: string;
+  depositAddress: string;    // per-user agentic wallet (bridge destination)
+  botWalletAddress: string;  // legacy
   omnistonWsUrl: string;
   tonUsdtAddress: string;
 }

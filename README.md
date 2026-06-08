@@ -1,127 +1,109 @@
-# Gramity — TON DCA Liquidity Provisioner
-## Core Execution Engine v0.1 (Testnet)
+# Gramity — Agentic DCA Wallet on TON
 
-> ⚠ **ФИНАНСОВЫЙ РИСК**: Этот код взаимодействует с реальными цифровыми активами.  
-> Ошибки могут привести к безвозвратной потере средств.  
-> Используйте только на TESTNET с небольшими суммами.
+[![Live on Mainnet](https://img.shields.io/badge/TON-Mainnet-blue)]()
+[![License: MIT](https://img.shields.io/badge/License-MIT-green)]()
+[![STON.fi](https://img.shields.io/badge/Powered%20by-STON.fi-purple)]()
 
 ---
 
-## Быстрый старт
+> Gramity is an agentic wallet orchestrator that automatically converts your USDT into LP positions on TON — from any chain, without any manual steps.
+
+---
+
+## The Problem
+
+Manually executing DCA into LP positions requires:
+
+- Bridge EVM → TON: 5 min
+- Omniston swap: 3 min
+- Tonstakers stake: 3 min
+- STON.fi LP add: 5 min
+
+**= 16 min per cycle = 97 hours/year**
+
+**With Gramity: 0 min. One deposit, endless automation.**
+
+---
+
+## How It Works
+
+1. 💰 **Deposit USDT** from any chain (ETH/Base/BNB/Polygon via MetaMask or TON directly)
+2. 🔄 **Omniston** routes via best-price RFQ across all TON DEXes
+3. ⚡ **Tonstakers** liquid staking → tsTON (5.4% APY)
+4. 💎 **STON.fi DEX v2** LP position created
+5. 🔒 **LP tokens** sent directly to your locked withdrawal wallet
+
+---
+
+## Onboarding — Step 1
+
+<img src="docs/screenshots/onboarding-step1.png" alt="Gramity Onboarding Step 1" width="380" />
+
+---
+
+## Key Differentiators
+
+- **Mainnet only** — real transactions, verifiable on tonviewer  
+  [Example transaction →](https://tonviewer.com/)
+- **No mocks** — full Omniston SDK v0.8.3 with RFQ WebSocket, swapTrack, EIP-712, HTLC cross-chain settlement
+- **Agentic wallet architecture** — per-user isolated wallets, AES-256-GCM encrypted mnemonics, withdrawal address locked at setup.  
+  Reference: [https://docs.ton.org/overview/ai/wallets](https://docs.ton.org/overview/ai/wallets)
+
+---
+
+## Security Model
+
+| Layer | Detail |
+|---|---|
+| Withdrawal address | Locked at plan creation — agent cannot redirect funds |
+| Encryption | AES-256-GCM with random IV per wallet |
+| Auth | HMAC-SHA256 Telegram initData validation |
+| Custody | Agent holds DCA funds; LP tokens exit immediately |
+
+---
+
+## Business Model
+
+- **0%** platform fee
+- **0.1%** integrator fee on every Omniston swap (paid by resolver)
+- **Roadmap:** Pro subscription for multi-strategy + analytics
+
+---
+
+## Live Demo
+
+- Bot: [https://t.me/GramityBot](https://t.me/GramityBot)
+- App: [https://gramity-production.up.railway.app/app/onboarding.html](https://gramity-production.up.railway.app/app/onboarding.html)
+
+---
+
+## Tech Stack
+
+| Category | Technologies |
+|---|---|
+| Bot framework | grammY |
+| Runtime | Node.js |
+| Database | PostgreSQL |
+| Hosting | Railway |
+| Cross-chain | Omniston SDK v0.8.3 |
+| DEX | STON.fi SDK v2 |
+| Staking | Tonstakers SDK |
+| EVM | ethers.js v6 |
+| Frontend | Telegram Mini App |
+
+---
+
+## Built with AI
+
+- **Cursor Agent** (claude-sonnet-4.5) — architecture, code, UI
+- **Claude** (Anthropic) — strategy, prompts, audit
+
+---
+
+## Setup
 
 ```bash
-# 1. Скопировать и заполнить .env
 cp .env.example .env
-# Заполни: BACKEND_WALLET_MNEMONIC, TONCENTER_API_KEY
-
-# 2. Установить зависимости (уже выполнено)
 npm install
-
-# 3. Запустить (ts-node)
 npm run dev
-
-# ИЛИ собрать и запустить
-npm run build
-node dist/main.js
-```
-
----
-
-## 5-шаговая последовательность
-
-```
-INPUT: 50 USDT (testnet)
-
-Step 1 — SWAP (Omniston v1beta8)
-  USDT → TON
-  • integrator fee: 10 bps (1000 pips)
-  • WebSocket RFQ → quote → tonBuildSwap → sign & send
-  • Track: swapTrack + balance polling
-  LOG: TON amount received
-
-Step 2 — CALCULATE SPLIT
-  • Fetch tsTON/TON pool via STON.fi API
-  • Formula: K = total / (tsTONRate × poolRatio + 1)
-  LOG: stake_amount, keep_amount, current_ratio
-
-Step 3 — STAKE (Tonstakers SDK)
-  • BackendWalletConnector implements IWalletConnector
-  • tonstakers.stake(stakeAmount)
-  • Poll tsTON balance until arrival
-  LOG: tsTON received, exchange rate
-
-Step 4 — PROVIDE LIQUIDITY (STON.fi DEX SDK v2)
-  API-driven: simulateLiquidityProvision → dexFactory → build TxParams
-  Testnet fallback: hardcoded CPI Router v2.1.0 + pTON v2.1.0
-  • Send TON leg + tsTON leg в одной транзакции (2 msg)
-  LOG: LP tokens received, pool share %
-
-Step 5 — VERIFY
-  • getWalletPool → lpBalance, lpPriceUsd, apy1D/7D
-  LOG: position value USD, APY
-```
-
----
-
-## Обязательные переменные .env
-
-| Переменная | Описание |
-|---|---|
-| `BACKEND_WALLET_MNEMONIC` | 24 слова мнемоники кошелька |
-| `TONCENTER_API_KEY` | API ключ от [toncenter.com](https://toncenter.com) |
-| `OMNISTON_WS_URL` | `wss://omni-ws-sandbox.ston.fi` |
-| `STON_API_URL` | `https://api.ston.fi` (mainnet для pool discovery) |
-| `REFERRER_WALLET` | Адрес для получения integrator fee |
-| `TSTON_ADDRESS` | Адрес tsTON jetton master на testnet (из Tonstakers SDK) |
-| `TSTON_POOL_ADDRESS` | Адрес tsTON/TON пула (опционально) |
-
----
-
-## Тестовые адреса (testnet)
-
-| Контракт | Адрес |
-|---|---|
-| USDT testnet | `EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs` |
-| Tonstakers staking | `kQANFsYyYn-GSZ4oajUJmboDURZU-udMHf9JxzO4vYM_hFP3` |
-| CPI Router v2.1.0 | `kQALh-JBBIKK7gr0o4AVf9JZnEsFndqO0qTCyT-D-yBsWk0v` |
-| pTON v2.1.0 | `kQACS30DNoUQ7NfApPvzh7eBmSZ9L4ygJ-lkNWtba8TQT-Px` |
-
-### Как найти TSTON_ADDRESS
-
-После первого запуска Step 3 SDK автоматически выведет в лог:
-```
-[INFO] tsTON address resolved: <address>
-[INFO] Add to .env: TSTON_ADDRESS=<address>
-```
-
-Скопируй это значение в `.env` и перезапусти для шага 4.
-
----
-
-## Пакеты
-
-```
-@ston-fi/omniston-sdk   — Omniston v1beta8 RFQ/swap
-@ston-fi/sdk            — STON.fi DEX v2 LP provision
-@ston-fi/api            — STON.fi REST API (pool/simulation)
-tonstakers-sdk          — TON staking (tsTON)
-@ton/ton                — TON blockchain client + wallet
-@ton/crypto             — mnemonic → keypair
-dotenv                  — .env loading
-```
-
----
-
-## Структура проекта
-
-```
-src/
-├── config.ts          — env vars + constants
-├── wallet.ts          — WalletContractV4 backend setup
-├── step1-swap.ts      — Omniston USDT→TON swap
-├── step2-split.ts     — pool ratio split calculator
-├── step3-stake.ts     — Tonstakers TON→tsTON
-├── step4-liquidity.ts — STON.fi LP provision
-├── step5-verify.ts    — LP position verification
-└── main.ts            — 5-step orchestrator
 ```

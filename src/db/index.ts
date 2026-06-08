@@ -43,6 +43,22 @@ CREATE TABLE IF NOT EXISTS plans (
   created_at        TIMESTAMPTZ DEFAULT now()
 );
 
+-- Demo mode migration (idempotent)
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN demo_mode BOOLEAN NOT NULL DEFAULT false;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN cycles_completed INT NOT NULL DEFAULT 0;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN max_cycles INT;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
 CREATE TABLE IF NOT EXISTS executions (
   id                UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
   plan_id           UUID        REFERENCES plans(id),
@@ -82,6 +98,27 @@ EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 
 CREATE INDEX IF NOT EXISTS user_wallets_telegram_id_idx ON user_wallets(telegram_id);
+
+-- Failure tracking & error logging (idempotent)
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN consecutive_failures INT NOT NULL DEFAULT 0;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN last_error TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS notification_log (
+  id           UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
+  plan_id      UUID        REFERENCES plans(id) ON DELETE CASCADE,
+  type         TEXT        NOT NULL,
+  sent_at      TIMESTAMPTZ DEFAULT now(),
+  success      BOOLEAN     NOT NULL DEFAULT true,
+  telegram_msg TEXT,
+  error        TEXT
+);
 `;
 
 export async function initDb(): Promise<void> {
@@ -97,11 +134,16 @@ export interface Plan {
   ton_address: string;
   agent_wallet: string | null;
   usdt_amount: number;
-  frequency: "weekly" | "biweekly" | "monthly" | "daily" | "minutely" | "hourly";
+  frequency: "weekly" | "biweekly" | "monthly" | "daily" | "minutely" | "hourly" | "demo";
   strategy_mode: "full" | "stake_only" | "accumulate";
   active: boolean;
   next_execution_at: string;
   created_at: string;
+  demo_mode: boolean;
+  cycles_completed: number;
+  max_cycles: number | null;
+  consecutive_failures: number;
+  last_error: string | null;
 }
 
 export interface Execution {
@@ -133,12 +175,12 @@ export async function getPlanByTelegramId(
 }
 
 export async function upsertPlan(
-  plan: Omit<Plan, "id" | "created_at">
+  plan: Omit<Plan, "id" | "created_at" | "consecutive_failures" | "last_error">
 ): Promise<Plan> {
   const { rows } = await getPool().query<Plan>(
     `INSERT INTO plans
-       (telegram_id, ton_address, agent_wallet, usdt_amount, frequency, active, next_execution_at, strategy_mode)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       (telegram_id, ton_address, agent_wallet, usdt_amount, frequency, active, next_execution_at, strategy_mode, demo_mode, cycles_completed, max_cycles)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      ON CONFLICT (telegram_id) DO UPDATE SET
        ton_address       = EXCLUDED.ton_address,
        agent_wallet      = EXCLUDED.agent_wallet,
@@ -146,7 +188,10 @@ export async function upsertPlan(
        frequency         = EXCLUDED.frequency,
        active            = EXCLUDED.active,
        next_execution_at = EXCLUDED.next_execution_at,
-       strategy_mode     = EXCLUDED.strategy_mode
+       strategy_mode     = EXCLUDED.strategy_mode,
+       demo_mode         = EXCLUDED.demo_mode,
+       cycles_completed  = EXCLUDED.cycles_completed,
+       max_cycles        = EXCLUDED.max_cycles
      RETURNING *`,
     [
       plan.telegram_id,
@@ -157,14 +202,25 @@ export async function upsertPlan(
       plan.active,
       plan.next_execution_at,
       plan.strategy_mode,
+      plan.demo_mode ?? false,
+      plan.cycles_completed ?? 0,
+      plan.max_cycles ?? null,
     ]
   );
   return rows[0];
 }
 
+export async function incrementCyclesCompleted(planId: string): Promise<number> {
+  const { rows } = await getPool().query<{ cycles_completed: number }>(
+    `UPDATE plans SET cycles_completed = cycles_completed + 1 WHERE id = $1 RETURNING cycles_completed`,
+    [planId]
+  );
+  return rows[0]?.cycles_completed ?? 0;
+}
+
 export async function updatePlan(
   telegramId: number,
-  updates: Partial<Pick<Plan, "active" | "next_execution_at" | "usdt_amount" | "frequency" | "strategy_mode" | "ton_address">>
+  updates: Partial<Pick<Plan, "active" | "next_execution_at" | "usdt_amount" | "frequency" | "strategy_mode" | "ton_address" | "demo_mode" | "cycles_completed" | "max_cycles" | "consecutive_failures" | "last_error">>
 ): Promise<void> {
   const fields: string[] = [];
   const values: unknown[] = [];
@@ -273,4 +329,59 @@ export async function renameUserWallet(
     "UPDATE user_wallets SET alias = $1 WHERE telegram_id = $2 AND wallet_address = $3",
     [alias, telegramId, walletAddress]
   );
+}
+
+// ─── Failure tracking ──────────────────────────────────────────────────────────
+
+/** Increments consecutive_failures by 1. Returns the new count. */
+export async function incrementConsecutiveFailures(planId: string): Promise<number> {
+  const { rows } = await getPool().query<{ consecutive_failures: number }>(
+    `UPDATE plans
+     SET consecutive_failures = consecutive_failures + 1
+     WHERE id = $1
+     RETURNING consecutive_failures`,
+    [planId]
+  );
+  return rows[0]?.consecutive_failures ?? 1;
+}
+
+/** Resets consecutive_failures to 0 and clears last_error on successful cycle. */
+export async function resetConsecutiveFailures(planId: string): Promise<void> {
+  await getPool().query(
+    `UPDATE plans SET consecutive_failures = 0, last_error = NULL WHERE id = $1`,
+    [planId]
+  );
+}
+
+/** Stores the last error message for a plan (used by execution engine on timeout/failure). */
+export async function setPlanLastError(planId: string, lastError: string): Promise<void> {
+  await getPool().query(
+    `UPDATE plans SET last_error = $2 WHERE id = $1`,
+    [planId, lastError.slice(0, 500)]
+  );
+}
+
+// ─── Notification log ─────────────────────────────────────────────────────────
+
+/**
+ * Logs every bot notification attempt.
+ * Failures are logged too (success = false, error = reason).
+ * Never throws — logging must never break the execution path.
+ */
+export async function logNotification(
+  planId: string,
+  type: string,
+  success: boolean,
+  telegramMsg?: string,
+  error?: string
+): Promise<void> {
+  try {
+    await getPool().query(
+      `INSERT INTO notification_log (plan_id, type, success, telegram_msg, error)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [planId, type, success, telegramMsg?.slice(0, 2000) ?? null, error?.slice(0, 500) ?? null]
+    );
+  } catch (err) {
+    console.error("[DB] Failed to log notification:", err);
+  }
 }

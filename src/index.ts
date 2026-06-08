@@ -259,17 +259,22 @@ app.get("/api/tokens/popular", async (_req, res) => {
   }
 });
 
-// Cross-chain deposit config (public fields for Mini App)
-app.get("/api/deposit/config", tgAuth, (_req, res) => {
-  if (!BOT_WALLET_ADDRESS) {
-    res.status(503).json({ error: "BOT_WALLET_ADDRESS not configured" });
-    return;
+// Cross-chain deposit config — returns per-user agentic wallet as deposit destination
+app.get("/api/deposit/config", tgAuth, async (req, res) => {
+  try {
+    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const { createUserWallet } = await import("./services/userWallet.js");
+    const depositAddress = await createUserWallet(telegramId);
+
+    res.json({
+      depositAddress,                        // per-user agentic wallet — bridge destination
+      botWalletAddress: BOT_WALLET_ADDRESS,  // kept for backward compat
+      omnistonWsUrl: OMNISTON_WS_URL,
+      tonUsdtAddress: USDT_ADDRESS,
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
   }
-  res.json({
-    botWalletAddress: BOT_WALLET_ADDRESS,
-    omnistonWsUrl: OMNISTON_WS_URL,
-    tonUsdtAddress: USDT_ADDRESS,
-  });
 });
 
 // Notify bot after cross-chain deposit tx confirmed
@@ -311,7 +316,7 @@ app.post("/api/deposit-initiated", tgAuth, async (req, res) => {
 app.post("/api/plans", tgAuth, async (req, res) => {
   try {
     const telegramId = (req as express.Request & { telegramId: number }).telegramId;
-    const { ton_address, amount_usdt, frequency, strategy } = req.body ?? {};
+    const { ton_address, amount_usdt, frequency, strategy, demo_mode } = req.body ?? {};
 
     if (!ton_address || typeof ton_address !== "string") {
       res.status(400).json({ error: "ton_address is required" });
@@ -323,13 +328,20 @@ app.post("/api/plans", tgAuth, async (req, res) => {
       return;
     }
 
-    const VALID_FREQS: Array<"weekly" | "biweekly" | "monthly" | "daily" | "minutely" | "hourly"> =
-      ["daily", "weekly", "biweekly", "monthly", "minutely", "hourly"];
-    const normalizedFreq = VALID_FREQS.includes(String(frequency) as "weekly") ? (String(frequency) as "weekly" | "biweekly" | "monthly" | "daily" | "minutely" | "hourly") : "weekly";
+    const isDemoMode = demo_mode === true || demo_mode === "true";
+
+    type FreqType = "weekly" | "biweekly" | "monthly" | "daily" | "minutely" | "hourly" | "demo";
+    const VALID_FREQS: FreqType[] = ["daily", "weekly", "biweekly", "monthly", "minutely", "hourly", "demo"];
+    const rawFreq = String(frequency);
+    const normalizedFreq: FreqType =
+      isDemoMode ? "demo"
+      : VALID_FREQS.includes(rawFreq as FreqType) ? (rawFreq as FreqType)
+      : "weekly";
 
     const nextExec = new Date();
-    if (normalizedFreq === "daily")       nextExec.setDate(nextExec.getDate() + 1);
-    else if (normalizedFreq === "monthly") nextExec.setMonth(nextExec.getMonth() + 1);
+    if (normalizedFreq === "demo")          nextExec.setTime(nextExec.getTime() + 5_000);
+    else if (normalizedFreq === "daily")    nextExec.setDate(nextExec.getDate() + 1);
+    else if (normalizedFreq === "monthly")  nextExec.setMonth(nextExec.getMonth() + 1);
     else if (normalizedFreq === "biweekly") nextExec.setDate(nextExec.getDate() + 14);
     else if (normalizedFreq === "minutely") nextExec.setMinutes(nextExec.getMinutes() + 1);
     else if (normalizedFreq === "hourly")   nextExec.setHours(nextExec.getHours() + 1);
@@ -345,6 +357,9 @@ app.post("/api/plans", tgAuth, async (req, res) => {
       strategy_mode:     "full",
       active:            true,
       next_execution_at: nextExec.toISOString(),
+      demo_mode:         isDemoMode,
+      cycles_completed:  0,
+      max_cycles:        isDemoMode ? 2 : null,
     });
 
     await createUserWallet(telegramId);
@@ -352,6 +367,7 @@ app.post("/api/plans", tgAuth, async (req, res) => {
     const FREQ_LABELS: Record<string, string> = {
       daily: "daily", weekly: "weekly", biweekly: "every 2 weeks",
       monthly: "monthly", minutely: "every minute", hourly: "every hour",
+      demo: "demo (5s)",
     };
     const STRATEGY_LABELS: Record<string, string> = {
       ton: "TON + Stake + LP",
@@ -359,27 +375,62 @@ app.post("/api/plans", tgAuth, async (req, res) => {
     };
 
     const { bot } = await import("./bot/index.js");
-    await bot.api.sendMessage(
-      telegramId,
-      `✅ *DCA Strategy Created*\n\n` +
-        `Strategy: ${STRATEGY_LABELS[String(strategy)] ?? "TON + Stake + LP"}\n` +
-        `Amount: $${amount.toFixed(0)} USDT / cycle\n` +
-        `Frequency: ${FREQ_LABELS[normalizedFreq] ?? normalizedFreq}\n` +
-        `Est. APY: ~5.4%\n` +
-        `Withdrawal: \`${String(ton_address).slice(0, 8)}…${String(ton_address).slice(-6)}\`\n\n` +
-        `First cycle will run within 24 hours.\n\n` +
-        `/status — check your position anytime`,
-      { parse_mode: "Markdown" }
-    );
 
-    console.log(`[API/plans] Strategy created user=${telegramId} amount=${amount} freq=${normalizedFreq}`);
-    res.json({ ok: true, message: "Strategy created successfully" });
+    if (isDemoMode) {
+      await bot.api.sendMessage(
+        telegramId,
+        `🎬 *Demo Strategy Created*\n\n` +
+          `2 cycles × $${amount.toFixed(0)} USDT\n` +
+          `Interval: 5 seconds\n` +
+          `Withdrawal: \`${String(ton_address).slice(0, 8)}…${String(ton_address).slice(-6)}\`\n\n` +
+          `Starting in 5 seconds...`,
+        { parse_mode: "Markdown" }
+      );
+    } else {
+      await bot.api.sendMessage(
+        telegramId,
+        `✅ *DCA Strategy Created*\n\n` +
+          `Strategy: ${STRATEGY_LABELS[String(strategy)] ?? "TON + Stake + LP"}\n` +
+          `Amount: $${amount.toFixed(0)} USDT / cycle\n` +
+          `Frequency: ${FREQ_LABELS[normalizedFreq] ?? normalizedFreq}\n` +
+          `Est. APY: ~5.4%\n` +
+          `Withdrawal: \`${String(ton_address).slice(0, 8)}…${String(ton_address).slice(-6)}\`\n\n` +
+          `First cycle will run within 24 hours.\n\n` +
+          `/status — check your position anytime`,
+        { parse_mode: "Markdown" }
+      );
+    }
+
+    console.log(`[API/plans] Strategy created user=${telegramId} amount=${amount} freq=${normalizedFreq} demo=${isDemoMode}`);
+    res.json({ ok: true, message: isDemoMode ? "Demo strategy created" : "Strategy created successfully" });
   } catch (err) {
     console.error("[API/plans] Error:", err);
     res.status(500).json({ error: (err as Error).message });
   }
 });
 
+// Kick off up to 3 DCA test cycles immediately — no scheduler touch
+app.post("/api/test-run", tgAuth, async (req, res) => {
+  try {
+    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const cycles = Math.min(Math.max(parseInt(String(req.body?.cycles ?? 3)), 1), 3);
+
+    const { handleTestRun } = await import("./bot/handlers/test.js");
+    const { bot } = await import("./bot/index.js");
+
+    // Respond immediately — test runs async
+    res.json({ ok: true, message: `Starting ${cycles} test cycles. Watch your Telegram for results.` });
+
+    // Fire and forget
+    handleTestRun(
+      telegramId,
+      async (text, extra) => { await bot.api.sendMessage(telegramId, text, extra as object); },
+      cycles
+    ).catch((err) => console.error("[TEST_RUN] Error:", err));
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
 
 app.get("/api/gas/:action", async (req, res) => {
   const { getTonPriceUsd } = await import("./services/tonapi.js");

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+  <title>Deposit Funds — Gramity</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0d0d0f;--surface:#18181c;--surface2:#22222a;
+      --accent:#6c63ff;--accent2:#a78bfa;
+      --green:#22c55e;--red:#ef4444;--yellow:#f59e0b;
+      --text:#f1f1f3;--muted:#8b8b9e;--border:#2a2a35;
+    }
+    html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;-webkit-font-smoothing:antialiased}
+    body{overflow-x:hidden;padding-bottom:env(safe-area-inset-bottom,0)}
+
+    .header{
+      background:var(--surface);border-bottom:1px solid var(--border);
+      padding:16px 20px 12px;
+    }
+    .header-row{display:flex;align-items:center;justify-content:space-between}
+    .logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:18px}
+    .logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent2)}
+
+    .scroll-body{padding:24px 16px;display:flex;flex-direction:column;gap:16px;max-width:480px;margin:0 auto}
+
+    .hero-section{text-align:center;padding:8px 0}
+    .hero-icon{font-size:48px;margin-bottom:12px}
+    .hero-title{font-size:22px;font-weight:700;margin-bottom:6px}
+    .hero-sub{font-size:14px;color:var(--muted);line-height:1.5}
+
+    .notice-card{
+      background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.25);
+      border-radius:12px;padding:14px 16px;font-size:13px;color:var(--accent2);
+      display:flex;align-items:flex-start;gap:10px;line-height:1.5;
+    }
+    .notice-card .icon{flex-shrink:0;font-size:16px}
+
+    .address-card{
+      background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;
+    }
+    .addr-label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+    .addr-box{
+      background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+      padding:12px 14px;font-family:'SF Mono','Fira Code',monospace;font-size:13px;
+      word-break:break-all;line-height:1.6;color:var(--text);
+    }
+    .addr-empty{color:var(--muted);font-style:italic;font-size:14px}
+
+    .copy-btn{
+      width:100%;margin-top:12px;padding:13px 0;border-radius:12px;border:none;
+      background:var(--accent);color:#fff;font-size:15px;font-weight:700;
+      cursor:pointer;transition:opacity .15s;display:flex;align-items:center;justify-content:center;gap:8px;
+    }
+    .copy-btn:active{opacity:.7}
+    .copy-btn.copied{background:#22c55e}
+
+    .token-badge{
+      display:inline-flex;align-items:center;gap:6px;
+      background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.25);
+      border-radius:8px;padding:6px 10px;font-size:13px;color:var(--green);font-weight:600;
+    }
+
+    .steps-card{
+      background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;
+    }
+    .steps-title{font-size:14px;font-weight:700;margin-bottom:12px}
+    .step-row{display:flex;gap:12px;margin-bottom:10px;font-size:13px}
+    .step-row:last-child{margin-bottom:0}
+    .step-num{
+      width:22px;height:22px;border-radius:50%;background:var(--accent);
+      color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    }
+    .step-text{color:var(--muted);line-height:1.5;padding-top:2px}
+    .step-text strong{color:var(--text)}
+
+    .min-badge{
+      background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+      padding:10px 14px;display:flex;justify-content:space-between;align-items:center;font-size:14px;
+    }
+    .min-badge .label{color:var(--muted)}
+    .min-badge .val{font-weight:700;color:var(--accent2)}
+
+    .loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:40px;color:var(--muted)}
+    .spinner{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .toast{
+      position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0));left:50%;transform:translateX(-50%);
+      background:#22c55e;color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;font-weight:600;
+      opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;z-index:100;
+    }
+    .toast.show{opacity:1}
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-row">
+    <div class="logo">
+      <div class="logo-dot"></div>
+      Gramity
+    </div>
+  </div>
+</div>
+
+<div class="scroll-body">
+
+  <div class="hero-section">
+    <div class="hero-icon">💰</div>
+    <div class="hero-title">Deposit USDT</div>
+    <div class="hero-sub">Send USDT to your Gramity deposit address to fund your DCA strategy.</div>
+  </div>
+
+  <div class="notice-card">
+    <span class="icon">⚡</span>
+    <span>Deposit USDT <strong>on TON network</strong> only. Your strategy activates automatically after funds are detected.</span>
+  </div>
+
+  <div id="addressSection" class="address-card" style="display:none">
+    <div class="addr-label">Your Deposit Address</div>
+    <div class="addr-box" id="addrDisplay"></div>
+    <button class="copy-btn" id="copyBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      Copy Address
+    </button>
+  </div>
+
+  <div class="loading" id="loadingSection">
+    <div class="spinner"></div>
+    <span>Loading deposit address…</span>
+  </div>
+
+  <div id="balanceSection" style="display:none" class="min-badge">
+    <span class="label">Current balance</span>
+    <span class="val" id="balanceValue">—</span>
+  </div>
+
+  <div class="min-badge">
+    <span class="label">Minimum deposit</span>
+    <span class="val">$25 USDT</span>
+  </div>
+
+  <div class="token-badge">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    USDT (TON network)
+  </div>
+
+  <div class="steps-card">
+    <div class="steps-title">How it works</div>
+    <div class="step-row">
+      <div class="step-num">1</div>
+      <div class="step-text"><strong>Send USDT</strong> to your deposit address on the TON network</div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">2</div>
+      <div class="step-text"><strong>Gramity detects</strong> your deposit automatically (usually within 2 minutes)</div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">3</div>
+      <div class="step-text"><strong>Strategy runs</strong> on your set schedule — swaps, stakes, adds LP</div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">4</div>
+      <div class="step-text"><strong>LP tokens</strong> go directly to your withdrawal wallet after each cycle</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast">✅ Address copied!</div>
+
+<script>
+(function () {
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) {
+    tg.ready();
+    tg.expand();
+    if (tg.setHeaderColor) tg.setHeaderColor('#18181c');
+    if (tg.setBackgroundColor) tg.setBackgroundColor('#0d0d0f');
+  }
+
+  var initData = (tg && tg.initData) || '';
+
+  // Parse ?wallet=... from URL
+  var params = new URLSearchParams(window.location.search);
+  var walletFromUrl = params.get('wallet');
+
+  function showAddress(addr) {
+    if (!addr) return;
+    document.getElementById('loadingSection').style.display = 'none';
+    document.getElementById('addressSection').style.display = 'block';
+    document.getElementById('addrDisplay').textContent = addr;
+
+    document.getElementById('copyBtn').addEventListener('click', function () {
+      var btn = this;
+      var text = addr;
+      var copied = function () {
+        btn.textContent = '✅ Copied!';
+        btn.classList.add('copied');
+        var toast = document.getElementById('toast');
+        toast.classList.add('show');
+        setTimeout(function () {
+          toast.classList.remove('show');
+          btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copy Address';
+          btn.classList.remove('copied');
+        }, 2000);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(copied).catch(function () {
+          fallbackCopy(text, copied);
+        });
+      } else {
+        fallbackCopy(text, copied);
+      }
+    });
+  }
+
+  function fallbackCopy(text, cb) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { document.execCommand('copy'); cb(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  if (walletFromUrl) {
+    // Address passed directly in URL — show immediately, also fetch balance
+    showAddress(walletFromUrl);
+    fetchBalance(walletFromUrl);
+  } else {
+    // Fetch from API
+    fetch('/api/deposit/config', {
+      headers: { 'X-Telegram-Init-Data': initData },
+    })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (d) {
+        var addr = d.depositAddress || d.address || d.wallet;
+        showAddress(addr);
+        if (addr) fetchBalance(addr);
+      })
+      .catch(function () {
+        document.getElementById('loadingSection').innerHTML =
+          '<div style="color:#ef4444;font-size:14px;text-align:center">Could not load deposit address. Please try again.</div>';
+      });
+  }
+
+  function fetchBalance(addr) {
+    fetch('https://tonapi.io/v2/accounts/' + encodeURIComponent(addr) + '/jettons', {
+      signal: AbortSignal.timeout && AbortSignal.timeout(6000),
+    })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.balances) return;
+        var usdt = null;
+        d.balances.forEach(function (b) {
+          if (b.jetton && b.jetton.symbol === 'USD₮') {
+            usdt = parseFloat(b.balance) / 1e6;
+          }
+        });
+        if (usdt != null) {
+          var sec = document.getElementById('balanceSection');
+          sec.style.display = 'flex';
+          document.getElementById('balanceValue').textContent = '$' + usdt.toFixed(2) + ' USDT';
+        }
+      })
+      .catch(function () { /* non-critical */ });
+  }
+
+})();
+</script>
+</body>
+</html>

@@ -99,6 +99,30 @@ export async function getAllVerifiedJettons(
 }
 
 /**
+ * Returns the hash of the most recent transaction for `address`.
+ * Optionally waits `delayMs` before querying to let the indexer catch up.
+ */
+export async function getLastTxHash(
+  address: string,
+  delayMs = 3_000
+): Promise<string | null> {
+  try {
+    if (delayMs > 0) {
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+    const url = `${TON_API_URL}/blockchain/accounts/${encodeURIComponent(address)}/transactions?limit=1`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      transactions?: Array<{ hash: string }>;
+    };
+    return data.transactions?.[0]?.hash ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Returns TON balance in nanotons for `address`.
  */
 export async function getTonBalance(address: string): Promise<bigint> {

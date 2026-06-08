@@ -13,16 +13,26 @@ import {
   handleWithdrawMenu,
   handleWithdrawUsdtConfirm,
   handleWithdrawAllConfirm,
+  handleWithdrawLpConfirm,
 } from "./handlers/withdraw.js";
 import { handleReset, handleResetCallback } from "./handlers/reset.js";
 import { handleSettings, handleSettingsCallback } from "./handlers/settings.js";
 import { handleHistory } from "./handlers/history.js";
-import { setNotifyUser, setNotifyInsufficientFunds } from "../scheduler/index.js";
+import { handleTestCommand, handleTestRun } from "./handlers/test.js";
+import {
+  setNotifyUser,
+  setNotifyInsufficientFunds,
+  setNotifyAutoPaused,
+  setNotifyAllComplete,
+} from "../scheduler/index.js";
 import { setPollerSender, stopDepositPoller } from "./depositPoller.js";
 import { setGasNotifier } from "../execution/index.js";
-import { BOT_TOKEN } from "../config.js";
+import { BOT_TOKEN, RAILWAY_PUBLIC_URL } from "../config.js";
 import type { ExecutionResult } from "../execution/index.js";
+import { notify } from "./notifications.js";
 import { InlineKeyboard } from "grammy";
+
+const MINI_APP_URL = `${RAILWAY_PUBLIC_URL}/app`;
 
 if (!BOT_TOKEN) throw new Error("BOT_TOKEN is not set in environment");
 
@@ -70,11 +80,66 @@ bot.command("dev", async (ctx) => {
   );
 });
 
-bot.command("help", async (ctx) => {
-  await ctx.reply(
+bot.command("demo", async (ctx) => {
+  const telegramId = ctx.from?.id;
+  if (!telegramId) return;
+
+  try {
+    const { getPlanByTelegramId, upsertPlan } = await import("../db/index.js");
+    const { createUserWallet } = await import("../services/userWallet.js");
+
+    const existingPlan = await getPlanByTelegramId(telegramId).catch(() => null);
+    if (!existingPlan?.ton_address) {
+      await ctx.reply(
+        "⚠️ *No withdrawal address set*\n\n" +
+          "Please complete onboarding first via /start to set your TON address.",
+        { parse_mode: "Markdown" }
+      );
+      return;
+    }
+
+    const nextExec = new Date();
+    nextExec.setTime(nextExec.getTime() + 5_000);
+
+    await upsertPlan({
+      telegram_id:       telegramId,
+      ton_address:       existingPlan.ton_address,
+      agent_wallet:      null,
+      usdt_amount:       7,
+      frequency:         "demo",
+      strategy_mode:     "full",
+      active:            true,
+      next_execution_at: nextExec.toISOString(),
+      demo_mode:         true,
+      cycles_completed:  0,
+      max_cycles:        2,
+    });
+
+    await createUserWallet(telegramId);
+
+    await ctx.reply(
+      "🎬 *Demo mode activated!*\n\n" +
+        "2 cycles × $7 USDT\n" +
+        "Interval: 5 seconds\n" +
+        `Withdrawal: \`${existingPlan.ton_address.slice(0, 8)}…${existingPlan.ton_address.slice(-6)}\`\n\n` +
+        "Starting in 5 seconds...",
+      { parse_mode: "Markdown" }
+    );
+
+    console.log(`[BOT] Demo plan created for user ${telegramId}`);
+  } catch (err) {
+    console.error("[BOT] /demo error:", err);
+    await ctx.reply("❌ Failed to start demo: " + (err instanceof Error ? err.message : "unknown error"));
+  }
+});
+
+bot.command("test", handleTestCommand);
+
+bot.command("help", async (ctx) => {  await ctx.reply(
     "📋 *Gramity Commands*\n\n" +
       "/start — setup or main menu\n" +
       "/status — current position\n" +
+      "/test — 🧪 run 3 real DCA cycles immediately\n" +
       "/pause — pause strategy\n" +
       "/resume — resume strategy\n" +
       "/reset — delete strategy\n" +
@@ -109,6 +174,11 @@ bot.on("callback_query:data", async (ctx) => {
     await handleWithdrawUsdtConfirm(ctx);
     return;
   }
+  if (data === "withdraw_lp_confirm") {
+    await ctx.answerCallbackQuery();
+    await handleWithdrawLpConfirm(ctx);
+    return;
+  }
   if (data === "withdraw_all_confirm") {
     await ctx.answerCallbackQuery();
     await handleWithdrawAllConfirm(ctx);
@@ -137,6 +207,21 @@ bot.on("callback_query:data", async (ctx) => {
   if (data === "cancel_reset") {
     await ctx.answerCallbackQuery();
     await handleResetCallback(ctx, "cancel");
+    return;
+  }
+  if (data === "test_run_confirm") {
+    await ctx.answerCallbackQuery();
+    const telegramId = ctx.from?.id;
+    if (!telegramId) return;
+    await handleTestRun(
+      telegramId,
+      (text, extra) => ctx.reply(text, extra as object).then(() => {})
+    );
+    return;
+  }
+  if (data === "test_cancel") {
+    await ctx.answerCallbackQuery();
+    await ctx.reply("Test cancelled.");
     return;
   }
 
@@ -230,58 +315,74 @@ async function sendExecutionNotification(
   error?: string
 ) {
   try {
+    // Resolve plan for dashboard deep-link and cycle count (best-effort)
+    let planId: string | null = null;
+    let cyclesDone = 1;
+    let totalCycles: number | null = null;
+    try {
+      const { getPlanByTelegramId } = await import("../db/index.js");
+      const plan = await getPlanByTelegramId(telegramId);
+      if (plan) {
+        planId = plan.id;
+        cyclesDone = plan.cycles_completed + 1;
+        totalCycles = plan.max_cycles;
+      }
+    } catch { /* non-critical */ }
+
+    const dashboardUrl = planId
+      ? `${MINI_APP_URL}/dashboard.html#strategy-${planId}`
+      : `${MINI_APP_URL}/dashboard.html`;
+
+    // ── Failed cycle ───────────────────────────────────────────────────────
     if (!result || result.status === "failed") {
-      await bot.api.sendMessage(
-        telegramId,
-        `⚠️ *Gramity — cycle error*\n\n` +
-          (error ? `Reason: ${error.slice(0, 200)}\n\n` : "") +
-          `Funds are safe. Next attempt is scheduled.\n` +
-          `/status — check position`,
-        { parse_mode: "Markdown" }
-      );
+      const errText = error ?? result?.failedStep ?? "unknown error";
+      const msg = result?.failedStep
+        ? notify.stepFailed(result.failedStep, errText)
+        : notify.cycleFailed(errText);
+
+      await bot.api.sendMessage(telegramId, msg, {
+        parse_mode: "Markdown",
+        link_preview_options: { is_disabled: true },
+        reply_markup: new InlineKeyboard().webApp("📊 View Dashboard", dashboardUrl),
+      });
       return;
     }
 
-    const isPartial = result.status === "partial";
+    // ── Partial cycle ──────────────────────────────────────────────────────
+    if (result.status === "partial") {
+      const msg =
+        `⚡ *Partial cycle — ${result.failedStep ?? "unknown step"} failed*\n\n` +
+        `$${result.usdtSpent.toFixed(2)} USDT swapped → ${result.tonReceived.toFixed(3)} TON\n` +
+        `Liquidity provision skipped.\n\n` +
+        `Funds are safe. Next attempt is scheduled.\n/status — check position`;
 
-    const tonPrice =
-      result.tonReceived > 0
-        ? (result.usdtSpent / result.tonReceived).toFixed(2)
-        : null;
+      await bot.api.sendMessage(telegramId, msg, {
+        parse_mode: "Markdown",
+        reply_markup: new InlineKeyboard().webApp("📊 View Dashboard", dashboardUrl),
+      });
+      return;
+    }
 
-    const nextDate = new Date();
-    nextDate.setDate(nextDate.getDate() + 7);
-    const nextStr = nextDate.toLocaleDateString("en-US", {
-      weekday: "short",
-      day:     "numeric",
-      month:   "short",
-      timeZone: "UTC",
+    // ── Successful cycle — use notify.cycleComplete template ───────────────
+    const msg = notify.cycleComplete({
+      amountUsdt:    result.usdtSpent,
+      tonAmount:     result.tonReceived,
+      tsTonAmount:   result.tstonReceived,
+      lpTokensAdded: result.lpTokensAdded,
+      txSwap:        result.txSwap,
+      txStake:       result.txStake,
+      txLp:          result.txLp,
+      cyclesDone,
+      totalCycles,
     });
 
-    const headline = isPartial
-      ? `⚡ Gramity executed partially`
-      : `⚡ *DCA cycle complete — $${result.usdtSpent.toFixed(0)} deployed*`;
-
-    const lines = [
-      headline,
-      "",
-      `💵 $${result.usdtSpent.toFixed(2)}${tonPrice ? ` → ${result.tonReceived.toFixed(3)} TON @ $${tonPrice}` : " USDT spent"}`,
-      result.tstonReceived > 0
-        ? `🔒 ${result.tstonReceived.toFixed(3)} tsTON staked`
-        : null,
-      `🏊 LP position: ${result.lpPositionValue !== "N/A" ? `$${result.lpPositionValue}` : "updating..."}`,
-      "",
-      `⏰ Next cycle: ${nextStr}`,
-    ]
-      .filter(Boolean)
-      .join("\n");
-
     const kb = new InlineKeyboard()
-      .text("📊 Status", "status_check")
-      .text("⏸ Pause",  "pause");
+      .webApp("📊 Dashboard", dashboardUrl)
+      .text("⏸ Pause", "pause");
 
-    await bot.api.sendMessage(telegramId, lines, {
-      parse_mode:   "Markdown",
+    await bot.api.sendMessage(telegramId, msg, {
+      parse_mode: "Markdown",
+      link_preview_options: { is_disabled: true },
       reply_markup: kb,
     });
   } catch (err) {
@@ -295,6 +396,20 @@ setNotifyUser(sendExecutionNotification);
 
 setNotifyInsufficientFunds(async (telegramId, balance, required) => {
   try {
+    // Resolve deposit wallet address for deep-link (best-effort)
+    let depositAddr: string | null = null;
+    try {
+      const { createUserWallet } = await import("../services/userWallet.js");
+      depositAddr = await createUserWallet(telegramId);
+    } catch { /* non-critical */ }
+
+    const depositUrl = depositAddr
+      ? `${MINI_APP_URL}/deposit.html?wallet=${encodeURIComponent(depositAddr)}`
+      : `${MINI_APP_URL}/deposit.html`;
+
+    const kb = new InlineKeyboard()
+      .webApp("💰 Deposit Funds", depositUrl);
+
     await bot.api.sendMessage(
       telegramId,
       `⚠️ *Insufficient USDT for cycle*\n\n` +
@@ -302,10 +417,32 @@ setNotifyInsufficientFunds(async (telegramId, balance, required) => {
         `Required:   $${required.toFixed(2)}\n\n` +
         `Strategy paused.\n` +
         `Top up your deposit and tap /resume`,
-      { parse_mode: "Markdown" }
+      { parse_mode: "Markdown", reply_markup: kb }
     );
   } catch (err) {
     console.error("[BOT] Failed to send insufficient funds notification:", err);
+  }
+});
+
+// ─── Auto-paused after 3 consecutive failures ─────────────────────────────────
+
+setNotifyAutoPaused(async (telegramId, reason) => {
+  try {
+    const msg = notify.autoPaused(reason);
+    await bot.api.sendMessage(telegramId, msg, { parse_mode: "Markdown" });
+  } catch (err) {
+    console.error("[BOT] Failed to send auto-paused notification:", err);
+  }
+});
+
+// ─── All DCA cycles complete ───────────────────────────────────────────────────
+
+setNotifyAllComplete(async (telegramId, totalInvested, lpBalance) => {
+  try {
+    const msg = notify.allCyclesComplete(totalInvested, lpBalance);
+    await bot.api.sendMessage(telegramId, msg, { parse_mode: "Markdown" });
+  } catch (err) {
+    console.error("[BOT] Failed to send all-cycles-complete notification:", err);
   }
 });
 
@@ -331,6 +468,8 @@ export async function startBot() {
   await bot.api.setMyCommands([
     { command: "start",    description: "Setup or main menu" },
     { command: "status",   description: "Current position" },
+    { command: "test",     description: "🧪 Run 3 real DCA cycles immediately" },
+    { command: "demo",     description: "🎬 Run live demo (2 cycles × $7)" },
     { command: "pause",    description: "Pause strategy" },
     { command: "resume",   description: "Resume strategy" },
     { command: "settings", description: "Strategy settings" },

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+  <title>Gramity Dashboard</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0d0d0f;--surface:#18181c;--surface2:#22222a;
+      --accent:#6c63ff;--accent2:#a78bfa;
+      --green:#22c55e;--red:#ef4444;--yellow:#f59e0b;
+      --text:#f1f1f3;--muted:#8b8b9e;--border:#2a2a35;
+    }
+    html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;-webkit-font-smoothing:antialiased}
+    body{overflow-x:hidden;padding-bottom:env(safe-area-inset-bottom,0)}
+
+    .header{
+      background:var(--surface);border-bottom:1px solid var(--border);
+      padding:16px 20px 12px;position:sticky;top:0;z-index:10;
+    }
+    .header-row{display:flex;align-items:center;justify-content:space-between}
+    .logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:18px}
+    .logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent2)}
+    .status-pill{
+      display:inline-flex;align-items:center;gap:5px;
+      padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;
+    }
+    .status-active{background:rgba(34,197,94,0.15);color:var(--green)}
+    .status-paused{background:rgba(245,158,11,0.15);color:var(--yellow)}
+
+    .scroll-body{padding:16px 16px 24px;display:flex;flex-direction:column;gap:14px}
+
+    /* Portfolio card */
+    .portfolio-card{
+      background:linear-gradient(135deg,#1a1a2e 0%,var(--surface2) 100%);
+      border:1px solid var(--border);border-radius:16px;padding:20px;
+    }
+    .portfolio-label{color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px}
+    .portfolio-value{font-size:32px;font-weight:700;letter-spacing:-1px}
+    .portfolio-pnl{font-size:13px;margin-top:4px}
+    .pnl-pos{color:var(--green)}
+    .pnl-neg{color:var(--red)}
+    .breakdown{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+    .breakdown-item{background:var(--bg);border-radius:10px;padding:10px 12px}
+    .bd-label{font-size:11px;color:var(--muted);margin-bottom:3px}
+    .bd-value{font-size:15px;font-weight:600}
+
+    /* Strategy card */
+    .strategy-card{
+      background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;
+    }
+    .strategy-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+    .strategy-title{font-weight:700;font-size:16px}
+    .strategy-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px}
+    .strategy-row:last-child{border-bottom:none}
+    .strategy-row .label{color:var(--muted)}
+    .strategy-row .val{font-weight:600}
+
+    /* Next cycle */
+    .next-cycle{
+      background:var(--surface);border:1px solid var(--border);border-radius:16px;
+      padding:14px 16px;display:flex;align-items:center;gap:12px;
+    }
+    .cycle-icon{width:38px;height:38px;background:rgba(108,99,255,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+    .cycle-label{color:var(--muted);font-size:12px;margin-bottom:2px}
+    .cycle-value{font-weight:600;font-size:14px}
+
+    /* History */
+    .section-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:0 4px}
+    .history-list{display:flex;flex-direction:column;gap:8px}
+    .history-item{
+      background:var(--surface);border:1px solid var(--border);border-radius:12px;
+      padding:12px 14px;display:flex;align-items:center;justify-content:space-between;
+    }
+    .hist-left{display:flex;align-items:center;gap:10px}
+    .hist-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    .hist-dot.success{background:var(--green)}
+    .hist-dot.failed{background:var(--red)}
+    .hist-dot.partial{background:var(--yellow)}
+    .hist-date{font-size:13px;color:var(--muted)}
+    .hist-amount{font-size:14px;font-weight:600}
+
+    /* APY */
+    .apy-card{
+      background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;
+    }
+    .apy-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:14px}
+    .apy-row .label{color:var(--muted)}
+    .apy-row .val{font-weight:600;color:var(--green)}
+    .apy-total{font-weight:700;font-size:16px;color:var(--accent2) !important}
+
+    /* CTA buttons */
+    .cta-row{display:flex;gap:10px}
+    .cta-btn{
+      flex:1;padding:13px 0;border-radius:12px;border:none;font-size:14px;
+      font-weight:700;cursor:pointer;transition:opacity .15s;
+    }
+    .cta-btn:active{opacity:.7}
+    .cta-primary{background:var(--accent);color:#fff}
+    .cta-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+    .cta-test{background:rgba(245,158,11,0.15);color:var(--yellow);border:1px solid rgba(245,158,11,0.3)}
+
+    /* Test warning modal */
+    .modal-overlay{
+      position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:50;
+      display:flex;align-items:flex-end;justify-content:center;
+      opacity:0;pointer-events:none;transition:opacity .2s;
+    }
+    .modal-overlay.open{opacity:1;pointer-events:all}
+    .modal-sheet{
+      background:var(--surface);border-radius:20px 20px 0 0;padding:24px 20px 32px;
+      width:100%;max-width:480px;transform:translateY(100%);transition:transform .25s;
+    }
+    .modal-overlay.open .modal-sheet{transform:translateY(0)}
+    .modal-title{font-size:17px;font-weight:700;margin-bottom:8px}
+    .modal-body{font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:18px}
+    .modal-body strong{color:var(--text)}
+    .modal-row{display:flex;gap:10px;margin-top:4px}
+
+    /* Loading / empty */
+    .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:60px 20px;color:var(--muted);text-align:center}
+    .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .empty-icon{font-size:40px;margin-bottom:4px}
+    .empty-title{font-size:17px;font-weight:700;color:var(--text)}
+    .empty-sub{font-size:13px;margin-top:4px}
+
+    .error-banner{
+      background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);
+      border-radius:10px;padding:10px 14px;font-size:13px;color:var(--red);text-align:center;
+    }
+
+    .toast{
+      position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0));left:50%;transform:translateX(-50%);
+      padding:10px 20px;border-radius:20px;font-size:14px;font-weight:600;
+      opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;z-index:200;color:#fff;
+    }
+    .toast.show{opacity:1}
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-row">
+    <div class="logo">
+      <div class="logo-dot"></div>
+      Gramity
+    </div>
+    <div id="statusPill"></div>
+  </div>
+</div>
+
+<div class="scroll-body" id="mainBody">
+  <div class="loading" id="loadingState">
+    <div class="spinner"></div>
+    <span>Loading your portfolio…</span>
+  </div>
+</div>
+
+<!-- Test warning modal -->
+<div class="modal-overlay" id="testModal">
+  <div class="modal-sheet">
+    <div class="modal-title">🧪 Run 3 Test Cycles</div>
+    <div class="modal-body">
+      This runs <strong>3 real DCA cycles immediately</strong> — no scheduler, regular schedule unchanged.<br><br>
+      <strong>Failure scenarios:</strong><br>
+      • <strong>Low TON gas</strong> — cycle skipped, nothing spent. Top up TON → retry.<br>
+      • <strong>Stake/LP fails</strong> — "partial": swap TON stays in wallet, used next cycle.<br>
+      • <strong>No USDT</strong> — test stops, strategy stays active.<br>
+      • <strong>Network error</strong> — logged, test continues.<br><br>
+      ⚠️ <strong>Real mainnet.</strong> Check /status after the test.
+    </div>
+    <div class="modal-row">
+      <button class="cta-btn cta-secondary" id="testCancelBtn" style="flex:0.6">Cancel</button>
+      <button class="cta-btn cta-primary" id="testConfirmBtn" style="flex:1">▶️ Run 3 cycles</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) {
+    tg.ready();
+    tg.expand();
+    if (tg.setHeaderColor) tg.setHeaderColor('#18181c');
+    if (tg.setBackgroundColor) tg.setBackgroundColor('#0d0d0f');
+  }
+
+  var BASE_URL = window.location.origin;
+  var initData = (tg && tg.initData) || '';
+
+  // Extract target strategy id from hash
+  var targetStrategyId = null;
+  if (window.location.hash) {
+    var m = window.location.hash.match(/strategy-([^&]+)/);
+    if (m) targetStrategyId = m[1];
+  }
+
+  var FREQ_LABELS = {
+    weekly:   'weekly',
+    biweekly: 'every 2 weeks',
+    monthly:  'monthly',
+    daily:    'daily',
+    minutely: 'every minute',
+    hourly:   'every hour',
+    demo:     'demo',
+  };
+
+  function fmt(v, d) {
+    if (v == null || isNaN(v)) return '—';
+    return Number(v).toFixed(d != null ? d : 2);
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+  }
+
+  function el(tag, attrs, children) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === 'class') e.className = attrs[k];
+      else if (k === 'style') e.style.cssText = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    });
+    (children || []).forEach(function (c) {
+      if (typeof c === 'string') e.appendChild(document.createTextNode(c));
+      else if (c) e.appendChild(c);
+    });
+    return e;
+  }
+
+  function render(data) {
+    var body = document.getElementById('mainBody');
+    body.innerHTML = '';
+
+    if (!data) {
+      body.innerHTML = '<div class="loading"><div class="empty-icon">📊</div><div class="empty-title">No strategy yet</div><div class="empty-sub">Tap New Strategy to get started</div></div>';
+      appendCTA(body, null);
+      return;
+    }
+
+    var plan = data.plan;
+    var execs = data.executions || [];
+    var invested = execs.reduce(function (s, e) { return s + (e.status === 'success' ? (e.usdt_spent || 0) : 0); }, 0);
+
+    // Status pill
+    var pill = document.getElementById('statusPill');
+    if (plan) {
+      pill.innerHTML = '';
+      var pillEl = el('span', { class: 'status-pill ' + (plan.active ? 'status-active' : 'status-paused') });
+      pillEl.innerHTML = plan.active ? '⚡ Active' : '⏸ Paused';
+      pill.appendChild(pillEl);
+    }
+
+    // Portfolio card
+    var totalVal = (data.usdtBalance || 0) + (data.lpValue || 0);
+    var pCard = el('div', { class: 'portfolio-card' });
+    pCard.innerHTML = [
+      '<div class="portfolio-label">Total Portfolio</div>',
+      '<div class="portfolio-value">$' + fmt(totalVal) + '</div>',
+      invested > 0 ? ('<div class="portfolio-pnl ' + (totalVal >= invested ? 'pnl-pos' : 'pnl-neg') + '">' +
+        (totalVal >= invested ? '+' : '') + '$' + fmt(totalVal - invested) + ' vs invested' + '</div>') : '',
+      '<div class="breakdown">',
+      '  <div class="breakdown-item"><div class="bd-label">USDT on deposit</div><div class="bd-value">$' + fmt(data.usdtBalance) + '</div></div>',
+      '  <div class="breakdown-item"><div class="bd-label">LP position</div><div class="bd-value">' + (data.lpValue != null ? '$' + fmt(data.lpValue) : '—') + '</div></div>',
+      '  <div class="breakdown-item"><div class="bd-label">TON balance</div><div class="bd-value">' + fmt(data.tonBalance, 3) + ' TON</div></div>',
+      '  <div class="breakdown-item"><div class="bd-label">Total invested</div><div class="bd-value">$' + fmt(invested) + '</div></div>',
+      '</div>',
+    ].join('');
+    body.appendChild(pCard);
+
+    // Strategy card
+    if (plan) {
+      var freqLabel = FREQ_LABELS[plan.frequency] || plan.frequency;
+      var sCard = el('div', { class: 'strategy-card' });
+      sCard.innerHTML = [
+        '<div class="strategy-header"><span class="strategy-title">DCA Strategy</span></div>',
+        '<div class="strategy-row"><span class="label">Amount per cycle</span><span class="val">$' + fmt(plan.usdt_amount, 0) + ' USDT</span></div>',
+        '<div class="strategy-row"><span class="label">Frequency</span><span class="val">' + freqLabel + '</span></div>',
+        '<div class="strategy-row"><span class="label">Mode</span><span class="val">' + (plan.strategy_mode || 'full') + '</span></div>',
+        '<div class="strategy-row"><span class="label">Cycles run</span><span class="val">' + execs.filter(function(e){return e.status==='success';}).length + '</span></div>',
+      ].join('');
+      body.appendChild(sCard);
+
+      // Next cycle
+      var ncCard = el('div', { class: 'next-cycle' });
+      ncCard.innerHTML =
+        '<div class="cycle-icon">⏰</div>' +
+        '<div><div class="cycle-label">Next cycle</div><div class="cycle-value">' + fmtDate(plan.next_execution_at) + '</div></div>';
+      body.appendChild(ncCard);
+    }
+
+    // APY card
+    var apyCard = el('div', { class: 'apy-card' });
+    apyCard.innerHTML = [
+      '<div class="strategy-title" style="margin-bottom:10px">Yield Breakdown</div>',
+      '<div class="apy-row"><span class="label">tsTON staking</span><span class="val">~5.0%</span></div>',
+      '<div class="apy-row"><span class="label">LP + farming</span><span class="val">~0.4%</span></div>',
+      '<div class="apy-row" style="border-top:1px solid var(--border);margin-top:6px;padding-top:10px"><span class="label" style="font-weight:700;color:var(--text)">Total APY</span><span class="val apy-total">~5.4%</span></div>',
+    ].join('');
+    body.appendChild(apyCard);
+
+    // History
+    if (execs.length > 0) {
+      body.appendChild(el('div', { class: 'section-title' }, ['Recent Cycles']));
+      var histList = el('div', { class: 'history-list' });
+      execs.slice(0, 5).forEach(function (e) {
+        var item = el('div', { class: 'history-item' });
+        item.innerHTML =
+          '<div class="hist-left">' +
+          '<div class="hist-dot ' + (e.status || 'success') + '"></div>' +
+          '<div><div style="font-size:14px;font-weight:600">' + (e.status === 'success' ? '✅ Success' : e.status === 'failed' ? '❌ Failed' : '⚡ Partial') + '</div>' +
+          '<div class="hist-date">' + fmtDate(e.executed_at) + '</div></div>' +
+          '</div>' +
+          '<div class="hist-amount">' + (e.usdt_spent ? '$' + fmt(e.usdt_spent) : '') + '</div>';
+        histList.appendChild(item);
+      });
+      body.appendChild(histList);
+    }
+
+    appendCTA(body, plan);
+  }
+
+  function appendCTA(body, plan) {
+    var row = el('div', { class: 'cta-row' });
+
+    var newBtn = el('button', { class: 'cta-btn cta-primary' });
+    newBtn.textContent = '+ New Strategy';
+    newBtn.addEventListener('click', function () {
+      window.location.href = '/app/onboarding.html';
+    });
+    row.appendChild(newBtn);
+
+    if (plan) {
+      var pauseBtn = el('button', { class: 'cta-btn cta-secondary' });
+      pauseBtn.textContent = plan.active ? '⏸ Pause' : '▶️ Resume';
+      pauseBtn.addEventListener('click', function () {
+        if (tg && tg.sendData) {
+          tg.sendData(JSON.stringify({ type: plan.active ? 'pause' : 'resume' }));
+        }
+      });
+      row.appendChild(pauseBtn);
+    }
+
+    body.appendChild(row);
+
+    // Test button — only when plan exists
+    if (plan) {
+      var testBtn = el('button', { class: 'cta-btn cta-test', style: 'width:100%;margin-top:8px' });
+      testBtn.textContent = '🧪 Run Test (3 cycles)';
+      testBtn.addEventListener('click', function () {
+        document.getElementById('testModal').classList.add('open');
+      });
+      body.appendChild(testBtn);
+    }
+  }
+
+  // Modal logic
+  document.getElementById('testCancelBtn').addEventListener('click', function () {
+    document.getElementById('testModal').classList.remove('open');
+  });
+  document.getElementById('testConfirmBtn').addEventListener('click', function () {
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = '⏳ Starting…';
+    fetch('/api/test-run', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Telegram-Init-Data': initData,
+      },
+      body: JSON.stringify({ cycles: 3 }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function () {
+        document.getElementById('testModal').classList.remove('open');
+        // Show toast
+        var toast = document.getElementById('testToast');
+        if (toast) { toast.classList.add('show'); setTimeout(function () { toast.classList.remove('show'); }, 3000); }
+      })
+      .catch(function () {
+        btn.disabled = false;
+        btn.textContent = '▶️ Run 3 cycles';
+      });
+  });
+  document.getElementById('testModal').addEventListener('click', function (e) {
+    if (e.target === this) this.classList.remove('open');
+  });
+
+  function renderError(msg) {
+    var body = document.getElementById('mainBody');
+    body.innerHTML = '';
+    var banner = el('div', { class: 'error-banner' });
+    banner.textContent = msg || 'Failed to load portfolio. Please try again.';
+    body.appendChild(banner);
+    appendCTA(body, null);
+  }
+
+  // Load data
+  fetch('/api/portfolio', {
+    headers: { 'X-Telegram-Init-Data': initData },
+  })
+    .then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function (data) {
+      document.getElementById('loadingState').style.display = 'none';
+      render(data);
+    })
+    .catch(function (err) {
+      document.getElementById('loadingState').style.display = 'none';
+      renderError('Could not load portfolio: ' + err.message);
+    });
+
+})();
+</script>
+
+<div class="toast" id="testToast" style="background:#f59e0b">🧪 Test started — watch Telegram for results</div>
+</body>
+</html>
