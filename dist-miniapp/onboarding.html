@@ -842,7 +842,167 @@
       transition: width 0.4s ease;
     }
 
-    /* ── Wizard Step 1: Connect ── */
+    /* ── Wizard Step 1: Init wallet diagram ── */
+    .init-wallet-diagram {
+      position: relative;
+      width: 100%;
+      max-width: 300px;
+      margin: 4px auto 10px;
+      aspect-ratio: 300 / 220;
+    }
+    .init-wallet-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      pointer-events: none;
+    }
+    .init-node-btn {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 18.67%;
+      height: 25.45%;
+      padding: 0;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      font-family: var(--font);
+      z-index: 2;
+      transition: transform 0.15s ease;
+    }
+    .init-node-btn:active:not(:disabled) { transform: scale(0.94); }
+    .init-node-btn:disabled { cursor: wait; opacity: 0.85; }
+    .init-node-ring {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.04);
+      border: 1.5px solid rgba(255,255,255,0.14);
+      transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+      position: relative;
+    }
+    .init-node-btn img {
+      width: 34px;
+      height: 34px;
+      object-fit: contain;
+      border-radius: 50%;
+    }
+    .init-node-ton { left: 6.67%; top: 12.27%; }
+    .init-node-ton .init-node-ring { border-color: rgba(0,152,234,0.55); }
+    .init-node-ton:hover .init-node-ring { border-color: rgba(0,152,234,0.9); background: rgba(0,152,234,0.08); }
+    .init-node-mm { left: 6.67%; top: 62.27%; }
+    .init-node-mm .init-node-ring { border-color: rgba(230,119,30,0.5); }
+    .init-node-mm:hover .init-node-ring { border-color: rgba(230,119,30,0.85); background: rgba(230,119,30,0.08); }
+    .init-node-label {
+      margin-top: 5px;
+      font-size: 9.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+    .init-node-hint {
+      font-size: 8px;
+      color: rgba(255,255,255,0.35);
+      margin-top: 1px;
+      white-space: nowrap;
+      max-width: 72px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .init-node-status {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #22c55e;
+      color: #fff;
+      font-size: 9px;
+      font-weight: 700;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      box-shadow: 0 0 0 2px var(--bg);
+    }
+    .init-node-btn.connected .init-node-ring {
+      border-color: rgba(34,197,94,0.65);
+      background: rgba(34,197,94,0.1);
+      box-shadow: 0 0 12px rgba(34,197,94,0.2);
+    }
+    .init-node-btn.connected .init-node-status { display: flex; }
+    .init-node-btn.connecting .init-node-ring {
+      animation: init-pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes init-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(74,138,255,0.35); }
+      50%      { box-shadow: 0 0 0 8px rgba(74,138,255,0); }
+    }
+    .init-node-hub {
+      position: absolute;
+      left: 65.33%;
+      top: 34.55%;
+      width: 22.67%;
+      height: 30.91%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .init-hub-ring {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 50% 40%, #1a2030 0%, #080810 100%);
+      border: 1.8px solid rgba(0,152,234,0.65);
+      box-shadow: 0 0 18px rgba(0,152,234,0.15);
+    }
+    .init-hub-ring img {
+      width: 38px;
+      height: 38px;
+      object-fit: contain;
+    }
+    .init-hub-label {
+      margin-top: 6px;
+      font-size: 9.5px;
+      font-weight: 700;
+      color: #0098EA;
+      text-align: center;
+      line-height: 1.25;
+      white-space: nowrap;
+    }
+    .init-hub-sub {
+      font-size: 8px;
+      color: rgba(106,171,204,0.85);
+      margin-top: 1px;
+      white-space: nowrap;
+    }
+    .init-gas-hint {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-align: center;
+      line-height: 1.45;
+      margin-bottom: 6px;
+      opacity: 0.85;
+    }
+    .init-gas-hint strong { color: rgba(255,255,255,0.75); font-weight: 600; }
+
     .connect-section { display: flex; flex-direction: column; gap: 10px; }
 
     .connect-btn {
@@ -2003,27 +2163,62 @@
           <div class="wizard-seg"></div>
         </div>
         <div class="slide-content">
-          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:14px">Connect wallet</h2>
-          <p class="anim-item" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.5">
-            We scan your wallet, then bridge USDT to your Gramity agent wallet. DCA setup comes after funding.
+          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:8px">Init wallet</h2>
+          <p class="anim-item" style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5">
+            Tap your wallet — Gramity creates your <strong style="color:rgba(255,255,255,0.85);font-weight:600">TON Agent Wallet</strong> on the next step.
           </p>
 
-          <div class="connect-section anim-item" id="connectSection">
-            <button class="connect-btn primary-ton" id="btnConnectTon" type="button">
-              <span class="logo-circle logo-circle-lg"><img src="/app/logos/ton.png" alt="" class="wallet-logo-img" width="28" height="28"/></span>
-              <div style="flex:1;text-align:left">
-                <div>Connect TON Wallet</div>
-                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Tonkeeper · MyTonWallet · TON Space</div>
-              </div>
+          <div class="init-wallet-diagram anim-item" id="connectSection">
+            <svg viewBox="0 0 300 220" class="init-wallet-svg" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs>
+                <clipPath id="cp-init-ton"><circle cx="48" cy="55" r="28"/></clipPath>
+                <clipPath id="cp-init-mm"><circle cx="48" cy="165" r="28"/></clipPath>
+                <clipPath id="cp-init-agent"><circle cx="230" cy="110" r="34"/></clipPath>
+                <filter id="glow-agent" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="3" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+              <path class="fp fp1" style="--da:130"
+                    d="M76,55 C148,55 178,110 196,110"
+                    stroke="#0098EA" stroke-width="1.8" fill="none"
+                    stroke-dasharray="130" stroke-dashoffset="130"/>
+              <path class="fp fp2" style="--da:130"
+                    d="M76,165 C148,165 178,110 196,110"
+                    stroke="#E6771E" stroke-width="1.8" fill="none"
+                    stroke-dasharray="130" stroke-dashoffset="130"/>
+              <path d="M76,55 C148,55 178,110 196,110" stroke="#0098EA" stroke-width="0.5" fill="none" opacity="0.2"/>
+              <path d="M76,165 C148,165 178,110 196,110" stroke="#E6771E" stroke-width="0.5" fill="none" opacity="0.2"/>
+              <circle cx="230" cy="110" r="34" fill="#051520" stroke="#0098EA" stroke-width="1.6" opacity="0.35" filter="url(#glow-agent)"/>
+            </svg>
+
+            <button type="button" class="init-node-btn init-node-ton" id="btnConnectTon" aria-label="Connect TON wallet">
+              <span class="init-node-ring">
+                <img src="/app/logos/ton.png" alt="" width="34" height="34"/>
+                <span class="init-node-status" id="tonNodeStatus">✓</span>
+              </span>
+              <span class="init-node-label">TON</span>
             </button>
-            <button class="connect-btn" id="btnConnectMM" type="button">
-              <span class="logo-circle logo-circle-lg"><img src="/app/logos/metamask.svg" alt="" class="wallet-logo-img" width="28" height="28"/></span>
-              <div style="flex:1;text-align:left">
-                <div>Connect MetaMask</div>
-                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Opens browser · ETH · Base · BNB · Polygon</div>
-              </div>
+
+            <button type="button" class="init-node-btn init-node-mm" id="btnConnectMM" aria-label="Connect MetaMask">
+              <span class="init-node-ring">
+                <img src="/app/logos/metamask.svg" alt="" width="34" height="34"/>
+                <span class="init-node-status" id="mmNodeStatus">✓</span>
+              </span>
+              <span class="init-node-label">MetaMask</span>
+              <span class="init-node-hint" id="mmNodeHint">ETH · Base · BNB · Poly</span>
             </button>
+
+            <div class="init-node-hub">
+              <div class="init-hub-ring">
+                <img src="/app/logos/gram-gravity-animated.svg" alt="" width="38" height="38"/>
+              </div>
+              <span class="init-hub-label">TON Agent Wallet</span>
+              <span class="init-hub-sub">Gramity · on-chain</span>
+            </div>
           </div>
+
+          <p class="init-gas-hint anim-item">First fund seeds <strong>~0.6 TON</strong> gas commission — included automatically</p>
 
           <div class="step2-wallet-info anim-item" id="step2WalletInfo" style="display:none">
             <div class="step2-wallet-addr" id="step2WalletAddr">—</div>
@@ -2033,7 +2228,7 @@
           <button type="button" class="demo-toggle-link anim-item" id="btnToggleDemoConnect">No wallet? Try demo mode →</button>
         </div>
         <div class="slide-footer">
-          <button class="btn btn-primary anim-item" id="btnWizardNextConnect" disabled style="opacity:0.4">Continue →</button>
+          <button class="btn btn-primary anim-item" id="btnWizardNextConnect" disabled style="opacity:0.4">Init Wallet →</button>
         </div>
       </section>
 
@@ -2793,40 +2988,15 @@
         console.warn('[TonConnect] Init failed:', e);
       }
 
-      var TON_WALLET_LOGO = '/app/logos/ton.png';
-
-      function tonWalletLogoImg(size) {
-        var lgClass = size >= 28 ? ' logo-circle-lg' : '';
-        return '<span class="logo-circle' + lgClass + '">' +
-          '<img src="' + TON_WALLET_LOGO + '" alt="" class="wallet-logo-img" width="' + size + '" height="' + size + '"/>' +
-        '</span>';
-      }
-
       function updateTonConnectBtn(addr) {
         var btn = document.getElementById('btnConnectTon');
         if (!btn) return;
-        if (addr) {
-          var short = addr.slice(0, 6) + '…' + addr.slice(-4);
-          btn.innerHTML =
-            tonWalletLogoImg(28) +
-            '<div style="flex:1;text-align:left">' +
-              '<div>TON Connected</div>' +
-              '<div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">' + short + '</div>' +
-            '</div>' +
-            '<div style="font-size:11px;color:#22c55e;font-weight:700">✓ Connected</div>';
-          btn.style.borderColor = 'rgba(34,197,94,0.4)';
-          btn.style.background  = 'rgba(34,197,94,0.08)';
-        } else {
-          btn.innerHTML =
-            tonWalletLogoImg(28) +
-            '<div style="flex:1;text-align:left">' +
-              '<div>Connect TON Wallet</div>' +
-              '<div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Tonkeeper · MyTonWallet · TON Space</div>' +
-            '</div>' +
-            '<div style="font-size:11px;color:rgba(0,152,234,0.8);font-weight:700">PRIMARY</div>';
-          btn.style.borderColor = '';
-          btn.style.background  = '';
-        }
+        btn.classList.toggle('connected', !!addr);
+        btn.classList.remove('connecting');
+      }
+
+      function getMmNodeHint() {
+        return document.getElementById('mmNodeHint');
       }
 
       /* ── TON/USD price cache ── */
@@ -3209,7 +3379,7 @@
         });
       }
 
-      function pollEvmWalletSession(token, btn, labelEl, hintEl) {
+      function pollEvmWalletSession(token, btn, hintEl) {
         var attempts = 0;
         var maxAttempts = 120;
         var pollMs = 2500;
@@ -3239,15 +3409,14 @@
                     });
                     return;
                   }
-                  if (labelEl) labelEl.textContent = 'Loading balances…';
-                  if (hintEl) hintEl.textContent = 'Fetching token balances…';
+                  if (hintEl) hintEl.textContent = 'Loading balances…';
                 }
                 if (attempts >= maxAttempts) {
                   cleanup();
                   reject(new Error('MetaMask connect timeout — approve in MetaMask and return to Telegram'));
                   return;
                 }
-                if (labelEl) labelEl.textContent = 'Waiting for MetaMask…';
+                if (hintEl) hintEl.textContent = 'Waiting for MetaMask…';
                 timer = setTimeout(check, pollMs);
               })
               .catch(function () {
@@ -3270,15 +3439,9 @@
       }
 
       function connectViaMetaMaskApp(btn) {
-        var labelEl = btn.querySelector('div').children[0];
-        var hintEl = btn.querySelector('div').children[1];
-        if (labelEl && !getExtensionProvider()) {
-          labelEl.textContent = isMobileDevice() ? 'Opening MetaMask…' : 'Opening browser…';
-        }
-        if (hintEl) {
-          hintEl.textContent = isMobileDevice()
-            ? 'Approve in MetaMask, then return to Telegram'
-            : 'Sign with MetaMask extension in browser, then return here';
+        var hintEl = getMmNodeHint();
+        if (hintEl && !getExtensionProvider()) {
+          hintEl.textContent = isMobileDevice() ? 'Opening MetaMask…' : 'Opening browser…';
         }
 
         return fetch('/api/evm-wallet/session', {
@@ -3294,7 +3457,7 @@
           })
           .then(function (session) {
             openMetaMaskUrl(getMetaMaskSessionOpenUrl(session));
-            return pollEvmWalletSession(session.token, btn, labelEl, hintEl);
+            return pollEvmWalletSession(session.token, btn, hintEl);
           });
       }
 
@@ -3411,11 +3574,9 @@
         wiz.bridgeChain = '';
         updateBridgeUI();
         if (btn) {
-          btn.querySelector('div').children[0].textContent = 'Connect MetaMask';
-          if (btn.querySelector('div').children[1]) {
-            btn.querySelector('div').children[1].textContent = 'Opens browser · ETH · Base · BNB · Polygon';
-          }
-          btn.style.borderColor = '';
+          btn.classList.remove('connected', 'connecting');
+          var hint = getMmNodeHint();
+          if (hint) hint.textContent = 'ETH · Base · BNB · Poly';
         }
         syncAvailableUsdt();
         updateConnectContinueBtn();
@@ -3427,11 +3588,10 @@
         wiz.evmConnected = true;
 
         var short = accounts[0].slice(0, 6) + '…' + accounts[0].slice(-4);
-        btn.querySelector('div').children[0].textContent = 'Connected: ' + short;
-        if (btn.querySelector('div').children[1]) {
-          btn.querySelector('div').children[1].textContent = 'Tap to disconnect';
-        }
-        btn.style.borderColor = 'rgba(230,119,30,0.5)';
+        btn.classList.add('connected');
+        btn.classList.remove('connecting');
+        var hint = getMmNodeHint();
+        if (hint) hint.textContent = short;
 
         var stripResult = document.getElementById('stripBalanceResult');
         if (stripResult) {
@@ -3449,10 +3609,11 @@
           return;
         }
 
-        btn.querySelector('div').children[0].textContent = 'Loading balances…';
+        if (hint) hint.textContent = 'Loading…';
         fetchEvmBalancesFromServer(accounts[0])
           .then(function (payload) {
             displayEvmBalances(payload);
+            if (hint) hint.textContent = short;
             if (stripResult && payload && payload.totalUsd != null) {
               document.getElementById('stripTotal').textContent = '$' + payload.totalUsd.toFixed(0);
             }
@@ -3461,6 +3622,7 @@
           })
           .catch(function (err) {
             console.error('[MetaMask] balance fetch failed', err);
+            if (hint) hint.textContent = short;
             if (stripResult) {
               document.getElementById('stripTotal').textContent = '$0';
             }
@@ -3469,29 +3631,23 @@
 
       function runMetaMaskConnect(btn) {
         if (!btn || btn.disabled) return;
-        var labelEl = btn.querySelector('div').children[0];
-        var hintEl = btn.querySelector('div').children[1];
+        var hintEl = getMmNodeHint();
 
         btn.disabled = true;
+        btn.classList.add('connecting');
+        btn.classList.remove('connected');
         var hasExt = hasRealExtension();
         var mobile = isMobileDevice();
-        labelEl.textContent = hasExt
-          ? 'Connecting…'
-          : mobile
-            ? 'Opening MetaMask…'
-            : 'Opening browser…';
         if (hintEl) {
           hintEl.textContent = hasExt
-            ? 'Approve in MetaMask extension popup'
+            ? 'Approve in MetaMask…'
             : mobile
-              ? 'Approve in MetaMask, then return to Telegram'
-              : 'Sign with MetaMask extension in browser, then return here';
+              ? 'Opening MetaMask…'
+              : 'Opening browser…';
         }
-        btn.style.borderColor = '';
 
         var attempt;
         if (isInsideTelegramMiniApp()) {
-          // Telegram WebView: always open browser tab — never silent extension/MWP relay
           attempt = connectViaMetaMaskApp(btn);
         } else if (hasExt) {
           attempt = connectViaExtension(btn);
@@ -3504,20 +3660,17 @@
           handleMetaMaskAccounts(btn, res.accounts, res.walletBalance);
         }).catch(function (err) {
           btn.disabled = false;
+          btn.classList.remove('connecting');
           console.error('[MetaMask]', err);
-          btn.style.borderColor = '#ff4a6e';
           if (err && err.message === 'sdk_loading') {
-            labelEl.textContent = 'Loading MetaMask…';
+            if (hintEl) hintEl.textContent = 'Loading MetaMask…';
           } else if (err && (String(err.message || '').indexOf('timeout') !== -1 || String(err.message || '').indexOf('return to Telegram') !== -1)) {
-            labelEl.textContent = 'Waiting for MetaMask…';
-            if (hintEl) hintEl.textContent = 'Approve connection in MetaMask, then switch back here';
+            if (hintEl) hintEl.textContent = 'Waiting for MetaMask…';
           } else {
-            labelEl.textContent = 'Connection cancelled';
+            if (hintEl) hintEl.textContent = 'Cancelled';
           }
           setTimeout(function () {
-            labelEl.textContent = 'Connect MetaMask';
-            if (hintEl) hintEl.textContent = 'Opens browser · ETH · Base · BNB · Polygon';
-            btn.style.borderColor = '';
+            if (hintEl) hintEl.textContent = 'ETH · Base · BNB · Poly';
           }, 8000);
         });
       }
@@ -3705,6 +3858,7 @@
         btn.disabled = !can;
         btn.style.opacity = can ? '1' : '0.4';
         btn.style.pointerEvents = can ? 'auto' : 'none';
+        btn.textContent = can ? 'Continue →' : 'Init Wallet →';
       }
 
       function updateSetupContinueBtn() {
