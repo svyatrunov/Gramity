@@ -86,6 +86,40 @@ function resolveMetaMaskOpenUrl(link: string): string {
   return link;
 }
 
+function isPlainHttpUrl(link: string): boolean {
+  return /^https?:\/\//i.test(link);
+}
+
+function isMetaMaskDeeplinkHost(link: string): boolean {
+  return (
+    link.includes("link.metamask.io") ||
+    link.includes("metamask.app.link") ||
+    link.startsWith("metamask://") ||
+    link.startsWith("intent://")
+  );
+}
+
+/** Open dapp page in the system browser (Chrome + MetaMask extension on desktop TMA). */
+export function openExternalBrowser(link: string): void {
+  const url = link.trim();
+  if (!url) return;
+
+  // Same-origin pageUrl stays inside Telegram WebView with tg.openLink — force window.open on desktop.
+  if (isInsideTelegramMiniApp() && !isMobileDevice()) {
+    const popup = window.open(url, "_blank", "noopener,noreferrer");
+    if (popup) return;
+  }
+
+  const tg = getTelegramWebApp();
+  if (isInsideTelegramMiniApp() && tg?.openLink) {
+    tg.openLink(url);
+    return;
+  }
+
+  const popup = window.open(url, "_blank", "noopener,noreferrer");
+  if (!popup) window.location.assign(url);
+}
+
 function openMobileLink(link: string): void {
   const url = resolveMetaMaskOpenUrl(link);
   const tg = getTelegramWebApp();
@@ -96,8 +130,12 @@ function openMobileLink(link: string): void {
   window.location.assign(url);
 }
 
-/** Open MetaMask app or in-app browser from Telegram — Android intent bypasses Branch.io. */
+/** Plain https pageUrl → system browser; metamask:// / link.metamask.io → MetaMask app. */
 export function openMetaMaskLink(link: string): void {
+  if (isPlainHttpUrl(link) && !isMetaMaskDeeplinkHost(link)) {
+    openExternalBrowser(link);
+    return;
+  }
   openMobileLink(link);
 }
 

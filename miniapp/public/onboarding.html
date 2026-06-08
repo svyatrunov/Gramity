@@ -7,6 +7,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script src="https://unpkg.com/@tonconnect/ui@2/dist/tonconnect-ui.min.js"></script>
+  <script type="module" src="/app/assets/metamask-connect.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1630,9 +1631,13 @@
           <div class="wallet-strip anim-item" id="walletStripSlide1">
             <div class="wallet-strip-label">Connect to preview your balance</div>
             <div class="wallet-strip-btns">
-              <button class="wstrip-btn ton" id="btnConnectTonStrip" style="width:100%">
+              <button class="wstrip-btn ton" id="btnConnectTonStrip">
                 <span class="logo-circle"><img src="/app/logos/ton.png" alt="" class="wallet-logo-img" width="22" height="22"/></span>
                 TON Connect
+              </button>
+              <button class="wstrip-btn mm" id="btnConnectMMStrip">
+                <span class="logo-circle"><img src="/app/logos/metamask.svg" alt="" class="wallet-logo-img" width="22" height="22"/></span>
+                MetaMask
               </button>
             </div>
           </div>
@@ -1969,6 +1974,13 @@
                 <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Tonkeeper · MyTonWallet · TON Space</div>
               </div>
             </button>
+            <button class="connect-btn" id="btnConnectMM" type="button">
+              <span class="logo-circle logo-circle-lg"><img src="/app/logos/metamask.svg" alt="" class="wallet-logo-img" width="28" height="28"/></span>
+              <div style="flex:1;text-align:left">
+                <div>Connect MetaMask</div>
+                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Opens browser · ETH · Base · BNB · Polygon</div>
+              </div>
+            </button>
           </div>
 
           <div class="step2-wallet-info anim-item" id="step2WalletInfo">
@@ -2003,6 +2015,7 @@
         <div class="slide-footer">
           <div class="deposit-actions">
             <button class="btn btn-primary anim-item" id="btnTrackInBot">Track in Bot →</button>
+            <button class="btn btn-mira-ghost anim-item" id="btnOpenEvmDeposit">Deposit from EVM chains →</button>
             <button class="btn btn-mira-ghost anim-item" id="btnManageMiraDeposit">Manage with Mira →</button>
           </div>
         </div>
@@ -2396,6 +2409,8 @@
       var wiz = {
         tonAddress:      '',
         tonConnected:    false,
+        evmAddress:      null,
+        evmConnected:    false,
         usdtBalance:     0,
         demoMode:        false,
         mode:            'live',
@@ -2752,6 +2767,276 @@
       document.getElementById('btnConnectTonStrip').addEventListener('click', function () {
         goTo(WIZARD_STEP2);
         if (tonConnectUI) tonConnectUI.openModal();
+      });
+
+      document.getElementById('btnConnectMMStrip').addEventListener('click', function () {
+        goTo(WIZARD_STEP2);
+        runMetaMaskConnect(document.getElementById('btnConnectMM'));
+      });
+
+      /* MetaMask — mobile: in-app browser; desktop TMA: system browser + extension */
+      window.addEventListener('gramity-metamask-ready', function () {
+        if (window.GramityMetaMask && window.GramityMetaMask.warm) {
+          window.GramityMetaMask.warm();
+        }
+      }, { once: true });
+
+      function isMobileDevice() {
+        if (window.GramityMetaMask && window.GramityMetaMask.isMobileDevice) {
+          return window.GramityMetaMask.isMobileDevice();
+        }
+        return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+      }
+
+      function openMetaMaskUrl(url) {
+        if (window.GramityMetaMask && window.GramityMetaMask.openLink) {
+          window.GramityMetaMask.openLink(url);
+          return;
+        }
+        if (tg && tg.openLink) {
+          tg.openLink(url);
+          return;
+        }
+        window.open(url, '_blank');
+      }
+
+      function getMetaMaskSessionOpenUrl(session) {
+        if (window.GramityMetaMask && window.GramityMetaMask.resolveSessionOpenUrl) {
+          return window.GramityMetaMask.resolveSessionOpenUrl(session);
+        }
+        return isMobileDevice() ? session.metamaskUrl : session.pageUrl;
+      }
+
+      function getExtensionProvider() {
+        if (!window.ethereum) return null;
+        if (window.ethereum.providers && window.ethereum.providers.length) {
+          return window.ethereum.providers.find(function (p) {
+            return p.isMetaMask && !p.isPhantom && !p.isCoinbaseWallet;
+          }) || null;
+        }
+        if (window.ethereum.isMetaMask && !window.ethereum.isPhantom) {
+          return window.ethereum;
+        }
+        return null;
+      }
+
+      function connectViaExtension(btn) {
+        var mmProvider = getExtensionProvider();
+        if (!mmProvider) return Promise.reject(new Error('no_extension'));
+        return mmProvider.request({ method: 'eth_requestAccounts' }).then(function (accounts) {
+          return { accounts: accounts, provider: mmProvider };
+        });
+      }
+
+      function connectViaMwp(btn) {
+        if (!window.GramityMetaMask || !window.GramityMetaMask.connect) {
+          return Promise.reject(new Error('sdk_loading'));
+        }
+        return window.GramityMetaMask.connect().then(function (result) {
+          if (!result.accounts || !result.accounts.length) {
+            throw new Error('no_accounts');
+          }
+          return { accounts: result.accounts, provider: null };
+        });
+      }
+
+      function isAppBrowserTimeout(err) {
+        var msg = String(err && err.message || '');
+        return msg.indexOf('timeout') !== -1 || msg.indexOf('return to Telegram') !== -1;
+      }
+
+      function pollEvmWalletSession(token, btn, labelEl, hintEl) {
+        var attempts = 0;
+        var maxAttempts = 120;
+        var pollMs = 2500;
+
+        return new Promise(function (resolve, reject) {
+          function check() {
+            attempts++;
+            fetch('/api/evm-wallet/status?token=' + encodeURIComponent(token))
+              .then(function (r) { return r.ok ? r.json() : null; })
+              .then(function (data) {
+                if (data && data.status === 'connected' && data.evmAddress) {
+                  cleanup();
+                  resolve({
+                    accounts: [data.evmAddress],
+                    provider: null,
+                    walletBalance: data.walletBalance || null,
+                  });
+                  return;
+                }
+                if (attempts >= maxAttempts) {
+                  cleanup();
+                  reject(new Error('MetaMask connect timeout — approve in MetaMask and return to Telegram'));
+                  return;
+                }
+                if (labelEl) labelEl.textContent = 'Waiting for MetaMask…';
+                timer = setTimeout(check, pollMs);
+              })
+              .catch(function () {
+                if (attempts >= maxAttempts) {
+                  cleanup();
+                  reject(new Error('MetaMask connect timeout — approve in MetaMask and return to Telegram'));
+                  return;
+                }
+                timer = setTimeout(check, pollMs);
+              });
+          }
+
+          var timer;
+          function cleanup() {
+            if (timer) clearTimeout(timer);
+          }
+
+          check();
+        });
+      }
+
+      function connectViaMetaMaskApp(btn) {
+        var labelEl = btn.querySelector('div').children[0];
+        var hintEl = btn.querySelector('div').children[1];
+        if (labelEl && !getExtensionProvider()) {
+          labelEl.textContent = isMobileDevice() ? 'Opening MetaMask…' : 'Opening browser…';
+        }
+        if (hintEl) {
+          hintEl.textContent = isMobileDevice()
+            ? 'Approve in MetaMask, then return to Telegram'
+            : 'Sign with MetaMask extension in browser, then return here';
+        }
+
+        return fetch('/api/evm-wallet/session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Telegram-Init-Data': initData,
+          },
+        })
+          .then(function (r) {
+            if (!r.ok) return r.text().then(function (t) { throw new Error(t || String(r.status)); });
+            return r.json();
+          })
+          .then(function (session) {
+            openMetaMaskUrl(getMetaMaskSessionOpenUrl(session));
+            return pollEvmWalletSession(session.token, btn, labelEl, hintEl);
+          });
+      }
+
+      function handleMetaMaskAccounts(btn, accounts, walletBalance) {
+        if (!accounts || !accounts.length) return;
+        wiz.evmAddress = accounts[0];
+        wiz.evmConnected = true;
+
+        var short = accounts[0].slice(0, 6) + '…' + accounts[0].slice(-4);
+        btn.querySelector('div').children[0].textContent = 'Connected: ' + short;
+        btn.style.borderColor = 'rgba(230,119,30,0.5)';
+
+        var stripResult = document.getElementById('stripBalanceResult');
+        if (stripResult) {
+          document.getElementById('stripAddr').textContent = short;
+          var totalUsd = walletBalance && walletBalance.totalUsd != null ? walletBalance.totalUsd : 0;
+          document.getElementById('stripTotal').textContent = '$' + totalUsd.toFixed(0);
+          stripResult.style.display = 'block';
+        }
+      }
+
+      function runMetaMaskConnect(btn) {
+        if (!btn || btn.disabled) return;
+        var labelEl = btn.querySelector('div').children[0];
+        var hintEl = btn.querySelector('div').children[1];
+
+        btn.disabled = true;
+        var hasExt = !!getExtensionProvider();
+        var mobile = isMobileDevice();
+        labelEl.textContent = hasExt
+          ? 'Connecting…'
+          : mobile
+            ? 'Opening MetaMask…'
+            : 'Opening browser…';
+        if (hintEl) {
+          hintEl.textContent = hasExt
+            ? 'Approve in MetaMask extension popup'
+            : mobile
+              ? 'Approve in MetaMask, then return to Telegram'
+              : 'Sign with MetaMask extension in browser, then return here';
+        }
+        btn.style.borderColor = '';
+
+        var attempt;
+        if (hasExt) {
+          attempt = connectViaExtension(btn);
+        } else if (mobile) {
+          attempt = connectViaMetaMaskApp(btn).catch(function (err) {
+            if (isAppBrowserTimeout(err) && window.GramityMetaMask && window.GramityMetaMask.connect) {
+              console.warn('[MetaMask] App browser failed, falling back to extension relay');
+              return connectViaMwp(btn);
+            }
+            throw err;
+          });
+        } else {
+          attempt = connectViaMetaMaskApp(btn);
+        }
+
+        attempt.then(function (res) {
+          btn.disabled = false;
+          handleMetaMaskAccounts(btn, res.accounts, res.walletBalance);
+        }).catch(function (err) {
+          btn.disabled = false;
+          console.error('[MetaMask]', err);
+          btn.style.borderColor = '#ff4a6e';
+          if (err && err.message === 'sdk_loading') {
+            labelEl.textContent = 'Loading MetaMask…';
+          } else if (err && (String(err.message || '').indexOf('timeout') !== -1 || String(err.message || '').indexOf('return to Telegram') !== -1)) {
+            labelEl.textContent = 'Waiting for MetaMask…';
+            if (hintEl) hintEl.textContent = 'Approve connection in MetaMask, then switch back here';
+          } else {
+            labelEl.textContent = 'Connection cancelled';
+          }
+          setTimeout(function () {
+            labelEl.textContent = 'Connect MetaMask';
+            if (hintEl) hintEl.textContent = 'Opens browser · ETH · Base · BNB · Polygon';
+            btn.style.borderColor = '';
+          }, 8000);
+        });
+      }
+
+      document.getElementById('btnConnectMM').addEventListener('click', function () {
+        runMetaMaskConnect(this);
+      });
+
+      function openCrossChainDeposit(btn) {
+        if (!assertAuth()) return;
+        var label = btn ? btn.textContent : '';
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = 'Opening browser…';
+        }
+        fetch('/api/evm-deposit/session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Telegram-Init-Data': initData,
+          },
+        })
+          .then(function (r) {
+            if (!r.ok) return r.text().then(function (t) { throw new Error(t || String(r.status)); });
+            return r.json();
+          })
+          .then(function (session) {
+            openMetaMaskUrl(getMetaMaskSessionOpenUrl(session));
+          })
+          .catch(function (err) {
+            console.error('[EVM deposit]', err);
+          })
+          .finally(function () {
+            if (btn) {
+              btn.disabled = false;
+              btn.textContent = label || 'Deposit from EVM chains →';
+            }
+          });
+      }
+
+      document.getElementById('btnOpenEvmDeposit').addEventListener('click', function () {
+        openCrossChainDeposit(this);
       });
 
       /* ══════════════════════════════════════════════════════

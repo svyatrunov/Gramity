@@ -39,6 +39,7 @@ import {
 import {
   getBrowserExtensionProvider,
   openMetaMaskLink,
+  openExternalBrowser,
   resolveMetaMaskSessionOpenUrl,
 } from "../lib/metamaskConnect";
 
@@ -440,7 +441,12 @@ export function DepositScreen({
       const session = await api.createEvmDepositSession();
       activeSessionToken.current = session.token;
       startSessionPolling(session.token);
-      openMetaMaskLink(resolveMetaMaskSessionOpenUrl(session));
+      const openUrl = resolveMetaMaskSessionOpenUrl(session);
+      if (openUrl.startsWith("http") && !openUrl.includes("link.metamask.io")) {
+        openExternalBrowser(openUrl);
+      } else {
+        openMetaMaskLink(openUrl);
+      }
       setSessionPollStatus("pending");
     } catch (e: unknown) {
       setConnectErr(parseWalletError(e));

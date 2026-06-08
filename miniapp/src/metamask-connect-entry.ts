@@ -5,6 +5,8 @@ import {
   isMobileDevice,
   isInsideTelegramMiniApp,
   openMetaMaskLink,
+  openExternalBrowser,
+  resolveMetaMaskSessionOpenUrl,
 } from "./lib/metamaskConnect";
 
 declare global {
@@ -16,6 +18,8 @@ declare global {
       isMobileDevice: typeof isMobileDevice;
       isInsideTelegramMiniApp: typeof isInsideTelegramMiniApp;
       openLink: typeof openMetaMaskLink;
+      openExternalBrowser: typeof openExternalBrowser;
+      resolveSessionOpenUrl: typeof resolveMetaMaskSessionOpenUrl;
     };
   }
 }
@@ -27,6 +31,8 @@ window.GramityMetaMask = {
   isMobileDevice,
   isInsideTelegramMiniApp,
   openLink: openMetaMaskLink,
+  openExternalBrowser,
+  resolveSessionOpenUrl: resolveMetaMaskSessionOpenUrl,
 };
 
 window.dispatchEvent(new Event("gramity-metamask-ready"));
