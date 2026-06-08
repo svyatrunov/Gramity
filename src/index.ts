@@ -65,6 +65,29 @@ app.get(["/", "/health"], (_req, res) => {
   res.json({ status: "ok", service: "gramity", ts: Date.now() });
 });
 
+// Latest mainnet swap tx for judges / README (redirects to tonviewer when available)
+app.get("/api/example-tx", async (_req, res) => {
+  try {
+    const { getPool } = await import("./db/index.js");
+    const result = await getPool().query(
+      `SELECT tx_swap FROM executions
+       WHERE tx_swap IS NOT NULL AND status = 'success'
+       ORDER BY executed_at DESC LIMIT 1`
+    );
+    const hash = result.rows[0]?.tx_swap as string | undefined;
+    if (hash) {
+      res.redirect(302, `https://tonviewer.com/transaction/${hash}`);
+      return;
+    }
+    res.json({
+      hash: null,
+      message: "No mainnet swap yet. Fund agent wallet and run /test in @GramityBot.",
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 // ─── Mini App REST API ─────────────────────────────────────────────────────────
 
 /** Validate Telegram WebApp initData and return telegram_id */
@@ -389,7 +412,10 @@ app.post("/api/plans", tgAuth, async (req, res) => {
       max_cycles:        isDemoMode ? 2 : null,
     });
 
-    await createUserWallet(telegramId);
+    const depositAddress = await createUserWallet(telegramId);
+
+    const { startDepositPoller } = await import("./bot/depositPoller.js");
+    startDepositPoller(telegramId, depositAddress);
 
     const FREQ_LABELS: Record<string, string> = {
       daily: "daily", weekly: "weekly", biweekly: "every 2 weeks",
@@ -402,6 +428,10 @@ app.post("/api/plans", tgAuth, async (req, res) => {
     };
 
     const { bot } = await import("./bot/index.js");
+    const { InlineKeyboard } = await import("grammy");
+    const { RAILWAY_PUBLIC_URL } = await import("./config.js");
+    const depositUrl = `${RAILWAY_PUBLIC_URL}/app/deposit.html?wallet=${encodeURIComponent(depositAddress)}`;
+    const depositKb = new InlineKeyboard().webApp("💰 Deposit USDT", depositUrl);
 
     if (isDemoMode) {
       await bot.api.sendMessage(
@@ -410,8 +440,9 @@ app.post("/api/plans", tgAuth, async (req, res) => {
           `2 cycles × $${amount.toFixed(0)} USDT\n` +
           `Interval: 5 seconds\n` +
           `Withdrawal: \`${String(ton_address).slice(0, 8)}…${String(ton_address).slice(-6)}\`\n\n` +
+          `*Fund agent wallet (USDT on TON):*\n\`${depositAddress}\`\n\n` +
           `Starting in 5 seconds...`,
-        { parse_mode: "Markdown" }
+        { parse_mode: "Markdown", reply_markup: depositKb }
       );
     } else {
       await bot.api.sendMessage(
@@ -422,9 +453,10 @@ app.post("/api/plans", tgAuth, async (req, res) => {
           `Frequency: ${FREQ_LABELS[normalizedFreq] ?? normalizedFreq}\n` +
           `Est. APY: ~5.4%\n` +
           `Withdrawal: \`${String(ton_address).slice(0, 8)}…${String(ton_address).slice(-6)}\`\n\n` +
-          `First cycle will run within 24 hours.\n\n` +
-          `/status — check your position anytime`,
-        { parse_mode: "Markdown" }
+          `*Fund agent wallet (USDT on TON):*\n\`${depositAddress}\`\n\n` +
+          `First cycle runs after deposit (within 24h).\n\n` +
+          `/status — check position · Mira — manage via AI`,
+        { parse_mode: "Markdown", reply_markup: depositKb }
       );
     }
 
@@ -437,6 +469,8 @@ app.post("/api/plans", tgAuth, async (req, res) => {
     res.json({
       ok: true,
       message: isDemoMode ? "Demo strategy created" : "Strategy created successfully",
+      deposit_address: depositAddress,
+      deposit_url: depositUrl,
       ...(economics_hint ? { economics_hint } : {}),
     });
   } catch (err) {

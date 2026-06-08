@@ -22,13 +22,6 @@ export const metamaskIcon: CustomWalletIcon = {
   viewBox: "0 0 24 24",
 };
 
-/** Phantom — официальный пурпурный логотип */
-export const phantomIcon: CustomWalletIcon = {
-  title: "Phantom",
-  hex: "AB9FF2",
-  path: "M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm.5 5.5a4.5 4.5 0 0 1 4.47 4H18a1 1 0 0 1 0 2h-1.5v.5a4.5 4.5 0 0 1-9 0v-.5H6a1 1 0 0 1 0-2h1.03A4.5 4.5 0 0 1 12.5 7.5zm0 2a2.5 2.5 0 0 0-2.45 2h4.9a2.5 2.5 0 0 0-2.45-2zm0 4.5H10v.5a2.5 2.5 0 0 0 5 0V14h-2.5z",
-};
-
 export function WalletIcon({ icon, size = 24, color }: WalletIconProps) {
   const fill = color ?? `#${icon.hex}`;
   const viewBox = (icon as CustomWalletIcon).viewBox ?? "0 0 24 24";

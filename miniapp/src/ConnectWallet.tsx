@@ -1,6 +1,8 @@
-import { TonConnectButton, useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
+import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
 import { useEffect } from "react";
 import { GramGravityLogo } from "./GramGravityLogo";
+
+const TON_WALLET_LOGO = "/app/logos/ton.png";
 
 declare global {
   interface Window {
@@ -55,9 +57,6 @@ export function ConnectWallet() {
     }
   }, [wallet]);
 
-  // Suppress unused variable warning
-  void tonConnectUI;
-
   return (
     <div
       style={{
@@ -102,7 +101,32 @@ export function ConnectWallet() {
             gap: 16,
           }}
         >
-          <TonConnectButton />
+          <button
+            type="button"
+            onClick={() => tonConnectUI.openModal()}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "14px 20px",
+              borderRadius: 14,
+              border: "1px solid rgba(0, 152, 234, 0.35)",
+              background: "rgba(0, 152, 234, 0.1)",
+              color: "var(--text, #fff)",
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            <img
+              src={TON_WALLET_LOGO}
+              alt=""
+              width={32}
+              height={32}
+              style={{ borderRadius: "50%", display: "block" }}
+            />
+            Connect TON Wallet
+          </button>
           <p
             style={{
               color: "var(--hint, #8B8B9B)",

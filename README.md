@@ -1,6 +1,11 @@
 # Gramity — Agentic DCA Wallet on TON
 
+> Built for **STON.fi Vibe Coding Hackathon Cohort 2**  
+> Track: **STON.fi** (Omniston v1beta8) + **Mira AI**  
+> Live: [https://gramity-production.up.railway.app](https://gramity-production.up.railway.app)
+
 [![Live on Mainnet](https://img.shields.io/badge/TON-Mainnet-blue)]()
+[![Omniston SDK](https://img.shields.io/badge/Omniston-v1beta8-blue)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-green)]()
 [![STON.fi](https://img.shields.io/badge/Powered%20by-STON.fi-purple)]()
 
@@ -35,6 +40,26 @@ Manually executing DCA into LP positions requires:
 
 ---
 
+## Mira AI Integration
+
+Gramity exposes an MCP server for conversational control after Mini App onboarding.
+
+- **MCP manifest:** [/.well-known/mcp.json](https://gramity-production.up.railway.app/.well-known/mcp.json)
+- **Endpoint:** `POST /mcp` — tools: `get_portfolio`, `create_strategy`, `pause_strategy`
+- **Handoff:** Mini App → `POST /api/mira/create-context` → `@Mira` deeplink with portfolio context
+
+**Example dialog:**
+
+```
+User: "How's my Gramity DCA doing?"
+Mira: [calls get_portfolio] "2 cycles complete. $14 invested. +0.8%"
+
+User: "Increase to $25/week"
+Mira: [calls create_strategy] "Done. Next cycle uses $25."
+```
+
+---
+
 ## Onboarding — Step 1
 
 <img src="docs/screenshots/onboarding-step1.png" alt="Gramity Onboarding Step 1" width="380" />
@@ -44,8 +69,9 @@ Manually executing DCA into LP positions requires:
 ## Key Differentiators
 
 - **Mainnet only** — real transactions, verifiable on tonviewer  
-  [Example transaction →](https://tonviewer.com/)
-- **No mocks** — full Omniston SDK v0.8.3 with RFQ WebSocket, swapTrack, EIP-712, HTLC cross-chain settlement
+  Run `/test` in [@GramityBot](https://t.me/GramityBot) — each cycle posts swap/stake/LP links.  
+  Latest example: [tonviewer.com/transaction/…](https://gramity-production.up.railway.app/api/example-tx) (redirects when available)
+- **No mocks** — full Omniston SDK v0.8.3 (v1beta8) with RFQ WebSocket, swapTrack, EIP-712, HTLC cross-chain settlement
 - **Agentic wallet architecture** — per-user isolated wallets, AES-256-GCM encrypted mnemonics, withdrawal address locked at setup.  
   Reference: [https://docs.ton.org/overview/ai/wallets](https://docs.ton.org/overview/ai/wallets)
 
@@ -85,11 +111,12 @@ Manually executing DCA into LP positions requires:
 | Runtime | Node.js |
 | Database | PostgreSQL |
 | Hosting | Railway |
-| Cross-chain | Omniston SDK v0.8.3 |
+| Cross-chain | Omniston SDK v0.8.3 (v1beta8) |
 | DEX | STON.fi SDK v2 |
 | Staking | Tonstakers SDK |
 | EVM | ethers.js v6 |
 | Frontend | Telegram Mini App |
+| AI control | Mira MCP integration |
 
 ---
 

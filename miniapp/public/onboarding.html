@@ -226,7 +226,7 @@
     .hero-tagline  { font-size: 13px; color: rgba(74,138,255,0.7); margin-top: -4px; }
 
     /* ── Cards ── */
-    .cards { display: flex; flex-direction: column; gap: 10px; }
+    .cards { display: flex; flex-direction: column; gap: 18px; }
 
     .card {
       display: flex;
@@ -302,7 +302,7 @@
     }
 
     .card-body h3 { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
-    .card-body p  { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+    .card-body p  { font-size: 12px; color: var(--text-secondary); line-height: 1.68; }
 
     /* ── Protocol logos (inline SVG) ── */
     .logo-svg { display: block; }
@@ -406,7 +406,19 @@
 
     .flow-node-text { display: flex; flex-direction: column; gap: 1px; }
     .flow-node-text strong { font-size: 14px; font-weight: 600; }
-    .flow-node-text span   { font-size: 11px; color: var(--text-secondary); }
+    .flow-node-text span   { font-size: 11px; color: var(--text-secondary); line-height: 1.68; }
+
+    .badge-ston {
+      display: inline-block;
+      border: 1px solid #8b5cf6;
+      color: #8b5cf6;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      margin-top: 4px;
+      width: fit-content;
+    }
 
     .flow-connector {
       width: 2px;
@@ -501,7 +513,54 @@
       font-weight: 500;
     }
 
-    .bridge-caption { text-align: center; font-size: 13px; color: var(--text-secondary); }
+    .bridge-caption { text-align: center; font-size: 13px; color: var(--text-secondary); line-height: 1.68; }
+
+    .fund-simple-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 16px 0 8px;
+    }
+    .fund-simple-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 14px 10px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(74,138,255,0.2);
+      border-radius: var(--radius);
+      flex: 1;
+      max-width: 100px;
+      text-align: center;
+    }
+    .fund-simple-node strong { font-size: 12px; font-weight: 600; }
+    .fund-simple-node span   { font-size: 10px; color: var(--text-secondary); line-height: 1.68; }
+    .fund-simple-arrow { color: var(--accent); font-size: 18px; font-weight: 700; flex-shrink: 0; }
+
+    .mira-section { width: 100%; max-width: 320px; margin-top: 14px; text-align: center; }
+    .mira-divider {
+      display: flex; align-items: center; gap: 10px;
+      color: var(--text-secondary); font-size: 12px; margin-bottom: 12px;
+    }
+    .mira-divider::before, .mira-divider::after {
+      content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.12);
+    }
+    .mira-section-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .mira-section-desc  { font-size: 11px; color: var(--text-secondary); line-height: 1.68; margin-bottom: 10px; }
+
+    .deposit-success-card {
+      width: 100%; max-width: 320px; margin-top: 12px; padding: 14px;
+      background: rgba(74,255,140,0.08); border: 1px solid rgba(74,255,140,0.25);
+      border-radius: var(--radius); text-align: left;
+    }
+    .deposit-success-header { font-size: 14px; font-weight: 700; color: var(--green); margin-bottom: 6px; }
+    .deposit-success-hint   { font-size: 11px; color: var(--text-secondary); line-height: 1.68; margin-bottom: 8px; }
+    .deposit-addr {
+      display: block; font-size: 11px; color: var(--accent); word-break: break-all;
+      background: rgba(0,0,0,0.25); padding: 8px; border-radius: 8px;
+    }
 
     /* ── Fund from anywhere — animated flow diagram ── */
     .fund-diagram { width: 100%; margin: 8px auto 4px; }
@@ -1123,19 +1182,17 @@
       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
       animation: shimmer-btn 3.5s ease-in-out infinite;
     }
-    .btn-mira {
-      background: rgba(255, 255, 255, 0.06);
+    .btn-mira-ghost {
+      background: transparent;
       color: var(--text-primary);
-      border: 1px solid var(--border);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       padding: 14px 28px;
       width: 100%;
       max-width: 320px;
       font-size: 15px;
       font-weight: 600;
-      margin-top: 10px;
-      display: none;
     }
-    .btn-mira.visible { display: block; }
+    .btn-mira-ghost:disabled { opacity: 0.45; cursor: not-allowed; }
     .btn-create-dca.success {
       background: rgba(74, 255, 140, 0.15);
       color: var(--green);
@@ -1227,9 +1284,11 @@
   <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
     <defs>
       <!-- Circular raster logos (clip + slice like Tonstakers) -->
-      <symbol id="logo-ton" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="12" fill="#0098EA"/>
-        <path fill-rule="evenodd" clip-rule="evenodd" d="M12.554 3.663L4.704 19.337H11.16L12.554 16.125L13.948 19.337H20.404L12.554 3.663Z" fill="white"/>
+      <symbol id="logo-ton" viewBox="0 0 40 40">
+        <clipPath id="cp-ton"><circle cx="20" cy="20" r="20"/></clipPath>
+        <g clip-path="url(#cp-ton)">
+          <image href="/app/logos/ton.png" x="0" y="0" width="40" height="40" preserveAspectRatio="xMidYMid slice"/>
+        </g>
       </symbol>
 
       <symbol id="logo-ston" viewBox="0 0 40 40">
@@ -1265,13 +1324,6 @@
         <clipPath id="cp-mm"><circle cx="17.5" cy="17" r="17"/></clipPath>
         <g clip-path="url(#cp-mm)">
           <image href="/app/logos/metamask.svg" width="35" height="34" preserveAspectRatio="xMidYMid slice"/>
-        </g>
-      </symbol>
-
-      <symbol id="logo-phantom" viewBox="0 0 512 512">
-        <clipPath id="cp-ph"><circle cx="256" cy="256" r="256"/></clipPath>
-        <g clip-path="url(#cp-ph)">
-          <image href="/app/logos/phantom.svg" width="512" height="512" preserveAspectRatio="xMidYMid slice"/>
         </g>
       </symbol>
 
@@ -1351,7 +1403,7 @@
             </div>
             <h1 class="hero-title anim-item">Gramity</h1>
             <p class="hero-subtitle anim-item">Your money works while you sleep</p>
-            <p class="hero-tagline anim-item">~5.4% APY · non-custodial · 0% platform fee</p>
+            <p class="hero-tagline anim-item">STON.fi Hackathon · Omniston v1beta8 · ~5.4% APY</p>
           </div>
         </div>
         <div class="slide-footer">
@@ -1399,16 +1451,12 @@
             <div class="wallet-strip-label">Connect to preview your balance</div>
             <div class="wallet-strip-btns">
               <button class="wstrip-btn ton" id="btnConnectTonStrip">
-                <span class="logo-circle"><svg width="22" height="22"><use href="#logo-ton"/></svg></span>
+                <span class="logo-circle"><img src="/app/logos/ton.png" alt="" class="wallet-logo-img" width="22" height="22"/></span>
                 TON Connect
               </button>
               <button class="wstrip-btn mm" id="btnConnectMMStrip">
                 <span class="logo-circle"><img src="/app/logos/metamask.svg" alt="" class="wallet-logo-img" width="22" height="22"/></span>
                 MetaMask
-              </button>
-              <button class="wstrip-btn coming" title="Coming soon">
-                <span class="logo-circle"><img src="/app/logos/phantom.svg" alt="" class="wallet-logo-img" width="22" height="22"/></span>
-                Phantom
               </button>
             </div>
           </div>
@@ -1447,6 +1495,7 @@
               <div class="flow-node-text">
                 <strong>Omniston</strong>
                 <span>Best-rate DEX swap</span>
+                <span style="font-size:10px;color:#4a8aff;opacity:.7">Omniston SDK v1beta8 · cross-chain RFQ</span>
               </div>
             </div>
             <div class="flow-connector anim-item"><svg viewBox="0 0 2 26"><line class="flow-line" x1="1" y1="0" x2="1" y2="26"/><circle class="flow-dot flow-dot-2" cx="1" cy="0" r="2"/></svg></div>
@@ -1465,6 +1514,7 @@
               <div class="flow-node-text">
                 <strong>STON.fi</strong>
                 <span>DEX v2 LP position</span>
+                <span class="badge-ston">Powered by STON.fi v2</span>
               </div>
             </div>
             <div class="flow-connector anim-item"><svg viewBox="0 0 2 26"><line class="flow-line" x1="1" y1="0" x2="1" y2="26"/><circle class="flow-dot flow-dot-4" cx="1" cy="0" r="2"/></svg></div>
@@ -1491,92 +1541,29 @@
         <div class="slide-content">
           <h2 class="slide-heading anim-item">Fund from anywhere</h2>
 
-          <div class="fund-diagram anim-item">
-            <svg viewBox="0 0 310 232" class="fund-svg" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <clipPath id="cp-eth">  <circle cx="40" cy="40"  r="22"/></clipPath>
-                <clipPath id="cp-base"> <circle cx="40" cy="90"  r="22"/></clipPath>
-                <clipPath id="cp-bnb">  <circle cx="40" cy="140" r="22"/></clipPath>
-                <clipPath id="cp-poly"> <circle cx="40" cy="190" r="22"/></clipPath>
-                <clipPath id="cp-omni"> <circle cx="168" cy="115" r="27"/></clipPath>
-                <clipPath id="cp-ton">  <circle cx="278" cy="115" r="23"/></clipPath>
-                <!-- Glow filters -->
-                <filter id="glow-blue" x="-30%" y="-30%" width="160%" height="160%">
-                  <feGaussianBlur stdDeviation="3" result="blur"/>
-                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                </filter>
-              </defs>
-
-              <!-- ── Animated flow paths ──────────────────────── -->
-              <!-- ETH → Omniston -->
-              <path class="fp fp1"
-                    d="M62,40 C120,40 138,115 143,115"
-                    stroke="#627EEA" stroke-width="1.5" fill="none"
-                    stroke-dasharray="115" stroke-dashoffset="115"/>
-              <!-- Base → Omniston -->
-              <path class="fp fp2"
-                    d="M62,90 C108,90 132,115 143,115"
-                    stroke="#0052FF" stroke-width="1.5" fill="none"
-                    stroke-dasharray="90" stroke-dashoffset="90"/>
-              <!-- BNB → Omniston -->
-              <path class="fp fp3"
-                    d="M62,140 C108,140 132,115 143,115"
-                    stroke="#F0B90B" stroke-width="1.5" fill="none"
-                    stroke-dasharray="90" stroke-dashoffset="90"/>
-              <!-- Polygon → Omniston -->
-              <path class="fp fp4"
-                    d="M62,190 C120,190 138,115 143,115"
-                    stroke="#8247E5" stroke-width="1.5" fill="none"
-                    stroke-dasharray="115" stroke-dashoffset="115"/>
-              <!-- Omniston → Your DCA wallet -->
-              <path class="fp fp-out"
-                    d="M195,115 L255,115"
-                    stroke="#0098EA" stroke-width="2.2" fill="none"
-                    stroke-dasharray="63" stroke-dashoffset="63"
-                    filter="url(#glow-blue)"/>
-
-              <!-- ── Static base lines (dim) ──────────────────── -->
-              <path d="M62,40 C120,40 138,115 143,115"   stroke="#627EEA" stroke-width="0.4" fill="none" opacity="0.18"/>
-              <path d="M62,90 C108,90 132,115 143,115"   stroke="#0052FF" stroke-width="0.4" fill="none" opacity="0.18"/>
-              <path d="M62,140 C108,140 132,115 143,115" stroke="#F0B90B" stroke-width="0.4" fill="none" opacity="0.18"/>
-              <path d="M62,190 C120,190 138,115 143,115" stroke="#8247E5" stroke-width="0.4" fill="none" opacity="0.18"/>
-              <path d="M195,115 L255,115"                stroke="#0098EA" stroke-width="0.6" fill="none" opacity="0.25"/>
-
-              <!-- ── Chain circles ─────────────────────────────── -->
-              <!-- Ethereum -->
-              <circle cx="40" cy="40" r="22" fill="#12122a" stroke="#627EEA" stroke-width="1.2" stroke-opacity="0.7"/>
-              <image href="/app/logos/eth.png"     x="18" y="18"  width="44" height="44" clip-path="url(#cp-eth)"  preserveAspectRatio="xMidYMid slice"/>
-              <text x="40" y="75"  text-anchor="middle" font-size="9.5" fill="#999" font-family="system-ui,sans-serif">ETH</text>
-
-              <!-- Base -->
-              <circle cx="40" cy="90" r="22" fill="#001233" stroke="#0052FF" stroke-width="1.2" stroke-opacity="0.7"/>
-              <image href="/app/logos/base.png"    x="18" y="68"  width="44" height="44" clip-path="url(#cp-base)" preserveAspectRatio="xMidYMid slice"/>
-              <text x="40" y="125" text-anchor="middle" font-size="9.5" fill="#999" font-family="system-ui,sans-serif">Base</text>
-
-              <!-- BNB -->
-              <circle cx="40" cy="140" r="22" fill="#161000" stroke="#F0B90B" stroke-width="1.2" stroke-opacity="0.7"/>
-              <image href="/app/logos/bnb.png"     x="18" y="118" width="44" height="44" clip-path="url(#cp-bnb)"  preserveAspectRatio="xMidYMid slice"/>
-              <text x="40" y="175" text-anchor="middle" font-size="9.5" fill="#999" font-family="system-ui,sans-serif">BNB</text>
-
-              <!-- Polygon -->
-              <circle cx="40" cy="190" r="22" fill="#0e061e" stroke="#8247E5" stroke-width="1.2" stroke-opacity="0.7"/>
-              <image href="/app/logos/polygon.png" x="18" y="168" width="44" height="44" clip-path="url(#cp-poly)" preserveAspectRatio="xMidYMid slice"/>
-              <text x="40" y="225" text-anchor="middle" font-size="9.5" fill="#999" font-family="system-ui,sans-serif">Polygon</text>
-
-              <!-- ── Omniston hub ────────────────────────────── -->
-              <circle cx="168" cy="115" r="27" fill="#0d1320" stroke="#4A8AFF" stroke-width="1.8"/>
-              <image href="/app/logos/ston.png" x="141" y="88" width="54" height="54" clip-path="url(#cp-omni)" preserveAspectRatio="xMidYMid slice"/>
-              <text x="168" y="156" text-anchor="middle" font-size="9.5" fill="#4A8AFF" font-family="system-ui,sans-serif" font-weight="600">Omniston</text>
-
-              <!-- ── Your DCA Agentic wallet ─────────────────── -->
-              <circle cx="278" cy="115" r="23" fill="#051520" stroke="#0098EA" stroke-width="1.8"/>
-              <image href="/app/logos/ton.png" x="255" y="92" width="46" height="46" clip-path="url(#cp-ton)" preserveAspectRatio="xMidYMid slice"/>
-              <text x="278" y="151" text-anchor="middle" font-size="8.5" fill="#0098EA" font-family="system-ui,sans-serif" font-weight="700">Your DCA</text>
-              <text x="278" y="163" text-anchor="middle" font-size="8"   fill="#6aabcc" font-family="system-ui,sans-serif">agentic wallet</text>
-            </svg>
+          <div class="fund-simple anim-item">
+            <div class="fund-simple-row">
+              <div class="fund-simple-node">
+                <img src="/app/logos/metamask.svg" width="32" height="32" alt="MetaMask" class="wallet-logo-img"/>
+                <strong>MetaMask</strong>
+                <span>EVM USDT</span>
+              </div>
+              <div class="fund-simple-arrow">→</div>
+              <div class="fund-simple-node">
+                <svg width="32" height="32"><use href="#logo-omniston"/></svg>
+                <strong>Omniston</strong>
+                <span>HTLC bridge</span>
+              </div>
+              <div class="fund-simple-arrow">→</div>
+              <div class="fund-simple-node">
+                <svg width="32" height="32"><use href="#logo-ton"/></svg>
+                <strong>TON</strong>
+                <span>Agentic wallet</span>
+              </div>
+            </div>
           </div>
 
-          <p class="bridge-caption anim-item">USDT on any chain · bridged via Omniston · auto-invested</p>
+          <p class="bridge-caption anim-item">ETH · Base · BNB · Polygon USDT via Omniston cross-chain RFQ</p>
         </div>
         <div class="slide-footer">
           <div class="dots dots-clone"></div>
@@ -1606,6 +1593,10 @@
           <p class="stat-footnote anim-item">*Gas only + ~0.1% DEX routing fee<br>LP tokens go <strong style="color:#fff">directly to your wallet</strong> — Gramity never holds them</p>
 
           <div class="partners">
+            <div class="partner-badge anim-item">
+              <span class="partner-icon"><img src="/app/logos/omniston.png" width="28" height="28" alt="Omniston"/></span>
+              Omniston
+            </div>
             <div class="partner-badge anim-item">
               <span class="partner-icon"><img src="/app/logos/ton.png" width="28" height="28" alt="TON"/></span>
               TON
@@ -1684,7 +1675,7 @@
           <div class="connect-section anim-item">
             <!-- TonConnect primary -->
             <button class="connect-btn primary-ton" id="btnConnectTon">
-              <span class="logo-circle logo-circle-lg"><svg width="28" height="28"><use href="#logo-ton"/></svg></span>
+              <span class="logo-circle logo-circle-lg"><img src="/app/logos/ton.png" alt="" class="wallet-logo-img" width="28" height="28"/></span>
               <div style="flex:1;text-align:left">
                 <div>Connect TON Wallet</div>
                 <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">TonConnect · Tonkeeper · TON Space</div>
@@ -1699,16 +1690,6 @@
                 <div>Connect MetaMask</div>
                 <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Opens MetaMask app · ETH · Base · BNB · Polygon</div>
               </div>
-            </button>
-
-            <!-- Phantom coming soon -->
-            <button class="connect-btn disabled">
-              <span class="logo-circle logo-circle-lg"><img src="/app/logos/phantom.svg" alt="" class="wallet-logo-img" width="28" height="28"/></span>
-              <div style="flex:1;text-align:left">
-                <div>Phantom</div>
-                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Solana deposits</div>
-              </div>
-              <span class="connect-btn-badge badge-soon">Coming soon</span>
             </button>
           </div>
 
@@ -1770,10 +1751,10 @@
 
           <!-- Insufficient USDT card (connected wallet, &lt; $10) -->
           <div class="dca-low-balance-card anim-item" id="dcaLowBalanceCard">
-            <span><strong>Нужно минимум $10 USDT</strong> на кошельке для реального DCA</span>
+            <span><strong>Minimum $10 USDT</strong> on wallet required for live DCA</span>
             <div class="connect-hint-btns">
-              <button class="hint-connect-btn" id="btnTryDemo5">Попробовать demo ($5)</button>
-              <button class="hint-connect-btn" id="btnContinueDemo">Продолжить в demo</button>
+              <button class="hint-connect-btn" id="btnTryDemo5">Try demo ($5)</button>
+              <button class="hint-connect-btn" id="btnContinueDemo">Continue in demo</button>
             </div>
           </div>
 
@@ -1829,20 +1810,6 @@
             </div>
           </div>
 
-          <!-- Connect-wallet hint (non-blocking, visible in demo mode) -->
-          <div class="connect-hint-card anim-item" id="connectHintCard">
-            <span>💡 Connect wallet to see your real balance</span>
-            <div class="connect-hint-btns">
-              <button class="hint-connect-btn" id="hintConnectTon">
-                <span class="logo-circle"><svg width="18" height="18"><use href="#logo-ton"/></svg></span>
-                TON Wallet
-              </button>
-              <button class="hint-connect-btn" id="hintConnectMM">
-                <span class="logo-circle"><img src="/app/logos/metamask.svg" alt="" class="wallet-logo-img" width="18" height="18"/></span>
-                MetaMask
-              </button>
-            </div>
-          </div>
         </div>
         <div class="slide-footer">
           <button class="btn btn-primary anim-item" id="btnWizardNext7">Continue →</button>
@@ -1895,13 +1862,6 @@
               <div class="token-apy">50/50 split</div>
             </div>
 
-            <!-- More (coming soon) -->
-            <div class="token-card anim-item locked" data-token="more">
-              <div class="coming-soon-badge">Coming soon</div>
-              <div class="token-logo" style="font-size:22px;line-height:32px">＋</div>
-              <div class="token-name">More...</div>
-              <div class="token-apy">DOGS, NOT...</div>
-            </div>
           </div>
 
           <!-- Agent pipeline explainer -->
@@ -2105,9 +2065,23 @@
           <button class="btn btn-create-dca anim-item" id="btnCreateDCA">
             ✦ Create DCA Strategy
           </button>
-          <button class="btn btn-mira anim-item" id="btnManageMira">
-            💬 Управлять через MIRA
-          </button>
+
+          <div id="depositSuccessCard" class="deposit-success-card anim-item" style="display:none">
+            <div class="deposit-success-header">✓ Strategy created — fund to start</div>
+            <p class="deposit-success-hint">Send USDT on TON to your agent wallet. First cycle runs after deposit.</p>
+            <code id="depositAddrDisplay" class="deposit-addr"></code>
+            <button class="btn btn-primary anim-item" id="btnOpenDeposit" style="margin-top:10px;width:100%">💰 Deposit USDT</button>
+          </div>
+
+          <div class="mira-section anim-item">
+            <div class="mira-divider"><span>or</span></div>
+            <p class="mira-section-title">🤖 Manage via AI conversation</p>
+            <p class="mira-section-desc">After setup, control your DCA through @Mira — portfolio, pause, update amount.</p>
+            <button class="btn btn-mira-ghost anim-item" id="btnManageMira" disabled title="Create your strategy first">
+              Continue with Mira →
+            </button>
+          </div>
+
           <p class="cta-meta anim-item" id="ctaMeta">~2 min setup · non-custodial · 0% platform fee</p>
         </div>
       </section>
@@ -2454,13 +2428,19 @@
         console.warn('[TonConnect] Init failed:', e);
       }
 
+      var TON_WALLET_LOGO = '/app/logos/ton.png';
+
+      function tonWalletLogoImg(size) {
+        return '<img src="' + TON_WALLET_LOGO + '" alt="" class="wallet-logo-img" width="' + size + '" height="' + size + '"/>';
+      }
+
       function updateTonConnectBtn(addr) {
         var btn = document.getElementById('btnConnectTon');
         if (!btn) return;
         if (addr) {
           var short = addr.slice(0, 6) + '…' + addr.slice(-4);
           btn.innerHTML =
-            '<svg width="28" height="28"><use href="#logo-ton"/></svg>' +
+            tonWalletLogoImg(28) +
             '<div style="flex:1;text-align:left">' +
               '<div>TON Connected</div>' +
               '<div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">' + short + '</div>' +
@@ -2470,10 +2450,10 @@
           btn.style.background  = 'rgba(34,197,94,0.08)';
         } else {
           btn.innerHTML =
-            '<svg width="28" height="28"><use href="#logo-ton"/></svg>' +
+            tonWalletLogoImg(28) +
             '<div style="flex:1;text-align:left">' +
               '<div>Connect TON Wallet</div>' +
-              '<div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">TonConnect · Tonkeeper · TON Space</div>' +
+              '<div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Tonkeeper · MyTonWallet · TON Space</div>' +
             '</div>' +
             '<div style="font-size:11px;color:rgba(0,152,234,0.8);font-weight:700">PRIMARY</div>';
           btn.style.borderColor = '';
@@ -2616,8 +2596,8 @@
             if (ton >= 0.001) {
               var tonUsd = ton * tonPrice;
               items.push({
-                logoId: tonMeta.logo_id || 'logo-ton',
-                logoUrl: tonMeta.logo_url || null,
+                logoId: 'logo-ton',
+                logoUrl: null,
                 name: 'TON', chain: 'TON',
                 amount: ton.toFixed(3), usd: tonUsd.toFixed(2), rawBal: tonUsd,
                 isUsdtStable: false, isUsdtJetton: false,
@@ -2689,17 +2669,20 @@
       }
 
       /* ── Render helpers ── */
-      var WALLET_LOGO_IMGS = {
+      var LOCAL_LOGO_IMGS = {
+        'logo-ton':      '/app/logos/ton.png',
+        'logo-usdt':     '/app/logos/usdt.png',
+        'logo-ston':     '/app/logos/ston.png',
+        'logo-tston':    '/app/logos/tston.svg',
         'logo-metamask': '/app/logos/metamask.svg',
-        'logo-phantom':  '/app/logos/phantom.svg',
       };
 
       function renderBalIcon(logoId, logoUrl) {
+        if (LOCAL_LOGO_IMGS[logoId]) {
+          return '<div class="bal-icon"><img src="' + LOCAL_LOGO_IMGS[logoId] + '" alt="" class="wallet-logo-img" width="22" height="22"/></div>';
+        }
         if (logoUrl) {
           return '<div class="bal-icon"><img src="' + logoUrl + '" alt="" width="22" height="22"/></div>';
-        }
-        if (WALLET_LOGO_IMGS[logoId]) {
-          return '<div class="bal-icon"><img src="' + WALLET_LOGO_IMGS[logoId] + '" alt="" class="wallet-logo-img" width="22" height="22"/></div>';
         }
         return '<div class="bal-icon"><svg width="22" height="22"><use href="#' + logoId + '"/></svg></div>';
       }
@@ -3231,10 +3214,6 @@
         });
       });
 
-      /* Hint connect buttons → wallet step */
-      document.getElementById('hintConnectTon').addEventListener('click', function () { goTo(6); });
-      document.getElementById('hintConnectMM').addEventListener('click', function () { goTo(6); });
-
       /* ══════════════════════════════════════════════════════
          WIZARD STEP 3 — Accumulate
       ══════════════════════════════════════════════════════ */
@@ -3376,11 +3355,47 @@
 
       document.getElementById('btnWizardBack10').addEventListener('click', function () { goTo(9); });
 
+      var planCreated = false;
+      var agentDepositAddress = '';
+
+      function enableMiraButton() {
+        var miraBtn = document.getElementById('btnManageMira');
+        if (miraBtn) {
+          miraBtn.disabled = false;
+          miraBtn.removeAttribute('title');
+        }
+      }
+
+      function showDepositCard(address) {
+        agentDepositAddress = address || '';
+        var card = document.getElementById('depositSuccessCard');
+        var addrEl = document.getElementById('depositAddrDisplay');
+        if (card && addrEl && address) {
+          addrEl.textContent = address;
+          card.style.display = 'block';
+        }
+      }
+
+      document.getElementById('btnOpenDeposit').addEventListener('click', function () {
+        if (!agentDepositAddress) return;
+        var url = '/app/deposit.html?wallet=' + encodeURIComponent(agentDepositAddress);
+        var tgApp = window.Telegram && window.Telegram.WebApp;
+        if (tgApp && tgApp.openLink) tgApp.openLink(url);
+        else window.location.href = url;
+      });
+
       document.getElementById('btnManageMira').addEventListener('click', async function () {
         if (!assertAuth()) return;
+        if (!planCreated) {
+          var tgGate = window.Telegram && window.Telegram.WebApp;
+          var msg = 'Create your DCA strategy first, then continue with Mira.';
+          if (tgGate && tgGate.showAlert) tgGate.showAlert(msg);
+          else alert(msg);
+          return;
+        }
         var btn = this;
         btn.disabled = true;
-        btn.textContent = '⏳ Opening MIRA…';
+        btn.textContent = '⏳ Opening Mira…';
         var tg = window.Telegram && window.Telegram.WebApp;
         try {
           var res = await fetch('/api/mira/create-context', {
@@ -3392,11 +3407,11 @@
           });
           if (!res.ok) {
             var errData = await res.json().catch(function () { return {}; });
-            var errMsg = errData.error || 'Failed to open MIRA. Try again.';
+            var errMsg = errData.error || 'Failed to open Mira. Try again.';
             if (tg && tg.showAlert) tg.showAlert('❌ ' + errMsg);
             else alert('Error: ' + errMsg);
             btn.disabled = false;
-            btn.textContent = '💬 Управлять через MIRA';
+            btn.textContent = 'Continue with Mira →';
             return;
           }
           var data = await res.json();
@@ -3407,13 +3422,13 @@
             else window.location.href = deeplink;
           }
           btn.disabled = false;
-          btn.textContent = '💬 Управлять через MIRA';
+          btn.textContent = 'Continue with Mira →';
         } catch (e) {
           console.error('[btnManageMira]', e);
           if (tg && tg.showAlert) tg.showAlert('❌ Network error. Please try again.');
           else alert('Network error. Please try again.');
           btn.disabled = false;
-          btn.textContent = '💬 Управлять через MIRA';
+          btn.textContent = 'Continue with Mira →';
         }
       });
 
@@ -3456,12 +3471,14 @@
           });
 
           if (res.ok) {
+            var okData = await res.json().catch(function () { return {}; });
+            planCreated = true;
             btn.textContent = '✓ Strategy created';
             btn.classList.add('success');
-            var miraBtn = document.getElementById('btnManageMira');
-            if (miraBtn) miraBtn.classList.add('visible');
+            enableMiraButton();
+            if (okData.deposit_address) showDepositCard(okData.deposit_address);
             var ctaMeta = document.getElementById('ctaMeta');
-            if (ctaMeta) ctaMeta.textContent = 'First cycle starts within 24h · manage via MIRA below';
+            if (ctaMeta) ctaMeta.textContent = 'Fund your agent wallet above · then manage via Mira';
             if (tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred) {
               tg.HapticFeedback.notificationOccurred('success');
             }

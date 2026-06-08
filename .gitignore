@@ -2,3 +2,4 @@ node_modules/
 dist/
 .env
 gramity-state.json
+HACKATHON_AUDIT.md
