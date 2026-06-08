@@ -272,6 +272,14 @@
       height: 28px;
     }
 
+    .wallet-logo-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      border-radius: 50%;
+    }
+
     .partner-icon {
       width: 28px;
       height: 28px;
@@ -284,10 +292,12 @@
       background: rgba(255,255,255,0.04);
     }
 
-    .partner-icon svg {
+    .partner-icon svg,
+    .partner-icon img {
       width: 100%;
       height: 100%;
       display: block;
+      object-fit: cover;
     }
 
     .card-body h3 { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
@@ -1189,11 +1199,9 @@
   <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
     <defs>
       <!-- Circular raster logos (clip + slice like Tonstakers) -->
-      <symbol id="logo-ton" viewBox="0 0 40 40">
-        <clipPath id="cp-ton"><circle cx="20" cy="20" r="20"/></clipPath>
-        <g clip-path="url(#cp-ton)">
-          <image href="/app/logos/ton.png" x="0" y="0" width="40" height="40" preserveAspectRatio="xMidYMid slice"/>
-        </g>
+      <symbol id="logo-ton" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="12" fill="#0098EA"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M12.554 3.663L4.704 19.337H11.16L12.554 16.125L13.948 19.337H20.404L12.554 3.663Z" fill="white"/>
       </symbol>
 
       <symbol id="logo-ston" viewBox="0 0 40 40">
@@ -1224,27 +1232,19 @@
         </g>
       </symbol>
 
-      <!-- Inline SVG — external &lt;image&gt; breaks inside &lt;use&gt; in Telegram WebView -->
-      <symbol id="logo-metamask" viewBox="0 0 24 24">
-        <path fill="#E17726" d="M21.315 2 13.294 8.018l1.522-3.601L21.315 2zM2.685 2l7.955 6.06-1.449-3.643L2.685 2z"/>
-        <path fill="#E27625" d="M18.507 15.71l-2.134 3.267 4.566 1.257 1.312-4.457-3.744-.067zM5.753 15.777l1.302 4.457 4.556-1.257-2.124-3.267-3.734.067z"/>
-        <path fill="#E27625" d="M11.34 10.21 9.925 12.45l4.523.206-.16-4.862-2.948 2.415zM12.65 10.21l2.98 2.448-.19-4.874-2.79 2.426z"/>
-        <path fill="#D5BFB2" d="M5.753 15.777 9.925 12.45l-1.302-2.24-3.87 5.567zM14.075 12.45l4.172 3.327-1.302-2.24-2.87 5.567z"/>
-        <path fill="#233447" d="M5.753 15.777l.472 3.667-3.225-2.692 2.753-5.567zM18.507 15.71l-.472 3.667 3.225-2.692-2.753-5.567z"/>
-        <path fill="#CD6116" d="M21.315 2 18.507 15.71l2.134-3.267L21.315 2zM2.685 2l2.808 13.71 2.134 3.267L2.685 2z"/>
-        <path fill="#E4751F" d="M9.925 12.45 11.34 10.21 12.65 10.21 14.075 12.45 14.075 15.777 9.925 15.777z"/>
-        <path fill="#F6851B" d="M2.685 2 9.925 12.45 7.221 16.499 2.685 2zM21.315 2 16.779 16.499 14.075 12.45 21.315 2z"/>
-        <path fill="#C0AD9E" d="M7.221 16.499 9.925 15.777 9.247 19.444 7.221 16.499zM14.075 15.777l2.704.722-.678 3.667-2.704-.722z"/>
-        <path fill="#161616" d="M18.507 15.71 19.444 19.377 16.779 16.499 18.507 15.71zM5.753 15.777 7.481 16.499 4.816 19.377 5.753 15.777z"/>
-        <path fill="#763D16" d="M2.685 2 7.221 16.499 4.816 19.377 2.685 2zM21.315 2 19.184 19.377 16.779 16.499 21.315 2z"/>
-        <path fill="#F6851B" d="M14.075 12.45 16.779 16.499 18.507 15.71 14.075 12.45zM9.925 12.45 5.493 15.71 7.221 16.499 9.925 12.45z"/>
+      <!-- Wallet logos — use &lt;img&gt; in UI; symbols for balance list fallback -->
+      <symbol id="logo-metamask" viewBox="0 0 35 34">
+        <clipPath id="cp-mm"><circle cx="17.5" cy="17" r="17"/></clipPath>
+        <g clip-path="url(#cp-mm)">
+          <image href="/app/logos/metamask.svg" width="35" height="34" preserveAspectRatio="xMidYMid slice"/>
+        </g>
       </symbol>
 
-      <symbol id="logo-phantom" viewBox="0 0 128 128">
-        <circle cx="64" cy="64" r="64" fill="#AB9FF2"/>
-        <path fill="#fff" d="M110.5 64.5c0-3.5-0.3-6.9-0.8-10.2-5.8-1.2-22.5-4.5-40.7-4.5-18.2 0-34.9 3.3-40.7 4.5-0.5 3.3-0.8 6.7-0.8 10.2 0 19.3 11.7 35.8 28.3 42.9h25.4C98.8 100.3 110.5 83.8 110.5 64.5z"/>
-        <circle cx="46" cy="58" r="8" fill="#AB9FF2"/>
-        <circle cx="82" cy="58" r="8" fill="#AB9FF2"/>
+      <symbol id="logo-phantom" viewBox="0 0 512 512">
+        <clipPath id="cp-ph"><circle cx="256" cy="256" r="256"/></clipPath>
+        <g clip-path="url(#cp-ph)">
+          <image href="/app/logos/phantom.svg" width="512" height="512" preserveAspectRatio="xMidYMid slice"/>
+        </g>
       </symbol>
 
       <symbol id="logo-eth" viewBox="0 0 40 40">
@@ -1375,11 +1375,11 @@
                 TON Connect
               </button>
               <button class="wstrip-btn mm" id="btnConnectMMStrip">
-                <span class="logo-circle"><svg width="22" height="22"><use href="#logo-metamask"/></svg></span>
+                <span class="logo-circle"><img src="/app/logos/metamask.svg" alt="" class="wallet-logo-img" width="22" height="22"/></span>
                 MetaMask
               </button>
               <button class="wstrip-btn coming" title="Coming soon">
-                <span class="logo-circle"><svg width="22" height="22"><use href="#logo-phantom"/></svg></span>
+                <span class="logo-circle"><img src="/app/logos/phantom.svg" alt="" class="wallet-logo-img" width="22" height="22"/></span>
                 Phantom
               </button>
             </div>
@@ -1579,15 +1579,15 @@
 
           <div class="partners">
             <div class="partner-badge anim-item">
-              <span class="partner-icon"><svg width="28" height="28"><use href="#logo-ton"/></svg></span>
+              <span class="partner-icon"><img src="/app/logos/ton.png" width="28" height="28" alt="TON"/></span>
               TON
             </div>
             <div class="partner-badge anim-item">
-              <span class="partner-icon"><svg width="28" height="28"><use href="#logo-tonstakers"/></svg></span>
+              <span class="partner-icon"><img src="/app/logos/tonstakers.png" width="28" height="28" alt="Tonstakers"/></span>
               Tonstakers
             </div>
             <div class="partner-badge anim-item">
-              <span class="partner-icon"><svg width="28" height="28"><use href="#logo-ston"/></svg></span>
+              <span class="partner-icon"><img src="/app/logos/ston.png" width="28" height="28" alt="STON.fi"/></span>
               STON.fi
             </div>
           </div>
@@ -1666,7 +1666,7 @@
 
             <!-- MetaMask secondary -->
             <button class="connect-btn" id="btnConnectMM">
-              <span class="logo-circle logo-circle-lg"><svg width="28" height="28"><use href="#logo-metamask"/></svg></span>
+              <span class="logo-circle logo-circle-lg"><img src="/app/logos/metamask.svg" alt="" class="wallet-logo-img" width="28" height="28"/></span>
               <div style="flex:1;text-align:left">
                 <div>Connect MetaMask</div>
                 <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">ETH · Base · BNB · Polygon</div>
@@ -1675,7 +1675,7 @@
 
             <!-- Phantom coming soon -->
             <button class="connect-btn disabled">
-              <span class="logo-circle logo-circle-lg"><svg width="28" height="28"><use href="#logo-phantom"/></svg></span>
+              <span class="logo-circle logo-circle-lg"><img src="/app/logos/phantom.svg" alt="" class="wallet-logo-img" width="28" height="28"/></span>
               <div style="flex:1;text-align:left">
                 <div>Phantom</div>
                 <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Solana deposits</div>
@@ -1799,7 +1799,7 @@
                 TON Wallet
               </button>
               <button class="hint-connect-btn" id="hintConnectMM">
-                <span class="logo-circle"><svg width="18" height="18"><use href="#logo-metamask"/></svg></span>
+                <span class="logo-circle"><img src="/app/logos/metamask.svg" alt="" class="wallet-logo-img" width="18" height="18"/></span>
                 MetaMask
               </button>
             </div>
@@ -2551,10 +2551,22 @@
       }
 
       /* ── Render helpers ── */
+      var WALLET_LOGO_IMGS = {
+        'logo-metamask': '/app/logos/metamask.svg',
+        'logo-phantom':  '/app/logos/phantom.svg',
+      };
+
+      function renderBalIcon(logoId) {
+        if (WALLET_LOGO_IMGS[logoId]) {
+          return '<div class="bal-icon"><img src="' + WALLET_LOGO_IMGS[logoId] + '" alt="" class="wallet-logo-img" width="22" height="22"/></div>';
+        }
+        return '<div class="bal-icon"><svg width="22" height="22"><use href="#' + logoId + '"/></svg></div>';
+      }
+
       function renderBalRow(item) {
         return '<div class="balance-row">' +
           '<div class="bal-left">' +
-          '<div class="bal-icon"><svg width="22" height="22"><use href="#' + item.logoId + '"/></svg></div>' +
+          renderBalIcon(item.logoId) +
           '<div><div class="bal-name">' + item.name + '</div><div class="bal-chain">' + item.chain + '</div></div>' +
           '</div>' +
           '<div class="bal-right">' +
