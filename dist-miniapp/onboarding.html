@@ -2479,6 +2479,8 @@
 
       function syncGramityWalletBalance() {
         window.gramityState.walletBalance = wiz.usdtBalance || 0;
+        window.gramityState.step3 = window.gramityState.step3 || {};
+        window.gramityState.step3.walletBalance = wiz.totalUsdBalance || 0;
       }
 
       /* ── TonConnect UI ── */
@@ -2826,6 +2828,66 @@
         return { items: filtered, totalUsd: totalUsd, usdtBalance: usdtBal };
       }
 
+      /* ── EVM wallet balances from server (Ankr via session poll) ── */
+      function showEvmWalletBalances(payload) {
+        var box = document.getElementById('scanResults');
+        var listEl = document.getElementById('scanAssetsList');
+        var totalEl = document.getElementById('scanTotalValue');
+        if (!box || !listEl || !totalEl) return;
+
+        var tokens = (payload.tokens || []).filter(function (t) {
+          return parseFloat(t.balance) > 0;
+        });
+
+        tokens.sort(function (a, b) {
+          if (a.type === 'NATIVE' && b.type !== 'NATIVE') return -1;
+          if (b.type === 'NATIVE' && a.type !== 'NATIVE') return 1;
+          return (b.balanceUsd || 0) - (a.balanceUsd || 0);
+        });
+
+        var totalUsd = payload.totalUsd != null ? payload.totalUsd : tokens.reduce(function (s, t) {
+          return s + (t.balanceUsd || 0);
+        }, 0);
+
+        box.style.display = 'block';
+        totalEl.textContent = 'Total: $' + totalUsd.toFixed(2);
+
+        if (!tokens.length) {
+          listEl.innerHTML = renderEmpty('No assets found');
+        } else {
+          listEl.innerHTML = tokens.map(function (t) {
+            var usdPart = t.balanceUsd != null && t.balanceUsd > 0
+              ? ' ($' + t.balanceUsd.toFixed(2) + ')'
+              : '';
+            var iconHtml = t.icon
+              ? '<div class="bal-icon"><img src="' + t.icon + '" alt="" width="22" height="22"/></div>'
+              : renderBalIcon('logo-metamask', null);
+            return '<div class="balance-row">' +
+              '<div class="bal-left">' + iconHtml +
+              '<div><div class="bal-name">' + t.symbol + '</div><div class="bal-chain">' +
+                (t.type === 'NATIVE' ? 'BNB' : 'BEP20') + ' · BSC</div></div>' +
+              '</div>' +
+              '<div class="bal-right">' +
+              '<div class="bal-amount">' + t.symbol + ': ' + t.balance + usdPart + '</div>' +
+              '</div></div>';
+          }).join('');
+        }
+
+        wiz.totalUsdBalance = totalUsd;
+        wiz.usdtBalance = totalUsd;
+        syncGramityWalletBalance();
+        if (typeof initSlider7 === 'function') initSlider7();
+      }
+
+      function fetchEvmBalancesFromServer(address) {
+        return fetch('/api/evm-wallet/balances?address=' + encodeURIComponent(address), {
+          headers: { 'X-Telegram-Init-Data': initData },
+        }).then(function (r) {
+          if (!r.ok) return r.text().then(function (t) { throw new Error(t || String(r.status)); });
+          return r.json();
+        });
+      }
+
       /* ── Shared: show scan results on step 1 ── */
       function showScanResults(items) {
         var result = applyBalanceFilters(items);
@@ -2911,9 +2973,9 @@
         if (e.key === 'Enter') document.getElementById('btnScanTon').click();
       });
 
-      /* MetaMask connect — desktop extension or MetaMask in-app browser on mobile (no MWP relay) */
+      /* MetaMask connect — mobile: in-app browser; desktop: Chrome extension via MWP relay */
       window.addEventListener('gramity-metamask-ready', function () {
-        if (window.GramityMetaMask && window.GramityMetaMask.warm && !isMobileDevice()) {
+        if (window.GramityMetaMask && window.GramityMetaMask.warm) {
           window.GramityMetaMask.warm();
         }
       }, { once: true });
@@ -2958,6 +3020,29 @@
         });
       }
 
+      /** Desktop Telegram WebView has no window.ethereum — reach Chrome extension via MWP relay. */
+      function connectViaMwp(btn) {
+        var labelEl = btn.querySelector('div').children[0];
+        var hintEl = btn.querySelector('div').children[1];
+        if (labelEl) labelEl.textContent = 'Connecting via MetaMask…';
+        if (hintEl) hintEl.textContent = 'Approve in MetaMask extension popup';
+
+        if (!window.GramityMetaMask || !window.GramityMetaMask.connect) {
+          return Promise.reject(new Error('sdk_loading'));
+        }
+        return window.GramityMetaMask.connect().then(function (result) {
+          if (!result.accounts || !result.accounts.length) {
+            throw new Error('no_accounts');
+          }
+          return { accounts: result.accounts, provider: null };
+        });
+      }
+
+      function isAppBrowserTimeout(err) {
+        var msg = String(err && err.message || '');
+        return msg.indexOf('timeout') !== -1 || msg.indexOf('return to Telegram') !== -1;
+      }
+
       function connectViaMetaMaskApp(btn) {
         var labelEl = btn.querySelector('div').children[0];
         var hintEl = btn.querySelector('div').children[1];
@@ -2992,16 +3077,29 @@
               .then(function (r) { return r.ok ? r.json() : null; })
               .then(function (data) {
                 if (data && data.status === 'connected' && data.evmAddress) {
-                  cleanup();
-                  resolve({ accounts: [data.evmAddress], provider: null });
-                  return;
+                  if (data.balanceStatus === 'ready' && data.walletBalance) {
+                    cleanup();
+                    resolve({
+                      accounts: [data.evmAddress],
+                      provider: null,
+                      walletBalance: data.walletBalance,
+                    });
+                    return;
+                  }
+                  if (data.balanceStatus === 'failed') {
+                    cleanup();
+                    resolve({ accounts: [data.evmAddress], provider: null, walletBalance: null });
+                    return;
+                  }
+                  if (labelEl) labelEl.textContent = 'Loading balances…';
+                  if (hintEl) hintEl.textContent = 'Fetching all tokens from BSC…';
                 }
                 if (attempts >= maxAttempts) {
                   cleanup();
                   reject(new Error('MetaMask connect timeout — approve in MetaMask and return to Telegram'));
                   return;
                 }
-                if (labelEl && attempts % 4 === 0) {
+                if (labelEl && attempts % 4 === 0 && data && data.status !== 'connected') {
                   labelEl.textContent = 'Waiting for MetaMask…';
                 }
               })
@@ -3027,7 +3125,7 @@
         return !getExtensionProvider() && isMobileDevice();
       }
 
-      function handleMetaMaskAccounts(btn, accounts, provider) {
+      function handleMetaMaskAccounts(btn, accounts, provider, walletBalance) {
         if (!accounts || !accounts.length) return;
         wiz.evmAddress   = accounts[0];
         wiz.evmConnected = true;
@@ -3042,10 +3140,19 @@
         btn.querySelector('div').children[0].textContent = 'Connected: ' + short;
         btn.style.borderColor = '';
 
-        Promise.all(EVM_CHAINS.map(function (ch) { return fetchEvmChain(ch, accounts[0]); }))
-          .then(function (results) {
-            var all = [].concat.apply([], results);
-            showScanResults(all);
+        if (walletBalance) {
+          showEvmWalletBalances(walletBalance);
+          return;
+        }
+
+        fetchEvmBalancesFromServer(accounts[0])
+          .then(function (payload) {
+            showEvmWalletBalances(payload);
+          })
+          .catch(function (err) {
+            console.error('[MetaMask] balance fetch failed', err);
+            listEl.innerHTML = renderEmpty('Could not load balances');
+            document.getElementById('scanTotalValue').textContent = 'Total: $0.00';
           });
       }
 
@@ -3059,23 +3166,34 @@
           ? 'Connecting…'
           : shouldUseMetaMaskAppBrowser()
             ? 'Opening MetaMask…'
-            : 'Connecting…';
+            : 'Connecting via MetaMask…';
         if (hintEl) {
-          hintEl.textContent = shouldUseMetaMaskAppBrowser()
-            ? 'Approve in MetaMask app, then switch back to Telegram'
-            : 'Approve in MetaMask, then return to Telegram';
+          hintEl.textContent = getExtensionProvider()
+            ? 'Approve in MetaMask extension popup'
+            : shouldUseMetaMaskAppBrowser()
+              ? 'Approve in MetaMask app, then switch back to Telegram'
+              : 'Approve in MetaMask extension popup (Chrome)';
         }
         btn.style.borderColor = '';
 
-        var attempt = getExtensionProvider()
-          ? connectViaExtension(btn)
-          : shouldUseMetaMaskAppBrowser()
-            ? connectViaMetaMaskApp(btn)
-            : connectViaExtension(btn);
+        var attempt;
+        if (getExtensionProvider()) {
+          attempt = connectViaExtension(btn);
+        } else if (shouldUseMetaMaskAppBrowser()) {
+          attempt = connectViaMetaMaskApp(btn).catch(function (err) {
+            if (isAppBrowserTimeout(err) && window.GramityMetaMask && window.GramityMetaMask.connect) {
+              console.warn('[MetaMask] App browser failed, falling back to extension relay');
+              return connectViaMwp(btn);
+            }
+            throw err;
+          });
+        } else {
+          attempt = connectViaMwp(btn);
+        }
 
         attempt.then(function (res) {
           btn.disabled = false;
-          handleMetaMaskAccounts(btn, res.accounts, res.provider);
+          handleMetaMaskAccounts(btn, res.accounts, res.provider, res.walletBalance);
         }).catch(function (err) {
           btn.disabled = false;
           console.error('[MetaMask]', err);
