@@ -1,1 +1,0 @@
-import"./evmWallet-B-O4IL3G.js";import{c as o,j as e,R as t,D as r}from"./DepositScreen-iiqE2pSr.js";import"./metamaskConnect-NA3T6xkI.js";import"./tslib.es6-Baw4jpgF.js";const s=new URLSearchParams(window.location.search),n=s.get("token");o(document.getElementById("root")).render(e.jsx(t.StrictMode,{children:e.jsx(r,{authMode:"token",sessionToken:n??void 0})}));

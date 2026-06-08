@@ -34,7 +34,6 @@ import {
 } from "../lib/evmWallet";
 import {
   getBrowserExtensionProvider,
-  isInsideTelegramMiniApp,
   openMetaMaskLink,
 } from "../lib/metamaskConnect";
 
@@ -165,9 +164,7 @@ export function DepositScreen({
 }: DepositScreenProps) {
   const isTokenMode = authMode === "token";
   const useMetaMaskRedirect =
-    !isTokenMode &&
-    isInsideTelegramMiniApp() &&
-    getBrowserExtensionProvider() === null;
+    !isTokenMode && getBrowserExtensionProvider() === null;
 
   const [step, setStep] = useState<Step>(1);
   const [configErr, setConfigErr] = useState("");

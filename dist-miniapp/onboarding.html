@@ -757,6 +757,11 @@
 
     /* ── Wizard ── */
     .slide-wizard .slide-content { justify-content: flex-start; }
+    .slide-wizard .slide-footer {
+      padding-top: 12px;
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+      background: linear-gradient(to top, var(--bg) 70%, transparent);
+    }
     .slide-wizard .nav-arrow     { display: none !important; }
 
     .wizard-header {
@@ -2208,8 +2213,8 @@
       }
 
       /* ── Constants ── */
-      var MIRA_FALLBACK = 'tg://resolve?domain=mira';
-      var BOT_DEEPLINK  = 'tg://resolve?domain=GramityBot';
+      var MIRA_FALLBACK = 'https://t.me/mira';
+      var BOT_DEEPLINK  = 'https://t.me/GramityBot';
       var APY       = 0.054;
 
       /* ── State ── */
@@ -2301,19 +2306,72 @@
       document.getElementById('btnToFinal').addEventListener('click', function () { goTo(6); });
       document.getElementById('btnStartDCA').addEventListener('click', function () { goTo(7); });
 
+      function normalizeTelegramUrl(url) {
+        if (!url || url.indexOf('tg://resolve?domain=') !== 0) return url;
+        var domainMatch = url.match(/domain=([^&]+)/);
+        var startMatch = url.match(/start=([^&]+)/);
+        var domain = domainMatch ? domainMatch[1] : '';
+        var base = 'https://t.me/' + domain;
+        return startMatch ? base + '?start=' + startMatch[1] : base;
+      }
+
       function openTelegramLink(url) {
+        url = normalizeTelegramUrl(url);
         var tgApp = window.Telegram && window.Telegram.WebApp;
         try {
-          if (tgApp && tgApp.openTelegramLink) tgApp.openTelegramLink(url);
-          else if (tgApp && tgApp.openLink) tgApp.openLink(url);
-          else window.location.href = url;
+          if (tgApp && tgApp.openTelegramLink && (url.indexOf('https://t.me/') === 0 || url.indexOf('tg://') === 0)) {
+            tgApp.openTelegramLink(url);
+            return;
+          }
+          if (tgApp && tgApp.openLink) {
+            tgApp.openLink(url);
+            return;
+          }
+          window.open(url, '_blank');
         } catch (e) {
-          window.location.href = url;
+          window.open(url, '_blank');
+        }
+      }
+
+      async function openMiraWithContext(btn) {
+        if (!assertAuth()) return;
+        var label = btn ? btn.textContent : '';
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = '⏳ Opening Mira…';
+        }
+        var opened = false;
+
+        try {
+          var res = await fetch('/api/mira/create-context', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Telegram-Init-Data': initData,
+            },
+          });
+          if (res.ok) {
+            var data = await res.json();
+            var link = data.mira_deeplink || data.deeplink;
+            if (link) {
+              openTelegramLink(link);
+              opened = true;
+            }
+          }
+        } catch (e) {
+          console.warn('[openMiraWithContext]', e);
+        }
+
+        if (!opened) openTelegramLink(MIRA_FALLBACK);
+
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = label || 'Manage with Mira →';
         }
       }
 
       document.getElementById('btnOpenMiraSlide').addEventListener('click', function () {
-        openTelegramLink(MIRA_FALLBACK);
+        openMiraWithContext(this);
       });
       document.getElementById('btnLearnMore').addEventListener('click', function () {
         var url = 'https://t.me/GramityBot';
@@ -2920,8 +2978,8 @@
       ══════════════════════════════════════════════════════ */
 
       document.getElementById('btnWizardBack6').addEventListener('click', function () { goTo(6); });
-      document.getElementById('btnSkipConnect').addEventListener('click', function ()  { goTo(8); });
-      document.getElementById('btnWizardNext6').addEventListener('click', function ()  { goTo(8); });
+      document.getElementById('btnSkipConnect').addEventListener('click', function ()  { goTo(7); });
+      document.getElementById('btnWizardNext6').addEventListener('click', function ()  { goTo(7); });
 
       /* TonConnect button → open modal (or disconnect if already connected) */
       document.getElementById('btnConnectTon').addEventListener('click', function () {
@@ -3122,7 +3180,8 @@
       }
 
       function shouldUseMetaMaskAppBrowser() {
-        return !getExtensionProvider() && isMobileDevice();
+        // Telegram WebView (mobile + desktop) never has window.ethereum — use in-app browser + JWT session
+        return !getExtensionProvider();
       }
 
       function handleMetaMaskAccounts(btn, accounts, provider, walletBalance) {
@@ -3164,15 +3223,11 @@
         btn.disabled = true;
         labelEl.textContent = getExtensionProvider()
           ? 'Connecting…'
-          : shouldUseMetaMaskAppBrowser()
-            ? 'Opening MetaMask…'
-            : 'Connecting via MetaMask…';
+          : 'Opening MetaMask…';
         if (hintEl) {
           hintEl.textContent = getExtensionProvider()
             ? 'Approve in MetaMask extension popup'
-            : shouldUseMetaMaskAppBrowser()
-              ? 'Approve in MetaMask app, then switch back to Telegram'
-              : 'Approve in MetaMask extension popup (Chrome)';
+            : 'Approve in MetaMask, then return to Telegram';
         }
         btn.style.borderColor = '';
 
@@ -3389,16 +3444,16 @@
 
       function updateContinueBtn7() {
         var btn = document.getElementById('btnWizardNext7');
+        if (!btn) return;
         var can = false;
         if (step2Mode === 'demo') {
           can = true;
         } else {
-          var bal = getWalletBalance();
-          can = step2Amount >= MIN_DCA && bal >= MIN_DCA;
+          can = step2Amount >= MIN_DCA;
         }
         btn.disabled = !can;
-        btn.style.opacity = can ? '' : '0.4';
-        btn.style.pointerEvents = can ? '' : 'none';
+        btn.style.opacity = can ? '1' : '0.4';
+        btn.style.pointerEvents = can ? 'auto' : 'none';
       }
 
       function updateStep2UI() {
@@ -3667,49 +3722,6 @@
         var minEl = document.getElementById('depositStepMin');
         if (addrEl && address) addrEl.textContent = address;
         if (minEl) minEl.textContent = '$' + amount;
-      }
-
-      async function openMiraWithContext(btn) {
-        if (!assertAuth()) return;
-        var label = btn ? btn.textContent : '';
-        if (btn) {
-          btn.disabled = true;
-          btn.textContent = '⏳ Opening Mira…';
-        }
-        var tg = window.Telegram && window.Telegram.WebApp;
-        var opened = false;
-
-        if (planCreated) {
-          try {
-            var controller = new AbortController();
-            var timeoutId = setTimeout(function () { controller.abort(); }, 3000);
-            var res = await fetch('/api/mira/create-context', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-Telegram-Init-Data': initData,
-              },
-              signal: controller.signal,
-            });
-            clearTimeout(timeoutId);
-            if (res.ok) {
-              var data = await res.json();
-              if (data.mira_deeplink) {
-                openTelegramLink(data.mira_deeplink);
-                opened = true;
-              }
-            }
-          } catch (e) {
-            console.warn('[openMiraWithContext]', e);
-          }
-        }
-
-        if (!opened) openTelegramLink(MIRA_FALLBACK);
-
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = label || 'Manage with Mira →';
-        }
       }
 
       document.getElementById('btnManageMira').addEventListener('click', function () {

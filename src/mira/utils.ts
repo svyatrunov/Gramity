@@ -91,11 +91,11 @@ export function newContextJti(): string {
 }
 
 export function buildMiraDeeplink(token: string): string {
-  return `tg://resolve?domain=mira&start=gramity_${token}`;
+  return `https://t.me/mira?start=gramity_${encodeURIComponent(token)}`;
 }
 
 export function buildMiraBotDeeplink(telegramId: number | string): string {
-  return `https://t.me/MiraBot?start=gramity_${telegramId}`;
+  return `https://t.me/mira?start=gramity_${telegramId}`;
 }
 
 export function parseTelegramId(raw: unknown): number | null {
