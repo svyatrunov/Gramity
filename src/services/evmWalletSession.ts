@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
-import { RAILWAY_PUBLIC_URL } from "../config.js";
+import { ANKR_API_KEY, RAILWAY_PUBLIC_URL } from "../config.js";
+import { fetchBscRpcWalletBalances } from "./bscWalletBalances.js";
 import { signDepositToken, verifyDepositToken } from "./evmDepositSession.js";
 
 export type EvmWalletSessionStatus = "pending" | "opened" | "connected" | "failed";
@@ -174,24 +175,27 @@ function parseAnkrAssets(
   };
 }
 
-export async function fetchAnkrWalletBalances(
+async function fetchViaAnkr(
   address: string,
-  sessionId = ""
+  sessionId: string,
+  apiKey?: string
 ): Promise<EvmWalletBalancePayload> {
-  console.log(`[EVM-WALLET] Fetching balances... address=${address.slice(0, 10)}…`);
+  const url = apiKey
+    ? `https://rpc.ankr.com/multichain/${apiKey}`
+    : "https://rpc.ankr.com/multichain";
 
-  const res = await fetch("https://rpc.ankr.com/multichain", {
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       jsonrpc: "2.0",
       method: "ankr_getAccountBalance",
-        params: {
-          walletAddress: address,
-          blockchain: ["bsc"],
-          onlyWhitelisted: false,
-          nativeFirst: true,
-        },
+      params: {
+        walletAddress: address,
+        blockchain: ["bsc"],
+        onlyWhitelisted: false,
+        nativeFirst: true,
+      },
       id: 1,
     }),
   });
@@ -210,13 +214,52 @@ export async function fetchAnkrWalletBalances(
   }
 
   const assets = data.result?.assets ?? [];
-  const walletBalance = parseAnkrAssets(sessionId, address, assets);
-
-  console.log(
-    `[EVM-WALLET] Balances loaded tokens=${walletBalance.tokens.length} totalUsd=${walletBalance.totalUsd.toFixed(2)}`
-  );
-  return walletBalance;
+  return parseAnkrAssets(sessionId, address, assets);
 }
+
+/** Ankr (all BEP20) with BSC RPC fallback when Ankr returns 403 without API key. */
+export async function fetchEvmWalletBalances(
+  address: string,
+  sessionId = ""
+): Promise<EvmWalletBalancePayload> {
+  console.log(`[EVM-WALLET] Fetching balances... address=${address.slice(0, 10)}…`);
+
+  const ankrErrors: string[] = [];
+
+  if (ANKR_API_KEY) {
+    try {
+      const walletBalance = await fetchViaAnkr(address, sessionId, ANKR_API_KEY);
+      console.log(
+        `[EVM-WALLET] Ankr loaded tokens=${walletBalance.tokens.length} totalUsd=${walletBalance.totalUsd.toFixed(2)}`
+      );
+      return walletBalance;
+    } catch (err) {
+      ankrErrors.push((err as Error).message);
+    }
+  }
+
+  try {
+    const walletBalance = await fetchViaAnkr(address, sessionId);
+    console.log(
+      `[EVM-WALLET] Ankr loaded tokens=${walletBalance.tokens.length} totalUsd=${walletBalance.totalUsd.toFixed(2)}`
+    );
+    return walletBalance;
+  } catch (err) {
+    ankrErrors.push((err as Error).message);
+  }
+
+  console.warn(
+    `[EVM-WALLET] Ankr unavailable (${ankrErrors.join("; ")}), using BSC RPC fallback`
+  );
+  const fallback = await fetchBscRpcWalletBalances(address, sessionId);
+  console.log(
+    `[EVM-WALLET] BSC RPC fallback tokens=${fallback.tokens.length} totalUsd=${fallback.totalUsd.toFixed(2)}`
+  );
+  return fallback;
+}
+
+/** @deprecated use fetchEvmWalletBalances */
+export const fetchAnkrWalletBalances = fetchEvmWalletBalances;
 
 export async function fetchAndStoreEvmWalletBalances(
   sessionId: string,
@@ -228,7 +271,7 @@ export async function fetchAndStoreEvmWalletBalances(
   updateEvmWalletSession(sessionId, { balanceStatus: "pending" });
 
   try {
-    const walletBalance = await fetchAnkrWalletBalances(address, sessionId);
+    const walletBalance = await fetchEvmWalletBalances(address, sessionId);
     updateEvmWalletSession(sessionId, {
       balanceStatus: "ready",
       walletBalance,

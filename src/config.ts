@@ -25,6 +25,13 @@ export const MNEMONIC = process.env.BACKEND_WALLET_MNEMONIC?.split(" ") ?? [];
 export const TONCENTER_API_KEY = process.env.TONCENTER_API_KEY ?? "";
 export const REFERRER_WALLET = process.env.REFERRER_WALLET ?? "";
 
+/** Ankr Advanced API — free tier at https://www.ankr.com/rpc/advanced-api */
+export const ANKR_API_KEY = process.env.ANKR_API_KEY ?? "";
+
+/** BSC JSON-RPC fallback when Ankr is unavailable */
+export const BSC_RPC_URL =
+  process.env.BSC_RPC_URL ?? "https://bsc-dataseed.binance.org";
+
 // ─── Omniston ─────────────────────────────────────────────────────────────────
 export const OMNISTON_WS_URL =
   process.env.OMNISTON_WS_URL ?? "wss://omni-ws.ston.fi";

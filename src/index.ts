@@ -479,8 +479,8 @@ app.get("/api/evm-wallet/balances", tgAuth, async (req, res) => {
       return;
     }
 
-    const { fetchAnkrWalletBalances } = await import("./services/evmWalletSession.js");
-    const walletBalance = await fetchAnkrWalletBalances(address);
+    const { fetchEvmWalletBalances } = await import("./services/evmWalletSession.js");
+    const walletBalance = await fetchEvmWalletBalances(address);
     res.json(walletBalance);
   } catch (err) {
     res.status(502).json({ error: (err as Error).message });
