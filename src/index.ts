@@ -24,11 +24,15 @@ import { getAllVerifiedJettons, getTonBalance, getUsdtBalance } from "./services
 import { createUserWallet, createNamedWallet, getUserWalletContext } from "./services/userWallet.js";
 import { executeFullExit } from "./execution/exit.js";
 import { sendJettonTransfer } from "./services/jetton.js";
+import { registerMiraRoutes } from "./mira/routes.js";
 
 // ─── Express app ──────────────────────────────────────────────────────────────
 
 const app = express();
 app.use(express.json());
+
+// Mira conversational layer (MCP + context handoff)
+registerMiraRoutes(app);
 
 // Serve Mini App static files at /app
 const miniappDist = path.resolve(__dirname, "../dist-miniapp");

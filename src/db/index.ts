@@ -119,6 +119,13 @@ CREATE TABLE IF NOT EXISTS notification_log (
   telegram_msg TEXT,
   error        TEXT
 );
+
+CREATE TABLE IF NOT EXISTS mira_context_tokens (
+  jti          TEXT        PRIMARY KEY,
+  telegram_id  BIGINT      NOT NULL,
+  created_at   TIMESTAMPTZ DEFAULT now(),
+  consumed_at  TIMESTAMPTZ
+);
 `;
 
 export async function initDb(): Promise<void> {

@@ -1,0 +1,49 @@
+{
+  "name": "gramity",
+  "version": "1.0.0",
+  "description": "Gramity — custodial DCA executor on TON mainnet. Conversational control via Mira; no funds flow through Mira.",
+  "endpoint": "https://gramity-production.up.railway.app/mcp",
+  "constraints": {
+    "mainnet": true,
+    "custodial": true,
+    "no_funds_via_mira": true
+  },
+  "tools": [
+    {
+      "name": "get_portfolio",
+      "description": "Returns portfolio summary, active strategies, and masked withdrawal address for a Gramity user.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["telegram_id"],
+        "properties": {
+          "telegram_id": { "type": "string", "description": "Telegram user ID" }
+        }
+      }
+    },
+    {
+      "name": "create_strategy",
+      "description": "Create or update a DCA strategy. Withdrawal address is locked at onboarding and cannot be changed via Mira.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["telegram_id", "amount_usdt", "frequency", "strategy"],
+        "properties": {
+          "telegram_id": { "type": "string" },
+          "amount_usdt": { "type": "number" },
+          "frequency": { "type": "string", "enum": ["daily", "weekly", "biweekly", "monthly"] },
+          "strategy": { "type": "string", "enum": ["TON+LP", "TON", "STON"] }
+        }
+      }
+    },
+    {
+      "name": "pause_strategy",
+      "description": "Pause the active DCA strategy for a user.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["telegram_id"],
+        "properties": {
+          "telegram_id": { "type": "string" }
+        }
+      }
+    }
+  ]
+}
