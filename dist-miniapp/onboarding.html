@@ -1383,6 +1383,37 @@
     }
     .wizard-seg.active { background: var(--accent); }
 
+    .avail-bal-banner {
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      border-radius: var(--radius);
+      background: rgba(74,255,140,0.08);
+      border: 1px solid rgba(74,255,140,0.25);
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    .avail-bal-banner strong { color: var(--green); font-weight: 700; }
+
+    .deposit-agent-card {
+      padding: 16px;
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      margin-bottom: 14px;
+    }
+    .deposit-poll-status {
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+      margin-top: 10px;
+      text-align: center;
+    }
+    .gas-hint-line {
+      font-size: 11px;
+      color: rgba(255,255,255,0.45);
+      margin-top: 8px;
+      line-height: 1.45;
+    }
+
     .withdraw-block { margin-top: 18px; }
     .withdraw-block .input-group {
       max-height: none;
@@ -1860,20 +1891,76 @@
       </section>
 
       <!-- ═══════════════════════════════════════════
-           WIZARD SLIDE 6 — Step 1 of 2: Set up DCA
+           WIZARD — Step 1 of 4: Connect wallet
       ═══════════════════════════════════════════ -->
       <section class="slide slide-wizard" data-slide="6">
         <div class="wizard-header anim-item">
+          <button class="wizard-back" id="btnWizardBackConnect">←</button>
+          <span class="wizard-step">Step 1 of 4</span>
+          <div style="width:28px"></div>
+        </div>
+        <div class="wizard-step-bar-2 anim-item" id="progressBarConnect">
+          <div class="wizard-seg active"></div>
+          <div class="wizard-seg"></div>
+          <div class="wizard-seg"></div>
+          <div class="wizard-seg"></div>
+        </div>
+        <div class="slide-content">
+          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:14px">Connect wallet</h2>
+          <p class="anim-item" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.5">
+            We scan your USDT balance to suggest a DCA amount. Funds stay in your wallet until you deposit to Gramity.
+          </p>
+
+          <div class="connect-section anim-item" id="connectSection">
+            <button class="connect-btn primary-ton" id="btnConnectTon" type="button">
+              <span class="logo-circle logo-circle-lg"><img src="/app/logos/ton.png" alt="" class="wallet-logo-img" width="28" height="28"/></span>
+              <div style="flex:1;text-align:left">
+                <div>Connect TON Wallet</div>
+                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Tonkeeper · MyTonWallet · TON Space</div>
+              </div>
+            </button>
+            <button class="connect-btn" id="btnConnectMM" type="button">
+              <span class="logo-circle logo-circle-lg"><img src="/app/logos/metamask.svg" alt="" class="wallet-logo-img" width="28" height="28"/></span>
+              <div style="flex:1;text-align:left">
+                <div>Connect MetaMask</div>
+                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Opens browser · ETH · Base · BNB · Polygon</div>
+              </div>
+            </button>
+          </div>
+
+          <div class="step2-wallet-info anim-item" id="step2WalletInfo" style="display:none">
+            <div class="step2-wallet-addr" id="step2WalletAddr">—</div>
+            <div class="step2-wallet-bal" id="step2WalletBal">Balance: —</div>
+          </div>
+
+          <button type="button" class="demo-toggle-link anim-item" id="btnToggleDemoConnect">No wallet? Try demo mode →</button>
+        </div>
+        <div class="slide-footer">
+          <button class="btn btn-primary anim-item" id="btnWizardNextConnect" disabled style="opacity:0.4">Continue →</button>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════
+           WIZARD — Step 2 of 4: Plan DCA (slider + calculator)
+      ═══════════════════════════════════════════ -->
+      <section class="slide slide-wizard" data-slide="7">
+        <div class="wizard-header anim-item">
           <button class="wizard-back" id="btnWizardBack1">←</button>
-          <span class="wizard-step">Step 1 of 2</span>
+          <span class="wizard-step">Step 2 of 4</span>
           <div style="width:28px"></div>
         </div>
         <div class="wizard-step-bar-2 anim-item" id="progressBar1">
           <div class="wizard-seg active"></div>
+          <div class="wizard-seg active"></div>
+          <div class="wizard-seg"></div>
           <div class="wizard-seg"></div>
         </div>
         <div class="slide-content">
-          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:6px">Set up DCA</h2>
+          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:6px">Plan your DCA</h2>
+
+          <div class="avail-bal-banner anim-item" id="availBalBanner">
+            Available for DCA: <strong id="availUsdtText">—</strong>
+          </div>
 
           <div class="freq-tabs anim-item" id="freqTabsSetup">
             <button type="button" class="freq-tab" data-freq="daily">Daily</button>
@@ -1895,7 +1982,7 @@
                      min="10" max="2000" step="1" value="50"/>
               <div class="slider-ticks">
                 <span id="amountSliderMin">$10</span>
-                <span>$2,000</span>
+                <span id="amountSliderMax">$2,000</span>
               </div>
             </div>
 
@@ -1932,20 +2019,70 @@
       </section>
 
       <!-- ═══════════════════════════════════════════
-           WIZARD SLIDE 7 — Step 2 of 2: Connect & Confirm
+           WIZARD — Step 3 of 4: Deposit to agent wallet
       ═══════════════════════════════════════════ -->
-      <section class="slide slide-wizard" data-slide="7">
+      <section class="slide slide-wizard" data-slide="7b">
+        <div class="wizard-header anim-item">
+          <button class="wizard-back" id="btnWizardBackDeposit">←</button>
+          <span class="wizard-step">Step 3 of 4</span>
+          <div style="width:28px"></div>
+        </div>
+        <div class="wizard-step-bar-2 anim-item" id="progressBarDeposit">
+          <div class="wizard-seg active"></div>
+          <div class="wizard-seg active"></div>
+          <div class="wizard-seg active"></div>
+          <div class="wizard-seg"></div>
+        </div>
+        <div class="slide-content">
+          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:10px">Fund agent wallet</h2>
+          <p class="anim-item" style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;line-height:1.5">
+            Send at least <strong id="depositMinLabel">$10</strong> USDT (TON network). Gramity seeds ~0.6 TON for gas when you arrive here.
+          </p>
+
+          <div class="deposit-agent-card anim-item">
+            <p class="param-label" style="margin-bottom:8px">Your agent wallet (TON)</p>
+            <div class="deposit-addr-row">
+              <span class="deposit-addr-text-lg" id="agentWalletAddr" style="font-size:12px">—</span>
+              <button class="btn-copy-addr" id="btnCopyAgentAddr" type="button">Copy</button>
+            </div>
+            <p class="gas-hint-line" id="agentGasLine">Gas: checking…</p>
+            <p class="deposit-poll-status" id="agentDepositPoll">Waiting for deposit…</p>
+          </div>
+
+          <button class="connect-btn anim-item" id="btnBridgeFromMM" type="button" style="display:none">
+            <span class="logo-circle logo-circle-lg"><img src="/app/logos/metamask.svg" alt="" class="wallet-logo-img" width="28" height="28"/></span>
+            <div style="flex:1;text-align:left">
+              <div>Bridge USDT from MetaMask</div>
+              <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Omniston · ETH · Base · BNB · Polygon</div>
+            </div>
+          </button>
+
+          <p class="anim-item addr-hint" id="depositTonHint" style="display:none;margin-top:12px">
+            Or send USDT jetton from your TON wallet to the address above (TON network).
+          </p>
+        </div>
+        <div class="slide-footer">
+          <button class="btn btn-primary anim-item" id="btnWizardNextDeposit" disabled style="opacity:0.4">Continue →</button>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════
+           WIZARD — Step 4 of 4: Confirm or Mira
+      ═══════════════════════════════════════════ -->
+      <section class="slide slide-wizard" data-slide="8">
         <div class="wizard-header anim-item">
           <button class="wizard-back" id="btnWizardBack2">←</button>
-          <span class="wizard-step">Step 2 of 2</span>
+          <span class="wizard-step">Step 4 of 4</span>
           <div style="width:28px"></div>
         </div>
         <div class="wizard-step-bar-2 anim-item" id="progressBar2">
           <div class="wizard-seg active"></div>
           <div class="wizard-seg active"></div>
+          <div class="wizard-seg active"></div>
+          <div class="wizard-seg active"></div>
         </div>
         <div class="slide-content">
-          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:14px">Connect &amp; Confirm</h2>
+          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:14px">Confirm strategy</h2>
 
           <div class="summary-card anim-item">
             <div class="summary-row">
@@ -1964,43 +2101,26 @@
               <span class="summary-label">Withdraw</span>
               <span class="summary-value" id="summaryWithdraw">—</span>
             </div>
+            <div class="summary-row">
+              <span class="summary-label">Funded</span>
+              <span class="summary-value hi" id="summaryFunded">—</span>
+            </div>
           </div>
 
-          <div class="connect-section anim-item" id="connectSection">
-            <button class="connect-btn primary-ton" id="btnConnectTon" type="button">
-              <span class="logo-circle logo-circle-lg"><img src="/app/logos/ton.png" alt="" class="wallet-logo-img" width="28" height="28"/></span>
-              <div style="flex:1;text-align:left">
-                <div>Connect TON Wallet</div>
-                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Tonkeeper · MyTonWallet · TON Space</div>
-              </div>
-            </button>
-            <button class="connect-btn" id="btnConnectMM" type="button">
-              <span class="logo-circle logo-circle-lg"><img src="/app/logos/metamask.svg" alt="" class="wallet-logo-img" width="28" height="28"/></span>
-              <div style="flex:1;text-align:left">
-                <div>Connect MetaMask</div>
-                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Opens browser · ETH · Base · BNB · Polygon</div>
-              </div>
-            </button>
-          </div>
-
-          <div class="step2-wallet-info anim-item" id="step2WalletInfo">
-            <div class="step2-wallet-addr" id="step2WalletAddr">—</div>
-            <div class="step2-wallet-bal" id="step2WalletBal">Balance: —</div>
-          </div>
-
-          <div class="dca-min-banner anim-item" id="dcaMinBanner" style="margin-top:12px">⚠️ Min $10 USDT needed</div>
-
-          <button type="button" class="demo-toggle-link anim-item" id="btnToggleDemo">No wallet? Try demo mode →</button>
+          <p class="anim-item" style="font-size:13px;color:var(--text-secondary);line-height:1.5;margin-top:8px">
+            Ready to start DCA, or discuss amount and frequency with Mira first.
+          </p>
         </div>
-        <div class="slide-footer">
-          <button class="btn btn-create-dca anim-item" id="btnCreateStrategy" disabled style="opacity:0.4">✦ Create Strategy</button>
+        <div class="slide-footer" style="gap:10px;display:flex;flex-direction:column">
+          <button class="btn btn-create-dca anim-item" id="btnCreateStrategy">✦ Create Strategy</button>
+          <button class="btn btn-mira-ghost anim-item" id="btnMiraBeforeCreate" type="button">Discuss with Mira →</button>
         </div>
       </section>
 
       <!-- ═══════════════════════════════════════════
-           WIZARD SLIDE 8 — Final: You're all set!
+           WIZARD SLIDE — Final: You're all set!
       ═══════════════════════════════════════════ -->
-      <section class="slide slide-wizard slide-wizard-final" data-slide="8">
+      <section class="slide slide-wizard slide-wizard-final" data-slide="9">
         <div class="slide-content">
           <h2 class="final-title anim-item">You're all set!</h2>
           <div class="deposit-step-card anim-item">
@@ -2143,18 +2263,20 @@
         });
       }
 
-      var WIZARD_START = 7;
-      var WIZARD_STEP2 = 8;
-      var WIZARD_FINAL = 9;
+      var WIZARD_CONNECT = 7;
+      var WIZARD_SETUP = 8;
+      var WIZARD_DEPOSIT = 9;
+      var WIZARD_CONFIRM = 10;
+      var WIZARD_FINAL = 11;
 
       function updateSkipVisibility() {
         var skipBtn = document.getElementById('skip-onboarding');
         if (!skipBtn) return;
-        skipBtn.style.display = current < WIZARD_START ? 'block' : 'none';
+        skipBtn.style.display = current < WIZARD_CONNECT ? 'block' : 'none';
       }
 
       function updateArrows() {
-        var inWizard = current >= WIZARD_START;
+        var inWizard = current >= WIZARD_CONNECT;
         btnPrev.classList.toggle('hidden', current === 0 || inWizard);
         btnNext.classList.toggle('hidden', current >= TOTAL - 1 || inWizard);
         updateSkipVisibility();
@@ -2194,12 +2316,12 @@
 
       document.getElementById('btnGetStarted').addEventListener('click', next);
       document.getElementById('btnToFinal').addEventListener('click', function () { goTo(6); });
-      document.getElementById('btnStartDCA').addEventListener('click', function () { goTo(WIZARD_START); });
+      document.getElementById('btnStartDCA').addEventListener('click', function () { goTo(WIZARD_CONNECT); });
 
       var skipBtn = document.getElementById('skip-onboarding');
       if (skipBtn) {
         skipBtn.onclick = function () {
-          goTo(WIZARD_START);
+          goTo(WIZARD_CONNECT);
         };
       }
       updateSkipVisibility();
@@ -2424,6 +2546,11 @@
         evmAddress:      null,
         evmConnected:    false,
         usdtBalance:     0,
+        availableUsdt:   0,
+        agentWalletAddress: '',
+        agentUsdtBalance: 0,
+        agentTonBalance:  0,
+        depositConfirmed: false,
         demoMode:        false,
         mode:            'live',
         frequency:       'weekly',
@@ -2447,15 +2574,21 @@
               updateTonConnectBtn(rawAddr);
               fetchTonBal(rawAddr).then(function (items) {
                 var balItems = items || [];
+                var result = applyBalanceFilters(balItems);
+                wiz.usdtBalance = result.usdtBalance;
+                syncAvailableUsdt();
                 updateStep2WalletInfo(rawAddr, balItems);
                 showStripPreview(rawAddr, balItems);
+                updateConnectContinueBtn();
               });
             } else {
               wiz.tonAddress   = '';
               wiz.tonConnected = false;
               wiz.usdtBalance  = 0;
+              syncAvailableUsdt();
               updateTonConnectBtn(null);
               updateStep2WalletInfo(null, []);
+              updateConnectContinueBtn();
             }
           });
         }
@@ -2737,14 +2870,13 @@
         var infoBox = document.getElementById('step2WalletInfo');
         var addrEl = document.getElementById('step2WalletAddr');
         var balEl = document.getElementById('step2WalletBal');
-        var banner = document.getElementById('dcaMinBanner');
         if (!infoBox || !addrEl || !balEl) return;
 
         if (!addr) {
           infoBox.style.display = 'none';
           wiz.usdtBalance = 0;
-          if (banner && wiz.mode === 'live') banner.style.display = 'none';
-          updateCreateBtn();
+          syncAvailableUsdt();
+          updateConnectContinueBtn();
           return;
         }
 
@@ -2756,11 +2888,8 @@
         infoBox.style.display = 'block';
         addrEl.textContent = truncateAddr(displayAddr);
         balEl.textContent = 'Balance: $' + result.usdtBalance.toFixed(2) + ' USDT';
-
-        if (banner) {
-          banner.style.display = (wiz.mode === 'live' && result.usdtBalance < 10) ? 'block' : 'none';
-        }
-        updateCreateBtn();
+        syncAvailableUsdt();
+        updateConnectContinueBtn();
       }
 
       function showStripPreview(addr, items) {
@@ -2777,12 +2906,12 @@
       ══════════════════════════════════════════════════════ */
 
       document.getElementById('btnConnectTonStrip').addEventListener('click', function () {
-        goTo(WIZARD_STEP2);
+        goTo(WIZARD_CONNECT);
         if (tonConnectUI) tonConnectUI.openModal();
       });
 
       document.getElementById('btnConnectMMStrip').addEventListener('click', function () {
-        goTo(WIZARD_STEP2);
+        goTo(WIZARD_CONNECT);
         runMetaMaskConnect(document.getElementById('btnConnectMM'));
       });
 
@@ -2999,6 +3128,8 @@
           if (stripResult) {
             document.getElementById('stripTotal').textContent = '$' + walletBalance.totalUsd.toFixed(0);
           }
+          syncAvailableUsdt();
+          updateConnectContinueBtn();
           return;
         }
 
@@ -3009,6 +3140,8 @@
             if (stripResult && payload && payload.totalUsd != null) {
               document.getElementById('stripTotal').textContent = '$' + payload.totalUsd.toFixed(0);
             }
+            syncAvailableUsdt();
+            updateConnectContinueBtn();
           })
           .catch(function (err) {
             console.error('[MetaMask] balance fetch failed', err);
@@ -3114,7 +3247,7 @@
       });
 
       /* ══════════════════════════════════════════════════════
-         WIZARD STEP 1 — Set up DCA
+         WIZARD — Connect → Plan → Deposit → Confirm
       ══════════════════════════════════════════════════════ */
 
       var AMOUNT_MIN = 10;
@@ -3123,14 +3256,58 @@
       var sliderEl = document.getElementById('amountSlider');
       var amountInputEl = document.getElementById('amountInput');
       var agentDepositAddress = '';
+      var agentPollTimer = null;
+
+      function getSliderMax() {
+        if (wiz.mode === 'demo') return AMOUNT_MAX;
+        if (wiz.availableUsdt >= AMOUNT_MIN) {
+          return Math.min(AMOUNT_MAX, Math.max(AMOUNT_MIN, Math.floor(wiz.availableUsdt)));
+        }
+        return AMOUNT_MAX;
+      }
+
+      function syncAvailableUsdt() {
+        if (wiz.mode === 'demo') {
+          wiz.availableUsdt = AMOUNT_MAX;
+        } else if (wiz.evmConnected && wiz.usdtBalance > 0) {
+          wiz.availableUsdt = wiz.usdtBalance;
+        } else if (wiz.tonConnected) {
+          wiz.availableUsdt = wiz.usdtBalance;
+        } else {
+          wiz.availableUsdt = 0;
+        }
+        var el = document.getElementById('availUsdtText');
+        if (el) {
+          el.textContent = wiz.mode === 'demo'
+            ? 'Demo mode'
+            : wiz.availableUsdt >= AMOUNT_MIN
+              ? '$' + wiz.availableUsdt.toFixed(0) + ' USDT'
+              : wiz.tonConnected || wiz.evmConnected
+                ? '$' + wiz.availableUsdt.toFixed(2) + ' USDT (low)'
+                : 'Connect wallet first';
+        }
+        applySliderMax();
+      }
+
+      function applySliderMax() {
+        var max = getSliderMax();
+        if (sliderEl) {
+          sliderEl.max = String(max);
+          var maxLbl = document.getElementById('amountSliderMax');
+          if (maxLbl) maxLbl.textContent = '$' + max.toLocaleString();
+        }
+        if (amountInputEl) amountInputEl.max = String(max);
+        if (wiz.amountPerCycle > max) setSetupAmount(max);
+      }
 
       function cyclesPerYear(freq) {
         return FREQ_CYCLES[freq] || 52;
       }
 
       function snapAmount(val) {
+        var max = getSliderMax();
         var n = Math.round(parseFloat(val));
-        return Math.max(AMOUNT_MIN, Math.min(AMOUNT_MAX, n));
+        return Math.max(AMOUNT_MIN, Math.min(max, n));
       }
 
       function calcSetupProjection(amount, freq, tonPrice) {
@@ -3147,8 +3324,11 @@
 
       function refreshSetupSliderTrack() {
         if (!sliderEl) return;
+        var max = getSliderMax();
         var val = wiz.amountPerCycle;
-        var pct = ((val - AMOUNT_MIN) / (AMOUNT_MAX - AMOUNT_MIN)) * 100;
+        var pct = max > AMOUNT_MIN
+          ? ((val - AMOUNT_MIN) / (max - AMOUNT_MIN)) * 100
+          : 0;
         sliderEl.style.background =
           'linear-gradient(to right, var(--accent) 0%, var(--accent) ' + pct.toFixed(1) +
           '%, rgba(255,255,255,0.12) ' + pct.toFixed(1) + '%)';
@@ -3166,14 +3346,21 @@
             ? 'After 1 year: ≈ ' + Math.round(p.tonAmount).toLocaleString() + ' TON'
             : 'After 1 year: ≈ — TON';
         }
-        if (brkEl) {
-          brkEl.textContent = '+' + p.yieldPct + '% APY';
-        }
+        if (brkEl) brkEl.textContent = '+' + p.yieldPct + '% APY';
         if (priceEl) {
           priceEl.textContent = tonPrice && tonPrice > 0
-            ? 'Live TON/USD: $' + tonPrice.toFixed(2)
+            ? 'Live TON/USD: $' + tonPrice.toFixed(2) + ' · price held constant'
             : 'Fetching rate…';
         }
+      }
+
+      function updateConnectContinueBtn() {
+        var btn = document.getElementById('btnWizardNextConnect');
+        if (!btn) return;
+        var can = wiz.mode === 'demo' || wiz.tonConnected || wiz.evmConnected;
+        btn.disabled = !can;
+        btn.style.opacity = can ? '1' : '0.4';
+        btn.style.pointerEvents = can ? 'auto' : 'none';
       }
 
       function updateSetupContinueBtn() {
@@ -3186,9 +3373,18 @@
         btn.disabled = !can;
         btn.style.opacity = can ? '1' : '0.4';
         btn.style.pointerEvents = can ? 'auto' : 'none';
-
         var checkEl = document.getElementById('withdrawAddrCheck');
         if (checkEl) checkEl.classList.toggle('visible', addrProvided && addrOk);
+      }
+
+      function updateDepositContinueBtn() {
+        var btn = document.getElementById('btnWizardNextDeposit');
+        if (!btn) return;
+        var minNeeded = Math.max(AMOUNT_MIN, Math.min(wiz.amountPerCycle, AMOUNT_MIN));
+        var can = wiz.mode === 'demo' || wiz.depositConfirmed || wiz.agentUsdtBalance >= minNeeded;
+        btn.disabled = !can;
+        btn.style.opacity = can ? '1' : '0.4';
+        btn.style.pointerEvents = can ? 'auto' : 'none';
       }
 
       function setSetupAmount(val) {
@@ -3198,6 +3394,8 @@
         refreshSetupSliderTrack();
         refreshSetupProjection();
         updateSetupContinueBtn();
+        var minLbl = document.getElementById('depositMinLabel');
+        if (minLbl) minLbl.textContent = '$' + Math.max(AMOUNT_MIN, Math.min(wiz.amountPerCycle, AMOUNT_MIN));
       }
 
       function setSetupFrequency(freq) {
@@ -3218,7 +3416,30 @@
         window.gramityState.tonPrice = tonPrice;
       }
 
+      function setDemoMode(enabled) {
+        wiz.mode = enabled ? 'demo' : 'live';
+        wiz.demoMode = enabled;
+        window.gramityState.mode = wiz.mode;
+        var connectSection = document.getElementById('connectSection');
+        var demoBtn = document.getElementById('btnToggleDemoConnect');
+        if (connectSection) connectSection.style.display = enabled ? 'none' : 'block';
+        if (demoBtn) {
+          demoBtn.textContent = enabled ? '← Back to live mode' : 'No wallet? Try demo mode →';
+        }
+        syncAvailableUsdt();
+        updateConnectContinueBtn();
+        updateDepositContinueBtn();
+      }
+
+      function initConnectStep() {
+        updateConnectContinueBtn();
+        if (wiz.tonConnected && wiz.tonAddress) {
+          updateStep2WalletInfo(wiz.tonAddress, []);
+        }
+      }
+
       function initSetupStep() {
+        syncAvailableUsdt();
         fetchTonPrice(false).then(function (price) {
           if (price && price > 0) window.gramityState.tonPrice = price;
           refreshSetupProjection();
@@ -3228,17 +3449,162 @@
           wiz.withdrawAddress = window.gramityState.withdrawalAddress;
         }
         if (window.gramityState.frequency) setSetupFrequency(window.gramityState.frequency);
+        var suggested = wiz.availableUsdt >= AMOUNT_MIN
+          ? Math.min(50, Math.floor(wiz.availableUsdt * 0.25))
+          : 50;
+        suggested = Math.max(AMOUNT_MIN, suggested);
         if (window.gramityState.amount) setSetupAmount(window.gramityState.amount);
-        else setSetupAmount(wiz.amountPerCycle);
+        else setSetupAmount(suggested);
         updateSetupContinueBtn();
       }
 
-      document.getElementById('btnWizardBack1').addEventListener('click', function () { goTo(6); });
+      function fetchAgentWallet(seedGas) {
+        var url = '/api/onboarding/wallet' + (seedGas ? '?seed_gas=1' : '');
+        return fetch(url, {
+          headers: { 'X-Telegram-Init-Data': initData },
+        }).then(function (r) {
+          if (!r.ok) return r.text().then(function (t) { throw new Error(t || String(r.status)); });
+          return r.json();
+        });
+      }
+
+      function updateAgentDepositUI() {
+        var addrEl = document.getElementById('agentWalletAddr');
+        if (addrEl && wiz.agentWalletAddress) addrEl.textContent = wiz.agentWalletAddress;
+        agentDepositAddress = wiz.agentWalletAddress;
+        var gasEl = document.getElementById('agentGasLine');
+        if (gasEl) {
+          gasEl.textContent = 'Gas: ' + wiz.agentTonBalance.toFixed(2) + ' TON on agent wallet · USDT: $' + wiz.agentUsdtBalance.toFixed(2);
+        }
+        var pollEl = document.getElementById('agentDepositPoll');
+        if (pollEl) {
+          if (wiz.mode === 'demo') {
+            pollEl.textContent = 'Demo mode — deposit skipped';
+          } else if (wiz.agentUsdtBalance >= AMOUNT_MIN) {
+            pollEl.textContent = '✓ Deposit detected';
+          } else {
+            pollEl.textContent = 'Waiting for USDT on TON network…';
+          }
+        }
+        var bridgeBtn = document.getElementById('btnBridgeFromMM');
+        if (bridgeBtn) bridgeBtn.style.display = wiz.evmConnected ? 'flex' : 'none';
+        var tonHint = document.getElementById('depositTonHint');
+        if (tonHint) tonHint.style.display = wiz.tonConnected ? 'block' : 'none';
+        updateDepositContinueBtn();
+      }
+
+      function stopAgentPoll() {
+        if (agentPollTimer) {
+          clearInterval(agentPollTimer);
+          agentPollTimer = null;
+        }
+      }
+
+      function startAgentPoll() {
+        stopAgentPoll();
+        if (wiz.mode === 'demo') return;
+        agentPollTimer = setInterval(function () {
+          fetchAgentWallet(false).then(function (data) {
+            wiz.agentUsdtBalance = data.usdt_balance || 0;
+            wiz.agentTonBalance = data.ton_balance || 0;
+            if (wiz.agentUsdtBalance >= Math.max(AMOUNT_MIN, Math.min(wiz.amountPerCycle, AMOUNT_MIN))) {
+              wiz.depositConfirmed = true;
+            }
+            updateAgentDepositUI();
+            if (wiz.depositConfirmed) stopAgentPoll();
+          }).catch(function () {});
+        }, 5000);
+      }
+
+      function initDepositStep() {
+        if (wiz.mode === 'demo') {
+          wiz.depositConfirmed = true;
+          updateAgentDepositUI();
+          return;
+        }
+        var pollEl = document.getElementById('agentDepositPoll');
+        if (pollEl) pollEl.textContent = 'Preparing agent wallet…';
+        fetchAgentWallet(true).then(function (data) {
+          wiz.agentWalletAddress = data.agent_wallet_address || '';
+          wiz.agentUsdtBalance = data.usdt_balance || 0;
+          wiz.agentTonBalance = data.ton_balance || 0;
+          if (wiz.agentUsdtBalance >= Math.max(AMOUNT_MIN, Math.min(wiz.amountPerCycle, AMOUNT_MIN))) {
+            wiz.depositConfirmed = true;
+          }
+          updateAgentDepositUI();
+          startAgentPoll();
+        }).catch(function (err) {
+          console.error('[deposit step]', err);
+          if (pollEl) pollEl.textContent = 'Could not load agent wallet';
+        });
+      }
+
+      function buildSummary() {
+        var freqLabels = { daily: 'daily', weekly: 'weekly', monthly: 'monthly' };
+        document.getElementById('summaryStrategy').textContent = 'TON + LP';
+        document.getElementById('summaryAmount').textContent =
+          '$' + wiz.amountPerCycle + ' USDT / ' + (freqLabels[wiz.frequency] || 'weekly');
+        document.getElementById('summaryApy').textContent = '~5.4%';
+        document.getElementById('summaryWithdraw').textContent = wiz.withdrawAddress
+          ? truncateAddr(wiz.withdrawAddress)
+          : 'Set later';
+        var fundedEl = document.getElementById('summaryFunded');
+        if (fundedEl) {
+          fundedEl.textContent = wiz.mode === 'demo'
+            ? 'Demo'
+            : '$' + wiz.agentUsdtBalance.toFixed(2) + ' USDT on agent wallet';
+        }
+      }
+
+      function initConfirmStep() {
+        buildSummary();
+      }
+
+      document.getElementById('btnWizardBackConnect').addEventListener('click', function () { goTo(6); });
+      document.getElementById('btnWizardNextConnect').addEventListener('click', function () {
+        if (this.disabled) return;
+        goTo(WIZARD_SETUP);
+      });
+
+      document.getElementById('btnWizardBack1').addEventListener('click', function () { goTo(WIZARD_CONNECT); });
       document.getElementById('btnWizardNext1').addEventListener('click', function () {
         if (this.disabled) return;
         saveSetupState();
+        goTo(WIZARD_DEPOSIT);
+      });
+
+      document.getElementById('btnWizardBackDeposit').addEventListener('click', function () { goTo(WIZARD_SETUP); });
+      document.getElementById('btnWizardNextDeposit').addEventListener('click', function () {
+        if (this.disabled) return;
+        saveSetupState();
         buildSummary();
-        goTo(WIZARD_STEP2);
+        goTo(WIZARD_CONFIRM);
+      });
+
+      document.getElementById('btnWizardBack2').addEventListener('click', function () { goTo(WIZARD_DEPOSIT); });
+
+      document.getElementById('btnToggleDemoConnect').addEventListener('click', function () {
+        setDemoMode(wiz.mode !== 'demo');
+      });
+
+      document.getElementById('btnBridgeFromMM').addEventListener('click', function () {
+        openCrossChainDeposit(this);
+      });
+
+      document.getElementById('btnCopyAgentAddr').addEventListener('click', function () {
+        if (!wiz.agentWalletAddress) return;
+        var btn = this;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(wiz.agentWalletAddress).then(function () {
+            btn.textContent = 'Copied!';
+            setTimeout(function () { btn.textContent = 'Copy'; }, 2000);
+          }).catch(function () {});
+        }
+      });
+
+      document.getElementById('btnMiraBeforeCreate').addEventListener('click', function () {
+        saveSetupState();
+        openMiraWithContext(this);
       });
 
       document.querySelectorAll('#freqTabsSetup .freq-tab').forEach(function (tab) {
@@ -3259,7 +3625,7 @@
       }
       document.querySelectorAll('#sliderPcts .pct-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          setSetupAmount(parseInt(btn.dataset.pct, 10) / 100 * AMOUNT_MAX);
+          setSetupAmount(parseInt(btn.dataset.pct, 10) / 100 * getSliderMax());
         });
       });
 
@@ -3278,64 +3644,6 @@
         updateSetupContinueBtn();
       });
 
-      /* ══════════════════════════════════════════════════════
-         WIZARD STEP 2 — Connect & Confirm
-      ══════════════════════════════════════════════════════ */
-
-      function buildSummary() {
-        var freqLabels = { daily: 'daily', weekly: 'weekly', monthly: 'monthly' };
-        document.getElementById('summaryStrategy').textContent = 'TON + LP';
-        document.getElementById('summaryAmount').textContent =
-          '$' + wiz.amountPerCycle + ' USDT / ' + (freqLabels[wiz.frequency] || 'weekly');
-        document.getElementById('summaryApy').textContent = '~5.4%';
-        document.getElementById('summaryWithdraw').textContent = wiz.withdrawAddress
-          ? truncateAddr(wiz.withdrawAddress)
-          : 'Set later';
-      }
-
-      function updateCreateBtn() {
-        var btn = document.getElementById('btnCreateStrategy');
-        if (!btn) return;
-        var can = wiz.mode === 'demo' || wiz.tonConnected;
-        btn.disabled = !can;
-        btn.style.opacity = can ? '1' : '0.4';
-        btn.style.pointerEvents = can ? 'auto' : 'none';
-      }
-
-      function setDemoMode(enabled) {
-        wiz.mode = enabled ? 'demo' : 'live';
-        wiz.demoMode = enabled;
-        window.gramityState.mode = wiz.mode;
-
-        var connectSection = document.getElementById('connectSection');
-        var demoBtn = document.getElementById('btnToggleDemo');
-        var banner = document.getElementById('dcaMinBanner');
-
-        if (connectSection) connectSection.style.display = enabled ? 'none' : 'block';
-        if (demoBtn) {
-          demoBtn.textContent = enabled ? '← Back to live mode' : 'No wallet? Try demo mode →';
-        }
-        if (banner && enabled) banner.style.display = 'none';
-        else if (banner && wiz.tonConnected && wiz.usdtBalance < 10) banner.style.display = 'block';
-
-        updateCreateBtn();
-      }
-
-      function initConfirmStep() {
-        buildSummary();
-        setDemoMode(wiz.mode === 'demo');
-        if (wiz.tonConnected && wiz.tonAddress) {
-          fetchTonBal(wiz.tonAddress).then(function (items) {
-            updateStep2WalletInfo(wiz.tonAddress, items || []);
-          });
-        } else {
-          updateStep2WalletInfo(null, []);
-        }
-        updateCreateBtn();
-      }
-
-      document.getElementById('btnWizardBack2').addEventListener('click', function () { goTo(WIZARD_START); });
-
       document.getElementById('btnConnectTon').addEventListener('click', function () {
         if (tonConnectUI) {
           if (wiz.tonConnected) {
@@ -3344,10 +3652,6 @@
             tonConnectUI.openModal();
           }
         }
-      });
-
-      document.getElementById('btnToggleDemo').addEventListener('click', function () {
-        setDemoMode(wiz.mode !== 'demo');
       });
 
       document.getElementById('btnTrackInBot').addEventListener('click', function () {
@@ -3491,7 +3795,6 @@
             else alert('Error: ' + errMsg);
             btn.disabled = false;
             btn.textContent = '✦ Create Strategy';
-            updateCreateBtn();
           }
         } catch (e) {
           console.error('[btnCreateStrategy]', e);
@@ -3499,7 +3802,6 @@
           else alert('Network error. Please try again.');
           btn.disabled = false;
           btn.textContent = '✦ Create Strategy';
-          updateCreateBtn();
         }
       });
 
@@ -3507,11 +3809,12 @@
       var _origAnimateSlide = animateSlide;
       animateSlide = function (index) {
         _origAnimateSlide(index);
-        if (index === WIZARD_START) initSetupStep();
-        if (index === WIZARD_STEP2) initConfirmStep();
+        if (index === WIZARD_CONNECT) initConnectStep();
+        if (index === WIZARD_SETUP) initSetupStep();
+        if (index === WIZARD_DEPOSIT) initDepositStep();
+        if (index === WIZARD_CONFIRM) initConfirmStep();
+        if (index !== WIZARD_DEPOSIT) stopAgentPoll();
       };
-
-      initSetupStep();
 
     })();
   </script>

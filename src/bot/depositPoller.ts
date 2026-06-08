@@ -65,6 +65,14 @@ async function tick(telegramId: number): Promise<void> {
       stopDepositPoller(telegramId);
       console.log(`[POLLER] Deposit detected for ${telegramId}: $${balance.toFixed(2)}`);
 
+      const depositAddress = depositAddresses.get(telegramId) ?? "";
+      if (depositAddress) {
+        const { seedGasIfNeeded } = await import("../services/gasSeed.js");
+        seedGasIfNeeded(depositAddress).catch((err) =>
+          console.warn("[POLLER] gas seed:", (err as Error).message)
+        );
+      }
+
       const prevBalance   = initialBalances.get(telegramId) ?? 0;
       const depositAmount = (balance - prevBalance).toFixed(2);
       await _send(

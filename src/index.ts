@@ -330,6 +330,39 @@ app.get("/api/deposit/config", tgAuth, async (req, res) => {
   }
 });
 
+// Onboarding: agent wallet + balances (+ optional gas seed at deposit step)
+app.get("/api/onboarding/wallet", tgAuth, async (req, res) => {
+  try {
+    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const seed = String(req.query.seed_gas ?? "") === "1";
+    const { createUserWallet } = await import("./services/userWallet.js");
+    const { seedGasIfNeeded } = await import("./services/gasSeed.js");
+    const agentAddress = await createUserWallet(telegramId);
+
+    let gasSeed: { seeded: boolean; amountTon?: number; reason?: string } = {
+      seeded: false,
+      reason: "not_requested",
+    };
+    if (seed) {
+      gasSeed = await seedGasIfNeeded(agentAddress);
+    }
+
+    const usdtBalance = await getUsdtBalance(agentAddress).catch(() => 0);
+    const tonNano = await getTonBalance(agentAddress).catch(() => 0n);
+
+    res.json({
+      agent_wallet_address: agentAddress,
+      usdt_balance: usdtBalance,
+      ton_balance: Number(tonNano) / 1e9,
+      gas_seed: gasSeed,
+      min_dca_usdt: MIN_DCA_USDT,
+      gas_reserve_ton: GAS_RESERVE_TON,
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 // EVM deposit session — JWT for MetaMask in-app browser (no initData in URL)
 app.post("/api/evm-deposit/session", tgAuth, async (req, res) => {
   try {
