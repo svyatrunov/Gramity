@@ -120,7 +120,7 @@ export async function handleStart(ctx: GramityContext) {
       `  › Stakes → tsTON via Tonstakers (~5% APY)\n` +
       `  › Provides liquidity on STON.fi (~5.4% APY)\n\n` +
       `*LP tokens go directly to your wallet.*\n` +
-      `~5.4% APY · Non-custodial · 0% platform fee\n\n` +
+      `~5.4% APY · 0% platform fee\n\n` +
       `After setup, manage via *@Mira* (portfolio, pause, update).\n\n` +
       `Tap *Open App* to set up in ~2 minutes 👇`,
     { parse_mode: "Markdown", reply_markup: kb }

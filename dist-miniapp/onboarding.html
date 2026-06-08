@@ -21,7 +21,7 @@
       --border: rgba(255, 255, 255, 0.06);
       --radius: 16px;
       --font: -apple-system, BlinkMacSystemFont, sans-serif;
-      --slide-count: 11;
+      --slide-count: 13;
     }
 
     html, body {
@@ -1443,7 +1443,7 @@
             <h1 class="hero-title anim-item">Gramity</h1>
             <p class="hero-subtitle anim-item">Your money works while you sleep</p>
             <p class="hero-tagline anim-item">STON.fi Hackathon · Omniston v1beta8 · ~5.4% APY</p>
-            <p class="hero-meta anim-item">~16 min/week saved · non-custodial · 0% platform fee · <span class="mira-accent">AI-managed via Mira</span></p>
+            <p class="hero-meta anim-item">0% platform fee · <span class="mira-accent">AI-managed via Mira</span></p>
           </div>
         </div>
         <div class="slide-footer">
@@ -1563,7 +1563,7 @@
               <div class="logo-node"><svg width="36" height="36"><use href="#logo-wallet"/></svg></div>
               <div class="flow-node-text">
                 <strong>LP tokens in your wallet</strong>
-                <span>Non-custodial · direct delivery</span>
+                <span>LP to your wallet · direct delivery</span>
               </div>
             </div>
 
@@ -1711,7 +1711,7 @@
               <button class="btn btn-cta-hero anim-item" id="btnStartDCA">
                 ✦ Create DCA Strategy
               </button>
-              <p class="cta-meta anim-item">~2 min setup · non-custodial · <span>0% platform fee</span></p>
+              <p class="cta-meta anim-item">~2 min setup · <span>0% platform fee</span></p>
               <button class="btn btn-ghost anim-item" id="btnLearnMore">Learn more</button>
             </div>
           </div>
@@ -1962,7 +1962,7 @@
                 <div class="logo-node"><svg width="36" height="36"><use href="#logo-wallet"/></svg></div>
                 <div class="flow-node-text">
                   <strong>LP tokens → your wallet</strong>
-                  <span>Non-custodial · direct · locked address</span>
+                  <span>Direct to wallet · locked address</span>
                 </div>
               </div>
             </div>
@@ -2011,7 +2011,7 @@
           <div class="benefit-list">
             <div class="benefit-item anim-item">
               <div class="benefit-icon">✓</div>
-              <span><strong style="color:#fff">Non-custodial</strong> — LP tokens go directly to your wallet, Gramity never holds them</span>
+              <span><strong style="color:#fff">LP direct delivery</strong> — LP tokens go to your wallet, Gramity never holds them</span>
             </div>
             <div class="benefit-item anim-item">
               <div class="benefit-icon">✓</div>
@@ -2071,51 +2071,6 @@
             </div>
           </div>
 
-          <!-- Time saved -->
-          <div class="time-saved-card anim-item">
-            <div class="ts-header">⏱ Time saved vs manual DCA</div>
-            <div class="ts-rows">
-              <div class="ts-row">
-                <span class="step-name">🔵 Bridge EVM → TON</span>
-                <span class="step-time">5 min</span>
-              </div>
-              <div class="ts-row">
-                <span class="step-name">
-                  <svg width="14" height="14"><use href="#logo-omniston"/></svg>
-                  Omniston swap
-                </span>
-                <span class="step-time">3 min</span>
-              </div>
-              <div class="ts-row">
-                <span class="step-name">
-                  <svg width="14" height="14"><use href="#logo-tonstakers"/></svg>
-                  Tonstakers stake
-                </span>
-                <span class="step-time">3 min</span>
-              </div>
-              <div class="ts-row">
-                <span class="step-name">
-                  <svg width="14" height="14"><use href="#logo-ston"/></svg>
-                  STON.fi LP add
-                </span>
-                <span class="step-time">5 min</span>
-              </div>
-            </div>
-            <hr class="ts-divider"/>
-            <div class="ts-total">
-              <span class="label">Per cycle (manually)</span>
-              <span class="value">~16 min</span>
-            </div>
-            <div class="ts-total" style="margin-top:4px">
-              <span class="label" style="color:var(--text-secondary)">Per year</span>
-              <span class="value" id="timeSavedYear" style="color:var(--accent)">~97 hours</span>
-            </div>
-            <div class="ts-gramity">
-              <span class="label">With Gramity</span>
-              <span class="value">0 min 🎉</span>
-            </div>
-          </div>
-
           <p class="subtitle anim-item" style="font-size:11px;text-align:center">
             Amount and frequency adjustable in the app after setup
           </p>
@@ -2134,7 +2089,7 @@
             </button>
           </div>
 
-          <p class="cta-meta anim-item" id="ctaMeta">~2 min setup · non-custodial · 0% platform fee</p>
+          <p class="cta-meta anim-item" id="ctaMeta">~2 min setup · 0% platform fee</p>
         </div>
       </section>
 
@@ -2233,8 +2188,6 @@
       }
 
       /* ── Constants ── */
-      var TOTAL     = 13;
-      var DOT_COUNT = 6;
       var MIRA_FALLBACK = 'tg://resolve?domain=mira';
       var BOT_DEEPLINK  = 'tg://resolve?domain=GramityBot';
       var APY       = 0.054;
@@ -2251,6 +2204,9 @@
       var btnNext      = document.getElementById('btnNext');
       var dotsContainer = document.getElementById('dots');
       var slides       = document.querySelectorAll('.slide');
+      var TOTAL        = slides.length;
+      var DOT_COUNT    = 6;
+      document.documentElement.style.setProperty('--slide-count', String(TOTAL));
 
       /* ── Build dots ── */
       var dots = [];
@@ -3692,10 +3648,6 @@
         }
       });
 
-      function calcTimeSaved() {
-        return '~97 hours';
-      }
-
       function buildSummary() {
         var stratLabels = { ton: 'TON + Stake + LP', ston: 'STON swap' };
         var apyLabels   = { ton: '~5.4%', ston: 'market' };
@@ -3713,7 +3665,6 @@
 
         var p = calcProjection(wiz.amountPerCycle, wiz.frequency, wiz.selectedToken === 'ton' ? APY : 0);
         document.getElementById('summaryProjection').textContent = '~$' + p.total.toFixed(0);
-        document.getElementById('timeSavedYear').textContent = calcTimeSaved(wiz.frequency);
       }
 
       /* ── Hook animateSlide for wizard ── */
