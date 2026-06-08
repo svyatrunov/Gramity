@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" overflow="visible">
+  <style>
+    :root { --bg: #07070e; --ink: #ffffff; }
+    @keyframes flicker {
+      0%   { opacity: .55 }
+      11%  { opacity: .55 }
+      19%  { opacity: .05 }
+      22%  { opacity: .05 }
+      30%  { opacity: .55 }
+      41%  { opacity: .55 }
+      49%  { opacity: .05 }
+      52%  { opacity: .05 }
+      60%  { opacity: .55 }
+      71%  { opacity: .55 }
+      79%  { opacity: .05 }
+      82%  { opacity: .05 }
+      90%  { opacity: .55 }
+      100% { opacity: .55 }
+    }
+    @keyframes starFlash {
+      0%   { opacity: 0; animation-timing-function: ease-out }
+      20%  { opacity: 1; animation-timing-function: ease-in }
+      60%  { opacity: 0 }
+      100% { opacity: 0 }
+    }
+    .gem { fill: var(--bg); stroke: var(--ink); stroke-width: 1.5 }
+    .sync { animation: flicker 14s linear infinite }
+    .star-glow { fill: var(--ink); animation: starFlash 2.5s linear infinite }
+    .star { fill: var(--ink); opacity: .72; animation: starFlash 2.5s linear infinite }
+  </style>
+  <defs>
+    <filter id="fSt" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <path class="gem"
+    d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1
+       L 169.5,73.9 Q 176,84 172.8,95.6
+       L 159.2,144.4 Q 156,156 145.3,161.4
+       L 110.7,178.6 Q 100,184 89.3,178.6
+       L 54.7,161.4 Q 44,156 40.8,144.4
+       L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z"/>
+  <g class="sync">
+    <path class="star-glow" filter="url(#fSt)"
+      d="M 115,67 C 120,88 120,88 141,93
+         C 120,98 120,98 115,119
+         C 110,98 110,98 89,93
+         C 110,88 110,88 115,67 Z"/>
+  </g>
+  <path class="star"
+    d="M 115,67 C 120,88 120,88 141,93
+       C 120,98 120,98 115,119
+       C 110,98 110,98 89,93
+       C 110,88 110,88 115,67 Z"/>
+</svg>

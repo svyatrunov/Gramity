@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" overflow="visible">
+  <style>
+    :root { --ink: #ffffff; --glow: #ffffff; }
+    @keyframes flicker {
+      0%   { opacity: .55 }
+      11%  { opacity: .55 }
+      19%  { opacity: .05 }
+      22%  { opacity: .05 }
+      30%  { opacity: .55 }
+      41%  { opacity: .55 }
+      49%  { opacity: .05 }
+      52%  { opacity: .05 }
+      60%  { opacity: .55 }
+      71%  { opacity: .55 }
+      79%  { opacity: .05 }
+      82%  { opacity: .05 }
+      90%  { opacity: .55 }
+      100% { opacity: .55 }
+    }
+    .hor { fill: none; stroke: var(--ink); stroke-width: 2.5; animation: flicker 14s linear infinite; }
+  </style>
+  <defs>
+    <radialGradient id="aura" gradientUnits="userSpaceOnUse" cx="150" cy="107" r="115">
+      <stop offset="0%" style="stop-color:var(--glow);stop-opacity:.80"/>
+      <stop offset="28%" style="stop-color:var(--glow);stop-opacity:.26"/>
+      <stop offset="65%" style="stop-color:var(--glow);stop-opacity:.05"/>
+      <stop offset="100%" style="stop-color:var(--glow);stop-opacity:0"/>
+      <animateTransform attributeName="gradientTransform" type="rotate"
+        from="0 100 107" to="360 100 107" dur="22s" repeatCount="indefinite"/>
+    </radialGradient>
+    <filter id="fAu" x="-90%" y="-90%" width="280%" height="280%">
+      <feGaussianBlur stdDeviation="36"/>
+    </filter>
+    <filter id="fHo" x="-45%" y="-45%" width="190%" height="190%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="w"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="n"/>
+      <feMerge>
+        <feMergeNode in="w"/>
+        <feMergeNode in="n"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <path fill="url(#aura)" filter="url(#fAu)"
+    d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1
+       L 169.5,73.9 Q 176,84 172.8,95.6
+       L 159.2,144.4 Q 156,156 145.3,161.4
+       L 110.7,178.6 Q 100,184 89.3,178.6
+       L 54.7,161.4 Q 44,156 40.8,144.4
+       L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z"/>
+  <path class="hor" filter="url(#fHo)"
+    d="M 43.5,54.1 Q 50,44 62,44 L 138,44 Q 150,44 156.5,54.1
+       L 169.5,73.9 Q 176,84 172.8,95.6
+       L 159.2,144.4 Q 156,156 145.3,161.4
+       L 110.7,178.6 Q 100,184 89.3,178.6
+       L 54.7,161.4 Q 44,156 40.8,144.4
+       L 27.2,95.6 Q 24,84 30.5,73.9 L 43.5,54.1 Z"/>
+</svg>
