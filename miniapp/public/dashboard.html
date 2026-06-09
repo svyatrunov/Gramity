@@ -1379,7 +1379,8 @@
   window.gramityState = window.gramityState || {};
 
   function apiHeaders() {
-    return { 'X-Telegram-Init-Data': initData };
+    var d = (window.Telegram?.WebApp?.initData || '').trim();
+    return d ? { 'X-Telegram-Init-Data': d } : {};
   }
 
   function apiGet(path) {

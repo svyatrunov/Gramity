@@ -2302,15 +2302,14 @@
         if (tg && tg.initData && tg.initData.indexOf('hash=') !== -1) return tg.initData;
         return '';
       }
-      var initData = getInitData();
-      var HAS_TG_AUTH = initData.indexOf('hash=') !== -1;
-
       if (tg) {
         tg.ready();
         tg.expand();
         if (tg.setHeaderColor)     tg.setHeaderColor('#07070e');
         if (tg.setBackgroundColor) tg.setBackgroundColor('#07070e');
       }
+      var initData = getInitData();
+      var HAS_TG_AUTH = initData.indexOf('hash=') !== -1;
 
       function openBotForAuth() {
         try {
