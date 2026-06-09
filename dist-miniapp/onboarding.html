@@ -2322,7 +2322,8 @@
         if (tg.setHeaderColor)     tg.setHeaderColor('#07070e');
         if (tg.setBackgroundColor) tg.setBackgroundColor('#07070e');
       }
-      var HAS_TG_AUTH = hasTelegramAuth();
+      var authOk = false;
+      var authResolved = false;
 
       function openBotForAuth() {
         try {
@@ -2344,19 +2345,69 @@
         if (app) app.classList.add('auth-locked');
       }
 
-      if (!HAS_TG_AUTH) {
-        enforceAuthGate();
-        var openBotBtn = document.getElementById('btnOpenBot');
-        if (openBotBtn) openBotBtn.addEventListener('click', openBotForAuth);
+      function hideAuthGate() {
+        var gate = document.getElementById('authGate');
+        var app = document.getElementById('app');
+        if (gate) {
+          gate.classList.remove('visible');
+          gate.setAttribute('aria-hidden', 'true');
+        }
+        if (app) app.classList.remove('auth-locked');
+      }
+
+      function authenticate() {
+        var authTimeout = setTimeout(function () {
+          if (!authResolved) {
+            console.warn('[AUTH] Timeout — showing UI anyway');
+            enforceAuthGate();
+          }
+        }, 5000);
+
+        var initData = getInitData();
+        if (!initData) {
+          authResolved = true;
+          clearTimeout(authTimeout);
+          enforceAuthGate();
+          var openBotBtn = document.getElementById('btnOpenBot');
+          if (openBotBtn) openBotBtn.addEventListener('click', openBotForAuth);
+          return;
+        }
+
+        fetch('/api/auth/telegram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ initData: initData }),
+        })
+          .then(function (response) {
+            if (!response.ok) throw new Error('Auth failed: ' + response.status);
+            return response.json();
+          })
+          .then(function (data) {
+            window.__userId = data.userId || (data.user && (data.user.telegramId || data.user.id));
+            authOk = true;
+            hideAuthGate();
+          })
+          .catch(function (err) {
+            console.error('[AUTH] Error:', err);
+            enforceAuthGate();
+          })
+          .finally(function () {
+            authResolved = true;
+            clearTimeout(authTimeout);
+          });
       }
 
       function assertAuth() {
-        if (!hasTelegramAuth()) {
+        if (!authOk && !hasTelegramAuth()) {
           enforceAuthGate();
           return false;
         }
         return true;
       }
+
+      var openBotBtnInit = document.getElementById('btnOpenBot');
+      if (openBotBtnInit) openBotBtnInit.addEventListener('click', openBotForAuth);
+      authenticate();
 
       /* ── Constants ── */
       var BOT_DEEPLINK  = 'https://t.me/GramityBot';

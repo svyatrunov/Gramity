@@ -11,6 +11,7 @@
  */
 
 import cron from "node-cron";
+import { IS_PRODUCTION } from "../config.js";
 import {
   getDuePlans,
   getPlanByTelegramId,
@@ -300,9 +301,8 @@ export function startScheduler() {
     return;
   }
 
-  const isProd = process.env.NODE_ENV === "production";
-  const cronExpr = isProd ? "*/5 * * * *" : "* * * * *";
-  const label = isProd ? "every 5 minutes" : "every minute (dev mode)";
+  const cronExpr = IS_PRODUCTION ? "*/5 * * * *" : "* * * * *";
+  const label = IS_PRODUCTION ? "every 5 minutes" : "every minute (dev mode)";
 
   cron.schedule(cronExpr, checkAndExecute);
   console.log(`[SCHEDULER] Started — checking ${label}`);

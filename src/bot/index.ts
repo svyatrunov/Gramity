@@ -401,11 +401,53 @@ setGasNotifier(async (telegramId, msg) => {
 
 // ─── Bot startup ──────────────────────────────────────────────────────────────
 
+const POLLING_RETRY_MS = 15_000;
+const MAX_POLLING_RETRIES = 10;
+
 function isPollingConflict(err: unknown): boolean {
   return err instanceof GrammyError && err.error_code === 409;
 }
 
-export async function startBot() {
+let shutdownHooksRegistered = false;
+let pollingRetryScheduled = false;
+
+function registerBotShutdownHooks(): void {
+  if (shutdownHooksRegistered) return;
+  shutdownHooksRegistered = true;
+
+  const stopPolling = (signal: string) => {
+    console.log(`[BOT] ${signal} received — stopping polling`);
+    void bot.stop();
+  };
+
+  process.once("SIGINT", () => stopPolling("SIGINT"));
+  process.once("SIGTERM", () => stopPolling("SIGTERM"));
+}
+
+async function schedulePollingRetry(retryCount: number, reason: string): Promise<void> {
+  if (pollingRetryScheduled) return;
+  if (retryCount >= MAX_POLLING_RETRIES) {
+    console.warn(`[BOT] 409 conflict — max retries (${MAX_POLLING_RETRIES}) reached; HTTP API continues`);
+    return;
+  }
+
+  pollingRetryScheduled = true;
+  console.warn(
+    `[BOT] 409 conflict (${reason}) — retrying in ${POLLING_RETRY_MS / 1000}s (attempt ${retryCount + 1}/${MAX_POLLING_RETRIES})`
+  );
+
+  try {
+    await bot.stop();
+  } catch {
+    /* already stopped */
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, POLLING_RETRY_MS));
+  pollingRetryScheduled = false;
+  await startBot(retryCount + 1);
+}
+
+export async function startBot(retryCount = 0): Promise<void> {
   await bot.api.setMyCommands([
     { command: "start",    description: "Open Mini App" },
     { command: "status",   description: "Portfolio & next cycle" },
@@ -418,7 +460,7 @@ export async function startBot() {
 
   bot.catch((err) => {
     if (isPollingConflict(err.error)) {
-      console.warn("[BOT] Polling conflict (409) — another instance may be running");
+      void schedulePollingRetry(retryCount, "runtime");
       return;
     }
     console.error("[BOT] Handler error:", err);
@@ -427,16 +469,16 @@ export async function startBot() {
   try {
     await bot.start({
       drop_pending_updates: true,
-      onStart: (info) => console.log(`[BOT] Started as @${info.username}`),
+      onStart: (info) => console.log(`[BOT] Polling started @${info.username}`),
     });
     console.log("[BOT] Bot is running via long polling");
+    registerBotShutdownHooks();
   } catch (err) {
     if (isPollingConflict(err)) {
-      console.warn(
-        "[BOT] Polling conflict (409) — HTTP API continues; stop duplicate deployments"
-      );
+      await schedulePollingRetry(retryCount, "startup");
       return;
     }
+    console.error("[BOT] Fatal start error:", err);
     throw err;
   }
 }

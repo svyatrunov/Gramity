@@ -44,8 +44,19 @@ export function useAuth() {
           throw new Error(`auth failed: ${res.status}`);
         }
 
-        const data = (await res.json()) as { user: AuthUser };
-        if (!cancelled) setUser(data.user);
+        const data = (await res.json()) as {
+          userId?: number;
+          user: AuthUser & { telegramId?: number };
+        };
+        if (!cancelled) {
+          const u = data.user;
+          setUser({
+            telegram_id: data.userId ?? u.telegramId ?? u.telegram_id,
+            username: u.username,
+            first_name: u.first_name,
+            last_name: u.last_name,
+          });
+        }
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : "unknown");

@@ -90,3 +90,18 @@ export const RAILWAY_PUBLIC_URL =
   process.env.RAILWAY_PUBLIC_DOMAIN
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
     : process.env.APP_URL ?? "https://gramity-production.up.railway.app";
+
+// ─── Environment guards ───────────────────────────────────────────────────────
+export const IS_PRODUCTION = process.env.NODE_ENV === "production";
+export const IS_DEV_BYPASS =
+  !IS_PRODUCTION && process.env.MIRA_DEV_BYPASS === "true";
+
+console.log(
+  `[CONFIG] NODE_ENV=${process.env.NODE_ENV ?? "(unset)"}, IS_PRODUCTION=${IS_PRODUCTION}`
+);
+if (IS_DEV_BYPASS) {
+  console.warn("[CONFIG] MIRA_DEV_BYPASS active — dev only");
+}
+if (IS_PRODUCTION && process.env.MIRA_DEV_BYPASS === "true") {
+  console.warn("[CONFIG] MIRA_DEV_BYPASS is set in production — ignored");
+}

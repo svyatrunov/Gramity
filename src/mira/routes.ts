@@ -14,6 +14,7 @@ import {
 import { buildMiraPortfolio } from "./portfolio.js";
 import { handleMcpRequest, getMcpManifest } from "./tools.js";
 import { sanitizeForMira } from "./sanitize.js";
+import { IS_DEV_BYPASS } from "../config.js";
 
 function validateInitData(initDataStr: string): number | null {
   try {
@@ -50,9 +51,8 @@ function validateInitData(initDataStr: string): number | null {
 }
 
 function resolveTelegramId(req: Request): number | null {
-  const devBypass = process.env.MIRA_DEV_BYPASS === "true";
   const bodyId = req.body?.telegram_id ?? req.body?.telegramId;
-  if (devBypass && bodyId != null) {
+  if (IS_DEV_BYPASS && bodyId != null) {
     return parseTelegramId(bodyId);
   }
   const initData =

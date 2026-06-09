@@ -182,7 +182,16 @@ app.post("/api/auth/telegram", async (req, res) => {
       last_name: tgUser.last_name ?? null,
     });
 
-    res.json({ user });
+    res.json({
+      userId: user.telegram_id,
+      user: {
+        id: user.id,
+        telegramId: user.telegram_id,
+        username: user.username,
+        first_name: user.first_name,
+        last_name: user.last_name,
+      },
+    });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
