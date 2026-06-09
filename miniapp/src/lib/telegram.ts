@@ -23,14 +23,70 @@ export function initTelegram(): void {
   }
 }
 
+/** Parse telegram user id from initData query string (`user={"id":…}`). */
+export function parseTelegramIdFromInitData(initData: string): number | null {
+  if (!initData) return null;
+  try {
+    const userJson = new URLSearchParams(initData).get("user");
+    if (!userJson) return null;
+    const user = JSON.parse(userJson) as { id?: number };
+    return typeof user.id === "number" ? user.id : null;
+  } catch {
+    return null;
+  }
+}
+
+export function buildDevInitData(telegramId: number): string {
+  return (
+    `user=${encodeURIComponent(
+      JSON.stringify({
+        id: telegramId,
+        first_name: "Dev",
+        username: "devuser",
+      }),
+    )}` +
+    `&auth_date=${Math.floor(Date.now() / 1000)}&hash=devhash`
+  );
+}
+
+function readUrlQueryId(): number | null {
+  if (typeof window === "undefined") return null;
+  const raw = new URLSearchParams(window.location.search).get("id");
+  if (!raw || !/^\d+$/.test(raw)) return null;
+  return Number(raw);
+}
+
 export function getTelegramUser() {
-  if (!tg?.initDataUnsafe?.user) return null;
-  return tg.initDataUnsafe.user;
+  if (tg?.initDataUnsafe?.user) return tg.initDataUnsafe.user;
+  const id = parseTelegramIdFromInitData(getInitData());
+  if (id != null) return { id };
+  return null;
+}
+
+/** Resolved telegram id: auth API → initData query → initDataUnsafe. */
+export function getTelegramUserId(): number | null {
+  const w = window as Window & { __userId?: number };
+  if (typeof w.__userId === "number" && w.__userId > 0) return w.__userId;
+  const fromInit = parseTelegramIdFromInitData(getInitData());
+  if (fromInit != null) return fromInit;
+  return tg?.initDataUnsafe?.user?.id ?? null;
 }
 
 export function getInitData(): string {
   const live = tg?.initData?.trim();
   if (live && live.includes("hash=")) return live;
+
+  const urlId = readUrlQueryId();
+  if (urlId != null) {
+    const devData = buildDevInitData(urlId);
+    try {
+      localStorage.setItem("gramity_dev_init_data", devData);
+    } catch {
+      /* ignore */
+    }
+    return devData;
+  }
+
   if (import.meta.env.DEV && DEV_INIT_DATA) return DEV_INIT_DATA;
   if (import.meta.env.DEV) {
     try {

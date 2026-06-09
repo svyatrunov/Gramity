@@ -9,21 +9,7 @@ export interface TelegramUser {
 }
 
 export function useTelegramInit() {
-  const user = useMemo((): TelegramUser | null => {
-    const unsafe = getTelegramUser();
-    if (unsafe) return unsafe;
-
-    const initData = getInitData();
-    if (!initData) return null;
-    try {
-      const params = new URLSearchParams(initData);
-      const userParam = params.get("user");
-      if (!userParam) return null;
-      return JSON.parse(userParam) as TelegramUser;
-    } catch {
-      return null;
-    }
-  }, []);
+  const user = useMemo((): TelegramUser | null => getTelegramUser(), []);
 
   useEffect(() => {
     initTelegram();

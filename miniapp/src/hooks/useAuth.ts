@@ -50,8 +50,10 @@ export function useAuth() {
         };
         if (!cancelled) {
           const u = data.user;
+          const telegramId = data.userId ?? u.telegramId ?? u.telegram_id;
+          (window as Window & { __userId?: number }).__userId = telegramId;
           setUser({
-            telegram_id: data.userId ?? u.telegramId ?? u.telegram_id,
+            telegram_id: telegramId,
             username: u.username,
             first_name: u.first_name,
             last_name: u.last_name,

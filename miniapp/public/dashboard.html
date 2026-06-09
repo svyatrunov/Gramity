@@ -1247,9 +1247,34 @@
   var tg = window.Telegram && window.Telegram.WebApp;
   var BOT_AUTH_URL = 'https://t.me/GramityBot';
 
+  function buildDevInitData(telegramId) {
+    return 'user=' + encodeURIComponent(JSON.stringify({ id: telegramId, first_name: 'Dev', username: 'devuser' })) +
+      '&auth_date=' + Math.floor(Date.now() / 1000) + '&hash=devhash';
+  }
+  function parseUserIdFromInitData(initData) {
+    if (!initData) return null;
+    try {
+      var userJson = new URLSearchParams(initData).get('user');
+      if (!userJson) return null;
+      var u = JSON.parse(userJson);
+      return (u && typeof u.id === 'number') ? u.id : null;
+    } catch (e) { return null; }
+  }
+  function getTelegramUserId() {
+    if (typeof window.__userId === 'number' && window.__userId > 0) return window.__userId;
+    var fromInit = parseUserIdFromInitData(getInitData());
+    if (fromInit != null) return fromInit;
+    return (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user.id : null;
+  }
   function getInitData() {
     var d = (tg && tg.initData) ? String(tg.initData).trim() : '';
-    if (d) return d;
+    if (d && d.indexOf('hash=') !== -1) return d;
+    var urlId = new URLSearchParams(window.location.search).get('id');
+    if (urlId && /^\d+$/.test(urlId)) {
+      var devData = buildDevInitData(Number(urlId));
+      try { localStorage.setItem('gramity_dev_init_data', devData); } catch (e) {}
+      return devData;
+    }
     var host = window.location.hostname;
     var devMode = host === 'localhost' || host === '127.0.0.1' ||
       new URLSearchParams(window.location.search).get('dev') === '1';
@@ -1260,8 +1285,7 @@
   }
 
   function hasTelegramAuth() {
-    var d = getInitData();
-    return d.length > 0 && d.indexOf('hash=') !== -1;
+    return getInitData().indexOf('hash=') !== -1;
   }
 
   if (tg) {
@@ -1622,8 +1646,7 @@
 
   function hydrateGramityState(portfolio) {
     var gs = window.gramityState;
-    var user = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
-    gs.telegramId = user ? user.id : null;
+    gs.telegramId = getTelegramUserId();
     gs.plan = portfolio.plan || null;
     gs.balance = {
       usdt: portfolio.usdtBalance || 0,
