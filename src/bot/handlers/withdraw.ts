@@ -1,5 +1,5 @@
 /**
- * /withdraw — menu, USDT withdrawal, LP tokens withdrawal, "withdraw all" trigger.
+ * /withdraw — USDT withdrawal by chain.
  */
 
 import { InlineKeyboard } from "grammy";
@@ -8,24 +8,12 @@ import { getPlanByTelegramId } from "../../db/index.js";
 import { getUsdtBalance, getLastTxHash } from "../../services/tonapi.js";
 import { getUserWalletContext } from "../../services/userWallet.js";
 import { sendJettonTransfer } from "../../services/jetton.js";
-import { USDT_ADDRESS, USDT_DECIMALS, POOL_ADDRESS } from "../../config.js";
-import { Address, JettonMaster, JettonWallet, fromNano } from "@ton/ton";
-import { hasWithdrawalAddress } from "../../utils/tonAddress.js";
-
-async function getLpBalance(
-  walletAddress: string,
-  poolAddress: string,
-  client: import("@ton/ton").TonClient
-): Promise<bigint> {
-  try {
-    const lpMaster = client.open(JettonMaster.create(Address.parse(poolAddress)));
-    const lpWalletAddr = await lpMaster.getWalletAddress(Address.parse(walletAddress));
-    const lpWallet = client.open(JettonWallet.create(lpWalletAddr));
-    return await lpWallet.getBalance();
-  } catch {
-    return 0n;
-  }
-}
+import { USDT_ADDRESS, USDT_DECIMALS } from "../../config.js";
+import {
+  WITHDRAWAL_CHAINS,
+  type WithdrawalChain,
+  isWithdrawalAddressSet,
+} from "../../constants/chains.js";
 
 export async function handleWithdrawMenu(ctx: GramityContext) {
   const telegramId = ctx.from?.id;
@@ -36,61 +24,70 @@ export async function handleWithdrawMenu(ctx: GramityContext) {
     await ctx.reply("No active strategy. Use /start.");
     return;
   }
-  if (!hasWithdrawalAddress(plan.ton_address)) {
+
+  if (!isWithdrawalAddressSet(plan)) {
+    await ctx.reply("No withdrawal address\n\nSet a destination wallet first.", {
+      reply_markup: {
+        inline_keyboard: [[{ text: "Set wallet", callback_data: "settings:wallet" }]],
+      },
+    });
+    return;
+  }
+
+  let balance = 0;
+  try {
+    const walletCtx = await getUserWalletContext(telegramId);
+    balance = await getUsdtBalance(walletCtx.address);
+  } catch {
+    await ctx.reply("Could not load wallet. Try again later.");
+    return;
+  }
+
+  if (balance < 0.01) {
+    await ctx.reply("Balance: $0.00. Nothing to withdraw.");
+    return;
+  }
+
+  const chainKey = (plan.withdrawal_chain ?? "ton") as WithdrawalChain;
+  const chain = WITHDRAWAL_CHAINS[chainKey] ?? WITHDRAWAL_CHAINS.ton;
+  const addr = plan.ton_address ?? "";
+  const addrShort = `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+
+  if (chain.address_type === "ton") {
     await ctx.reply(
-      "⚠️ *No withdrawal address set*\n\n" +
-        "Open the Mini App to set your TON withdrawal wallet before withdrawing.",
-      { parse_mode: "Markdown" }
+      `Withdraw USDT\n\n` +
+        `Amount   *$${balance.toFixed(2)} USDT*\n` +
+        `To       \`${addrShort}\`\n` +
+        `Network  TON\n\n` +
+        `Funds arrive within 1 minute.`,
+      {
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: `Withdraw $${balance.toFixed(2)}`,
+                callback_data: "withdraw:usdt:confirm",
+              },
+              { text: "Cancel", callback_data: "withdraw:cancel" },
+            ],
+          ],
+        },
+      }
     );
     return;
   }
-  const withdrawalAddress = plan.ton_address;
-
-  let depositAddress = "";
-  let usdtBalance    = 0;
-  let lpBalance      = 0n;
-  try {
-    const walletCtx = await getUserWalletContext(telegramId);
-    depositAddress  = walletCtx.address;
-    usdtBalance     = await getUsdtBalance(depositAddress);
-    if (POOL_ADDRESS) {
-      lpBalance = await getLpBalance(depositAddress, POOL_ADDRESS, walletCtx.client as import("@ton/ton").TonClient);
-    }
-  } catch {
-    await ctx.reply("⚠️ Could not load wallet. Please try again later.");
-    return;
-  }
-
-  const lpHuman = lpBalance > 0n ? Number(fromNano(lpBalance)) : 0;
-
-  const kb = new InlineKeyboard();
-
-  if (usdtBalance >= 0.01) {
-    kb.text(
-      `💵 Withdraw USDT ($${usdtBalance.toFixed(2)})`,
-      "withdraw_usdt_confirm"
-    ).row();
-  }
-
-  if (lpHuman > 0) {
-    kb.text(
-      `💎 Withdraw LP tokens (${lpHuman.toFixed(4)} LP)`,
-      "withdraw_lp_confirm"
-    ).row();
-  }
-
-  kb.text("📤 Withdraw everything (USDT + LP + tsTON)", "withdraw_all_confirm").row();
-  kb.text("❌ Cancel", "withdraw_cancel");
-
-  const lpLine = lpHuman > 0 ? `\nLP tokens: *${lpHuman.toFixed(4)} LP*` : "";
 
   await ctx.reply(
-    `💸 *Withdraw Funds*\n\n` +
-      `Deposit wallet:\n\`${depositAddress}\`\n\n` +
-      `Available USDT: *$${usdtBalance.toFixed(2)}*${lpLine}\n\n` +
-      `Destination: \`${withdrawalAddress}\`\n\n` +
-      `⚠️ _"Withdraw everything" exits LP and unstakes tsTON — takes a few minutes._`,
-    { parse_mode: "Markdown", reply_markup: kb }
+    `Withdraw to ${chain.label}\n\n` +
+      `You get   *${chain.token}* on ${chain.label}\n` +
+      `To        \`${addrShort}\`\n` +
+      `Amount    $${balance.toFixed(2)} USDT\n\n` +
+      `Step 1   Withdraw USDT to a TON wallet:\n` +
+      `/withdraw\\_ton\n\n` +
+      `Step 2   Bridge at omniston.ston.fi\n` +
+      `TON → ${chain.label} · ${chain.token}`,
+    { parse_mode: "Markdown" }
   );
 }
 
@@ -100,26 +97,33 @@ export async function handleWithdrawUsdtConfirm(ctx: GramityContext) {
 
   const plan = await getPlanByTelegramId(telegramId).catch(() => null);
   if (!plan) {
-    await ctx.reply("⚠️ Strategy not found.");
+    await ctx.reply("Strategy not found.");
     return;
   }
-  if (!hasWithdrawalAddress(plan.ton_address)) {
-    await ctx.reply(
-      "⚠️ *No withdrawal address set*\n\nOpen the Mini App to set your TON withdrawal wallet.",
-      { parse_mode: "Markdown" }
-    );
+  if (!isWithdrawalAddressSet(plan)) {
+    await ctx.reply("No withdrawal address\n\nSet a destination wallet first.", {
+      reply_markup: {
+        inline_keyboard: [[{ text: "Set wallet", callback_data: "settings:wallet" }]],
+      },
+    });
     return;
   }
-  const dest = plan.ton_address;
 
-  await ctx.reply("⏳ Sending USDT to your wallet...");
+  const dest = plan.ton_address;
+  if (!dest) return;
 
   try {
-    const walletCtx  = await getUserWalletContext(telegramId);
+    await ctx.editMessageText("Processing...");
+  } catch {
+    await ctx.reply("Processing...");
+  }
+
+  try {
+    const walletCtx = await getUserWalletContext(telegramId);
     const usdtBalance = await getUsdtBalance(walletCtx.address);
 
     if (usdtBalance < 0.01) {
-      await ctx.reply("⚠️ No USDT available to withdraw.");
+      await ctx.editMessageText("Balance: $0.00. Nothing to withdraw.");
       return;
     }
 
@@ -129,127 +133,42 @@ export async function handleWithdrawUsdtConfirm(ctx: GramityContext) {
 
     await sendJettonTransfer(walletCtx, USDT_ADDRESS, amountRaw, dest);
 
-    await ctx.reply(
-      `✅ *$${usdtBalance.toFixed(2)} USDT sent*\n\n` +
-        `To: \`${dest}\`\n\n` +
-        `Transaction will appear in the explorer in 1–2 min.`,
-      { parse_mode: "Markdown" }
-    );
-  } catch (err) {
-    console.error("[WITHDRAW] USDT error:", err);
-    await ctx.reply(
-      `❌ Withdrawal error: ${err instanceof Error ? err.message : "unknown"}`
-    );
-  }
-}
-
-export async function handleWithdrawLpConfirm(ctx: GramityContext) {
-  const telegramId = ctx.from?.id;
-  if (!telegramId) return;
-
-  const plan = await getPlanByTelegramId(telegramId).catch(() => null);
-  if (!plan) {
-    await ctx.reply("⚠️ Strategy not found.");
-    return;
-  }
-
-  if (!hasWithdrawalAddress(plan.ton_address)) {
-    await ctx.reply(
-      "⚠️ *No withdrawal address set*\n\nOpen the Mini App to set your TON withdrawal wallet.",
-      { parse_mode: "Markdown" }
-    );
-    return;
-  }
-  const withdrawalAddress = plan.ton_address;
-
-  await ctx.reply(
-    `⏳ *Starting LP withdrawal...*\n\n` +
-      `Removing liquidity from STON.fi v2\n` +
-      `Sending to: \`${withdrawalAddress}\`\n\n` +
-      `_This may take 1–3 minutes._`,
-    { parse_mode: "Markdown" }
-  );
-
-  try {
-    const { executeFullExit } = await import("../../execution/exit.js");
-    const walletCtx = await getUserWalletContext(telegramId);
-
-    const result = await executeFullExit(plan);
-
-    // Grab the latest tx hash after exit completes
-    const txHash = await getLastTxHash(walletCtx.address, 3_000);
+    const txHash = await getLastTxHash(walletCtx.address, 5_000);
     const txLink = txHash
-      ? `\n\n🔗 [View on-chain](https://tonviewer.com/transaction/${txHash})`
+      ? `\n\n[View on-chain](https://tonviewer.com/transaction/${txHash})`
       : "";
 
-    await ctx.reply(
-      `✅ *LP Withdrawal Complete*\n\n` +
-        `Sent to: \`${withdrawalAddress}\`\n` +
-        (result.summary.length > 0 ? `Assets: ${result.summary.join(", ")}\n` : "") +
-        txLink,
+    await ctx.editMessageText(
+      `✅ Withdrawal sent\n\nFunds will arrive within 1 minute.${txLink}`,
       { parse_mode: "Markdown", link_preview_options: { is_disabled: true } }
     );
   } catch (err) {
-    console.error("[WITHDRAW] LP exit error:", err);
-    await ctx.reply(
-      `⚠️ *Error during LP withdrawal*\n\n` +
-        `${err instanceof Error ? err.message : "unknown"}\n\n` +
-        `Check your balance via /status and try again.`,
-      { parse_mode: "Markdown" }
-    );
+    console.error("[WITHDRAW] USDT error:", err);
+    const msg = err instanceof Error ? err.message : "Try again.";
+    try {
+      await ctx.editMessageText(`❌ Withdrawal failed\n\n${msg}`);
+    } catch {
+      await ctx.reply(`❌ Withdrawal failed\n\n${msg}`);
+    }
   }
 }
 
-export async function handleWithdrawAllConfirm(ctx: GramityContext) {
-  const telegramId = ctx.from?.id;
-  if (!telegramId) return;
-
-  const plan = await getPlanByTelegramId(telegramId).catch(() => null);
-  if (!plan) {
-    await ctx.reply("⚠️ Strategy not found.");
-    return;
-  }
-
-  if (!hasWithdrawalAddress(plan.ton_address)) {
-    await ctx.reply(
-      "⚠️ *No withdrawal address set*\n\nOpen the Mini App to set your TON withdrawal wallet.",
-      { parse_mode: "Markdown" }
-    );
-    return;
-  }
-  const withdrawalAddress = plan.ton_address;
-
-  const { updatePlan } = await import("../../db/index.js");
-  await updatePlan(telegramId, { active: false });
-
-  await ctx.reply(
-    `⏳ *Starting full exit from position...*\n\n` +
-      `1. Removing liquidity from pool\n` +
-      `2. Unstaking tsTON\n` +
-      `3. Swapping everything to USDT\n` +
-      `4. Sending to your address\n\n` +
-      `_Strategy paused. This may take 2–5 minutes._`,
-    { parse_mode: "Markdown" }
-  );
-
+export async function handleWithdrawCancel(ctx: GramityContext) {
   try {
-    const { executeFullExit } = await import("../../execution/exit.js");
-    const result = await executeFullExit(plan);
-
-    await ctx.reply(
-      `✅ *Exit complete*\n\n` +
-        `Sent: *$${result.usdtSent.toFixed(2)} USDT*\n` +
-        `To: \`${withdrawalAddress}\`\n\n` +
-        `_Funds will arrive in 1–2 min._`,
-      { parse_mode: "Markdown" }
-    );
-  } catch (err) {
-    console.error("[WITHDRAW] Full exit error:", err);
-    await ctx.reply(
-      `⚠️ *Partial error during exit*\n\n` +
-        `${err instanceof Error ? err.message : "unknown"}\n\n` +
-        `Check your balance via /status and try again.`,
-      { parse_mode: "Markdown" }
-    );
+    await ctx.editMessageText("Cancelled.");
+  } catch {
+    await ctx.reply("Cancelled.");
   }
+}
+
+export async function handleWithdrawAdvancedMenu(ctx: GramityContext) {
+  await handleWithdrawMenu(ctx);
+}
+
+export async function handleWithdrawLpConfirm(ctx: GramityContext) {
+  await ctx.reply("Use /withdraw for USDT withdrawal.");
+}
+
+export async function handleWithdrawAllConfirm(ctx: GramityContext) {
+  await ctx.reply("Use /withdraw for USDT withdrawal.");
 }

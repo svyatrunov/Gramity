@@ -1,10 +1,14 @@
 /**
- * /settings — strategy mode, amount, frequency management.
+ * /settings — strategy mode, amount, frequency, withdrawal wallet.
  */
 
 import { InlineKeyboard } from "grammy";
 import type { GramityContext } from "../session.js";
-import { getPlanByTelegramId, updatePlan, type Plan } from "../../db/index.js";
+import {
+  getPlanByTelegramId,
+  updatePlan,
+  type Plan,
+} from "../../db/index.js";
 import { getNextPlanExecutionDate, MIN_DCA_USDT } from "../../constants/dca.js";
 
 const MODE_LABELS: Record<string, string> = {
@@ -28,9 +32,7 @@ export async function handleSettings(ctx: GramityContext) {
 
   const plan = await getPlanByTelegramId(telegramId).catch(() => null);
   if (!plan) {
-    await ctx.reply(
-      "No active strategy.\nUse /start to set up Gramity."
-    );
+    await ctx.reply("No active strategy.\nUse /start to set up Gramity.");
     return;
   }
 
@@ -42,17 +44,21 @@ async function showSettingsMenu(ctx: GramityContext, plan: Plan) {
   const freq = plan.frequency;
 
   const kb = new InlineKeyboard()
-    .text("🔄 Change strategy", "settings_mode")
+    .text("Change strategy", "settings_mode")
     .row()
-    .text("💰 Change amount",   "settings_amount")
+    .text("Change amount", "settings_amount")
     .row()
-    .text("⏱ Change frequency", "settings_freq");
+    .text("Change frequency", "settings_freq")
+    .row()
+    .text("Withdrawal wallet", "settings:wallet")
+    .row()
+    .text("Withdraw USDT", "withdraw");
 
   await ctx.reply(
-    `⚙️ *Strategy Settings*\n\n` +
-      `Mode:      *${MODE_LABELS[mode] ?? mode}*\n` +
-      `Amount:    *$${plan.usdt_amount}* per cycle\n` +
-      `Frequency: *${FREQ_LABELS[freq] ?? freq}*\n\n` +
+    `Settings\n\n` +
+      `Mode       *${MODE_LABELS[mode] ?? mode}*\n` +
+      `Amount     *$${plan.usdt_amount}* per cycle\n` +
+      `Frequency  *${FREQ_LABELS[freq] ?? freq}*\n\n` +
       `Choose what to change:`,
     { parse_mode: "Markdown", reply_markup: kb }
   );
@@ -64,7 +70,7 @@ export async function handleSettingsCallback(ctx: GramityContext, action: string
 
   const plan = await getPlanByTelegramId(telegramId).catch(() => null);
   if (!plan) {
-    await ctx.reply("⚠️ Strategy not found.");
+    await ctx.reply("Strategy not found.");
     return;
   }
 
@@ -89,7 +95,7 @@ export async function handleSettingsCallback(ctx: GramityContext, action: string
       .text("← Back", "settings_back");
 
     await ctx.reply(
-      `🔄 *Strategy Mode*\n\n` +
+      `Strategy mode\n\n` +
         `• *Full* — swap USDT→TON, stake→tsTON, add to STON.fi LP (~5.4% APY)\n` +
         `• *Staking only* — swap USDT→TON, stake→tsTON. No LP risk (~5% APY)\n` +
         `• *TON only* — swap USDT→TON, accumulate in wallet\n\n` +
@@ -113,7 +119,7 @@ export async function handleSettingsCallback(ctx: GramityContext, action: string
   if (action === "amount") {
     ctx.session.step = "waiting_settings_amount";
     await ctx.reply(
-      `💰 Enter new amount per cycle in USDT (min $${MIN_DCA_USDT}, e.g. \`50\`)`,
+      `Enter new amount per cycle in USDT (min $${MIN_DCA_USDT}, e.g. \`50\`)`,
       { parse_mode: "Markdown" }
     );
     return;
@@ -121,21 +127,21 @@ export async function handleSettingsCallback(ctx: GramityContext, action: string
 
   if (action === "freq") {
     const kb = new InlineKeyboard()
-      .text("📅 Weekly",        "settings_set_freq_weekly")
+      .text("Weekly", "settings_set_freq_weekly")
       .row()
-      .text("🗓 Every 2 weeks", "settings_set_freq_biweekly")
+      .text("Every 2 weeks", "settings_set_freq_biweekly")
       .row()
-      .text("📆 Monthly",       "settings_set_freq_monthly")
+      .text("Monthly", "settings_set_freq_monthly")
       .row()
       .text("← Back", "settings_back");
 
     if (process.env.NODE_ENV !== "production") {
       kb.row()
-        .text("⚡ 1 min (test)",  "settings_set_freq_minutely")
-        .text("🕐 1 hour (test)", "settings_set_freq_hourly");
+        .text("1 min (test)", "settings_set_freq_minutely")
+        .text("1 hour (test)", "settings_set_freq_hourly");
     }
 
-    await ctx.reply("⏱ Choose new frequency:", { reply_markup: kb });
+    await ctx.reply("Choose new frequency:", { reply_markup: kb });
     return;
   }
 
@@ -166,7 +172,7 @@ export async function handleSettingsAmountInput(ctx: GramityContext, text: strin
   const plan = await getPlanByTelegramId(telegramId).catch(() => null);
   if (!plan) {
     ctx.session.step = "idle";
-    await ctx.reply("⚠️ Strategy not found.");
+    await ctx.reply("Strategy not found.");
     return;
   }
 

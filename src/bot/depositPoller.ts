@@ -77,16 +77,15 @@ async function tick(telegramId: number): Promise<void> {
       const depositAmount = (balance - prevBalance).toFixed(2);
       await _send(
         telegramId,
-        `✅ *Received $${depositAmount} USDT*\n\nStarting strategy...\n_Buying TON → staking → adding to pool_`,
+        `Deposit received\n\n` +
+          `$${depositAmount} USDT on agent wallet.`,
         { parse_mode: "Markdown" }
       );
 
-      const kb = new InlineKeyboard().text("→ Select amount", "deposit_done");
-      await _send(
-        telegramId,
-        `Funds received — let's continue 👇`,
-        { reply_markup: kb }
-      );
+      const kb = new InlineKeyboard()
+        .text("Run now", "deposit_done")
+        .text("Status", "status_check");
+      await _send(telegramId, "Continue setup", { reply_markup: kb });
       return;
     }
 

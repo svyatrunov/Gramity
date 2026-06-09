@@ -4,20 +4,6 @@ import { GramGravityLogo } from "./GramGravityLogo";
 
 const TON_WALLET_LOGO = "/app/logos/ton.png";
 
-declare global {
-  interface Window {
-    Telegram?: {
-      WebApp?: {
-        sendData: (data: string) => void;
-        close: () => void;
-        ready: () => void;
-        initData: string;
-        colorScheme?: "light" | "dark";
-      };
-    };
-  }
-}
-
 export function ConnectWallet() {
   const wallet = useTonWallet();
   const [tonConnectUI] = useTonConnectUI();

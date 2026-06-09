@@ -11,7 +11,6 @@ import { MIN_DCA_USDT } from "../../constants/dca.js";
 import {
   getPlanByTelegramId,
   upsertPlan,
-  getLastExecutions,
 } from "../../db/index.js";
 import { getUsdtBalance } from "../../services/tonapi.js";
 import { createUserWallet } from "../../services/userWallet.js";
@@ -19,7 +18,6 @@ import {
   startDepositPoller,
   stopDepositPoller,
 } from "../depositPoller.js";
-import { hasWithdrawalAddress } from "../../utils/tonAddress.js";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -74,34 +72,24 @@ export async function handleStart(ctx: GramityContext) {
   if (!telegramId) return;
 
   const existingPlan = await getPlanByTelegramId(telegramId).catch(() => null);
-  const appUrl = `${RAILWAY_PUBLIC_URL}/app/onboarding.html`;
+  const appUrl = existingPlan
+    ? `${RAILWAY_PUBLIC_URL}/app/dashboard.html`
+    : `${RAILWAY_PUBLIC_URL}/app/onboarding.html`;
 
   if (existingPlan) {
-    const statusEmoji = existingPlan.active ? "🟢" : "⏸";
     const statusLabel = existingPlan.active ? "Active" : "Paused";
     const freqLabel   = FREQ_LABELS[existingPlan.frequency] ?? existingPlan.frequency;
     const nextDate    = formatDate(new Date(existingPlan.next_execution_at));
-    const execs       = await getLastExecutions(existingPlan.id, 1).catch(() => []);
-    const lastExec    = execs[0];
 
     const kb = new InlineKeyboard()
-      .text("📊 Status", "status_check")
-      .text(existingPlan.active ? "⏸ Pause" : "▶️ Resume", existingPlan.active ? "pause" : "resume")
-      .row()
-      .webApp("🚀 Open App", appUrl);
+      .webApp("Open app", appUrl)
+      .text("Settings", "settings_back");
 
     await ctx.reply(
-      `👋 Welcome back!\n\n` +
-        `📊 *Your Gramity Strategy*\n\n` +
-        `${statusEmoji} ${statusLabel} · $${existingPlan.usdt_amount} USDT ${freqLabel}\n` +
-        (hasWithdrawalAddress(existingPlan.ton_address)
-          ? `Withdrawal: \`${existingPlan.ton_address.slice(0, 6)}…${existingPlan.ton_address.slice(-4)}\`\n`
-          : `⚠️ Withdrawal address not set — open App to configure\n`) +
-        (lastExec
-          ? `Last run: ${new Date(lastExec.executed_at).toLocaleDateString("en-US")}\n`
-          : "") +
-        `Next: ${nextDate}\n\n` +
-      `/settings — amount & frequency · Dashboard — run cycle now`,
+      `Gramity\n\n` +
+        `Status     *${statusLabel}*\n` +
+        `Strategy   *$${existingPlan.usdt_amount} USDT · ${freqLabel}*\n` +
+        `Next       ${nextDate}`,
       { parse_mode: "Markdown", reply_markup: kb }
     );
     ctx.session.step = "idle";
@@ -112,19 +100,11 @@ export async function handleStart(ctx: GramityContext) {
   ctx.session.step = "idle";
 
   const kb = new InlineKeyboard()
-    .webApp("🚀 Open App", appUrl);
+    .webApp("Start setup", appUrl);
 
   await ctx.reply(
-    `👋 Welcome to *Gramity* — automated DCA on TON.\n\n` +
-      `*How it works:*\n` +
-      `💵 One deposit from any chain (ETH, Base, BNB, Polygon or TON)\n` +
-      `⚡ Every cycle, Gramity automatically:\n` +
-      `  › Swaps USDT → TON via Omniston\n` +
-      `  › Stakes → tsTON via Tonstakers (~5% APY)\n` +
-      `  › Compounds LP on STON.fi (~5.4% APY)\n\n` +
-      `*Rewards auto-reinvest* in your LP position.\n` +
-      `~5.4% APY · 0% platform fee\n\n` +
-      `Tap *Open App* to set up in ~2 minutes 👇`,
+    `Automated DCA on TON.\n` +
+      `Swap → stake → LP, hands-free.`,
     { parse_mode: "Markdown", reply_markup: kb }
   );
 }
@@ -132,8 +112,16 @@ export async function handleStart(ctx: GramityContext) {
 // ─── Text message router ──────────────────────────────────────────────────────
 
 export async function handleText(ctx: GramityContext) {
-  const step = ctx.session.step;
+  const telegramId = ctx.from?.id;
   const text = ctx.message?.text?.trim() ?? "";
+
+  if (telegramId) {
+    const { handleAddressInput } = await import("./withdrawalWallet.js");
+    const handled = await handleAddressInput(ctx, text);
+    if (handled) return;
+  }
+
+  const step = ctx.session.step;
 
   if (step === "waiting_wallet") {
     await handleWalletInput(ctx, text);

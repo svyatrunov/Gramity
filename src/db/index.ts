@@ -111,9 +111,35 @@ EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 
 DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN is_running BOOLEAN NOT NULL DEFAULT FALSE;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
   ALTER TABLE plans ALTER COLUMN ton_address DROP NOT NULL;
 EXCEPTION WHEN others THEN NULL;
 END $$;
+
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN withdrawal_chain TEXT DEFAULT 'ton';
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN withdrawal_token TEXT DEFAULT 'usdt';
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN withdrawal_address_set BOOLEAN DEFAULT false;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+UPDATE plans
+SET withdrawal_address_set = true
+WHERE ton_address IS NOT NULL
+  AND TRIM(ton_address) <> ''
+  AND (withdrawal_address_set = false OR withdrawal_address_set IS NULL);
 
 CREATE TABLE IF NOT EXISTS notification_log (
   id           UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -170,7 +196,13 @@ export interface Plan {
   max_cycles: number | null;
   consecutive_failures: number;
   last_error: string | null;
+  is_running: boolean;
+  withdrawal_chain?: WithdrawalChainDb | null;
+  withdrawal_token?: string | null;
+  withdrawal_address_set?: boolean;
 }
+
+export type WithdrawalChainDb = "ton" | "eth" | "bnb" | "base" | "polygon";
 
 export interface Execution {
   id: string;
@@ -223,7 +255,7 @@ export async function getPlanByTelegramId(
 }
 
 export async function upsertPlan(
-  plan: Omit<Plan, "id" | "created_at" | "consecutive_failures" | "last_error">
+  plan: Omit<Plan, "id" | "created_at" | "consecutive_failures" | "last_error" | "is_running">
 ): Promise<Plan> {
   const { rows } = await getPool().query<Plan>(
     `INSERT INTO plans
@@ -285,6 +317,21 @@ export async function updatePlan(
     `UPDATE plans SET ${fields.join(", ")} WHERE telegram_id = $${i}`,
     values
   );
+}
+
+/** Set withdrawal address once; returns false if already locked. */
+export async function setWithdrawalAddress(
+  telegramId: number,
+  tonAddress: string
+): Promise<boolean> {
+  const result = await getPool().query(
+    `UPDATE plans
+     SET ton_address = $1
+     WHERE telegram_id = $2
+       AND (ton_address IS NULL OR TRIM(ton_address) = '')`,
+    [tonAddress, telegramId]
+  );
+  return (result.rowCount ?? 0) > 0;
 }
 
 export async function getDuePlans(): Promise<Plan[]> {

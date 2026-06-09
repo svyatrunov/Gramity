@@ -7,8 +7,8 @@ import {
   getPlanByTelegramId,
   updatePlan,
 } from "../../db/index.js";
+import { executeDcaCycle } from "../../execution/cycle.js";
 import {
-  executeStrategy,
   InsufficientFundsError,
 } from "../../execution/index.js";
 import {
@@ -47,7 +47,18 @@ export async function handleRunNow(
     await reply(`🔄 *Cycle ${i}/${runs}* — executing…`, { parse_mode: "Markdown" });
 
     try {
-      const result = await executeStrategy(plan);
+      const result = await executeDcaCycle(plan);
+
+      if (result.skipped) {
+        if (result.reason === "already_running") {
+          await reply(
+            `⏭ *Cycle ${i}/${runs} — skipped*\n\n_A cycle is already running. Wait for it to finish._`,
+            { parse_mode: "Markdown" }
+          );
+        }
+        stopped = true;
+        continue;
+      }
 
       if (result.status === "failed") {
         const depositAddress = await createUserWallet(telegramId).catch(() => "");
@@ -75,7 +86,7 @@ export async function handleRunNow(
         partials++;
         await reply(
           `⚡ *Cycle ${i}/${runs} — partial*\n\n` +
-            `Swap: $${result.usdtSpent.toFixed(2)} → ${result.tonReceived.toFixed(3)} TON ✅\n` +
+            `Swap: $${(result.usdtSpent ?? 0).toFixed(2)} → ${(result.tonReceived ?? 0).toFixed(3)} TON ✅\n` +
             `Stake/LP: skipped\n\n` +
             (txLinks.length ? `🔗 ${txLinks.join(" · ")}\n\n` : "") +
             `_TON stays on DCA wallet — not lost._`,
@@ -86,7 +97,7 @@ export async function handleRunNow(
 
       await reply(
         `✅ *Cycle ${i}/${runs} complete*\n\n` +
-          `$${result.usdtSpent.toFixed(2)} USDT → LP on STON.fi\n\n` +
+          `$${(result.usdtSpent ?? 0).toFixed(2)} USDT → LP on STON.fi\n\n` +
           (txLinks.length ? `🔗 ${txLinks.join(" · ")}` : ""),
         { parse_mode: "Markdown", link_preview_options: { is_disabled: true } }
       );

@@ -849,6 +849,56 @@
     /* ── Wizard Step 1: Connect ── */
     .connect-section { display: flex; flex-direction: column; gap: 10px; }
 
+    .connect-options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 20px 0;
+    }
+    .connect-option {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--g-card, rgba(255,255,255,0.04));
+      border: 0.5px solid var(--g-border, rgba(255,255,255,0.1));
+      border-radius: var(--g-r-lg, var(--radius));
+      padding: 14px 16px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s;
+      width: 100%;
+      color: inherit;
+      font-family: var(--font);
+    }
+    .connect-option:active {
+      border-color: rgba(79,135,247,0.4);
+    }
+    .co-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .co-ton { background: rgba(79,135,247,0.15); color: #4F87F7; }
+    .co-evm { background: rgba(245,165,36,0.12); color: #F5A524; }
+    .co-name { font-size: 15px; color: var(--g-text, var(--text-primary)); font-weight: 500; }
+    .co-sub  { font-size: 12px; color: var(--g-muted, var(--text-secondary)); margin-top: 2px; }
+    .connect-option-ghost {
+      background: none;
+      border: none;
+      color: var(--g-muted, var(--text-secondary));
+      font-size: 13px;
+      text-align: center;
+      padding: 8px;
+      cursor: pointer;
+      width: 100%;
+      font-family: var(--font);
+    }
+
     .connect-btn {
       display: flex;
       align-items: center;
@@ -1944,12 +1994,12 @@
       </section>
 
       <!-- ═══════════════════════════════════════════
-           WIZARD — Step 1 of 4: Connect wallet
+           WIZARD — Step 1 of 2: Connect wallet
       ═══════════════════════════════════════════ -->
       <section class="slide slide-wizard" data-slide="6">
         <div class="wizard-header anim-item">
           <button class="wizard-back" id="btnWizardBackConnect">←</button>
-          <span class="wizard-step">Step 1 of 4</span>
+          <span class="wizard-step">Step 1 of 2</span>
           <div style="width:28px"></div>
         </div>
         <div class="wizard-step-bar-2 anim-item" id="progressBarConnect">
@@ -1964,20 +2014,25 @@
             We scan your wallet, then bridge USDT to your Gramity DCA wallet. DCA setup comes after funding.
           </p>
 
-          <div class="connect-section anim-item" id="connectSection">
-            <button class="connect-btn primary-ton" id="btnConnectTon" type="button">
-              <span class="logo-circle logo-circle-lg"><img src="/app/logos/ton.png" alt="" class="wallet-logo-img" width="28" height="28"/></span>
-              <div style="flex:1;text-align:left">
-                <div>Connect TON Wallet</div>
-                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Tonkeeper · MyTonWallet · TON Space</div>
+          <div class="connect-options anim-item" id="connectSection">
+            <button id="btnConnectTON" class="connect-option" type="button">
+              <div class="co-icon co-ton">◈</div>
+              <div class="co-info">
+                <div class="co-name">TON wallet</div>
+                <div class="co-sub">Tonkeeper · TON Space · MyTonWallet</div>
               </div>
             </button>
-            <button class="connect-btn" id="btnConnectMM" type="button">
-              <span class="logo-circle logo-circle-lg"><img src="/app/logos/metamask.svg" alt="" class="wallet-logo-img" width="28" height="28"/></span>
-              <div style="flex:1;text-align:left">
-                <div>Connect MetaMask</div>
-                <div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Opens browser · ETH · Base · BNB · Polygon</div>
+
+            <button id="btnConnectMM" class="connect-option" type="button">
+              <div class="co-icon co-evm">⬡</div>
+              <div class="co-info">
+                <div class="co-name">EVM wallet</div>
+                <div class="co-sub">ETH · BNB Chain · Base · Polygon</div>
               </div>
+            </button>
+
+            <button id="btnSkipWallet" class="connect-option-ghost" type="button">
+              Fund agent wallet manually →
             </button>
           </div>
 
@@ -1994,12 +2049,12 @@
       </section>
 
       <!-- ═══════════════════════════════════════════
-           WIZARD — Step 2 of 4: Bridge / fund DCA wallet
+           WIZARD — Step 2 of 2: Bridge / fund DCA wallet
       ═══════════════════════════════════════════ -->
       <section class="slide slide-wizard" data-slide="7b">
         <div class="wizard-header anim-item">
           <button class="wizard-back" id="btnWizardBackDeposit">←</button>
-          <span class="wizard-step">Step 2 of 4</span>
+          <span class="wizard-step">Step 2 of 2</span>
           <div style="width:28px"></div>
         </div>
         <div class="wizard-step-bar-2 anim-item" id="progressBarDeposit">
@@ -2063,12 +2118,12 @@
       </section>
 
       <!-- ═══════════════════════════════════════════
-           WIZARD — Step 3 of 4: Plan DCA (slider + calculator)
+           WIZARD — Step 2 of 2: Plan DCA (slider + calculator)
       ═══════════════════════════════════════════ -->
       <section class="slide slide-wizard" data-slide="7">
         <div class="wizard-header anim-item">
           <button class="wizard-back" id="btnWizardBack1">←</button>
-          <span class="wizard-step">Step 3 of 4</span>
+          <span class="wizard-step">Step 2 of 2</span>
           <div style="width:28px"></div>
         </div>
         <div class="wizard-step-bar-2 anim-item" id="progressBar1">
@@ -2124,7 +2179,16 @@
           </div>
 
           <div class="withdraw-block anim-item">
-            <p class="param-label">Withdrawal wallet (TON address) <span style="opacity:0.55;font-weight:400">· optional</span></p>
+            <p class="param-label" id="withdrawAddrLabel">Withdrawal wallet <span style="opacity:0.55;font-weight:400">· optional</span></p>
+            <div id="withdrawChainSection" class="anim-item" style="display:none;margin-bottom:10px">
+              <p class="param-label" style="margin-bottom:6px">Receive on</p>
+              <div class="freq-tabs" id="withdrawChainTabs">
+                <button type="button" class="freq-tab" data-wchain="eth">ETH</button>
+                <button type="button" class="freq-tab" data-wchain="bnb">BNB</button>
+                <button type="button" class="freq-tab active" data-wchain="base">Base</button>
+                <button type="button" class="freq-tab" data-wchain="polygon">Polygon</button>
+              </div>
+            </div>
             <div class="input-group visible">
               <div class="addr-row" style="flex:1;min-width:0">
                 <input class="addr-input" id="withdrawAddrInput" type="text"
@@ -2142,12 +2206,12 @@
       </section>
 
       <!-- ═══════════════════════════════════════════
-           WIZARD — Step 4 of 4: Confirm strategy
+           WIZARD — Step 2 of 2: Confirm strategy
       ═══════════════════════════════════════════ -->
       <section class="slide slide-wizard" data-slide="8">
         <div class="wizard-header anim-item">
           <button class="wizard-back" id="btnWizardBack2">←</button>
-          <span class="wizard-step">Step 4 of 4</span>
+          <span class="wizard-step">Step 2 of 2</span>
           <div style="width:28px"></div>
         </div>
         <div class="wizard-step-bar-2 anim-item" id="progressBar2">
@@ -2633,6 +2697,7 @@
         amountPerCycle:  5,
         selectedStrategy: 'multiply',
         withdrawAddress: '',
+        withdrawalChain: 'base',
         evmWalletBalance: null,
         preferredBridgeChain: '',
         bridgeAmount: 100,
@@ -2697,29 +2762,26 @@
       }
 
       function updateTonConnectBtn(addr) {
-        var btn = document.getElementById('btnConnectTon');
+        var btn = document.getElementById('btnConnectTON');
         if (!btn) return;
         if (addr) {
           var short = addr.slice(0, 6) + '…' + addr.slice(-4);
           btn.innerHTML =
-            tonWalletLogoImg(28) +
-            '<div style="flex:1;text-align:left">' +
-              '<div>TON Connected</div>' +
-              '<div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">' + short + '</div>' +
+            '<div class="co-icon co-ton">◈</div>' +
+            '<div class="co-info">' +
+              '<div class="co-name">TON Connected</div>' +
+              '<div class="co-sub">' + short + '</div>' +
             '</div>' +
-            '<div style="font-size:11px;color:#22c55e;font-weight:700">✓ Connected</div>';
+            '<div style="font-size:11px;color:#22c55e;font-weight:700;margin-left:auto">✓</div>';
           btn.style.borderColor = 'rgba(34,197,94,0.4)';
-          btn.style.background  = 'rgba(34,197,94,0.08)';
         } else {
           btn.innerHTML =
-            tonWalletLogoImg(28) +
-            '<div style="flex:1;text-align:left">' +
-              '<div>Connect TON Wallet</div>' +
-              '<div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.5);margin-top:2px">Tonkeeper · MyTonWallet · TON Space</div>' +
-            '</div>' +
-            '<div style="font-size:11px;color:rgba(0,152,234,0.8);font-weight:700">PRIMARY</div>';
+            '<div class="co-icon co-ton">◈</div>' +
+            '<div class="co-info">' +
+              '<div class="co-name">TON wallet</div>' +
+              '<div class="co-sub">Tonkeeper · TON Space · MyTonWallet</div>' +
+            '</div>';
           btn.style.borderColor = '';
-          btn.style.background  = '';
         }
       }
 
@@ -3316,10 +3378,12 @@
         wiz.bridgeChain = '';
         updateBridgeUI();
         if (btn) {
-          btn.querySelector('div').children[0].textContent = 'Connect MetaMask';
-          if (btn.querySelector('div').children[1]) {
-            btn.querySelector('div').children[1].textContent = 'Opens browser · ETH · Base · BNB · Polygon';
-          }
+          btn.innerHTML =
+            '<div class="co-icon co-evm">⬡</div>' +
+            '<div class="co-info">' +
+              '<div class="co-name">EVM wallet</div>' +
+              '<div class="co-sub">ETH · BNB Chain · Base · Polygon</div>' +
+            '</div>';
           btn.style.borderColor = '';
         }
         syncAvailableUsdt();
@@ -3330,13 +3394,22 @@
         if (!accounts || !accounts.length) return;
         wiz.evmAddress = accounts[0];
         wiz.evmConnected = true;
+        window.gramityState = window.gramityState || {};
+        window.gramityState.walletType = 'evm';
+        window.gramityState.withdrawalAddress = accounts[0];
+        wiz.withdrawAddress = accounts[0];
+        wiz.withdrawalChain = wiz.withdrawalChain || 'base';
 
         var short = accounts[0].slice(0, 6) + '…' + accounts[0].slice(-4);
-        btn.querySelector('div').children[0].textContent = 'Connected: ' + short;
-        if (btn.querySelector('div').children[1]) {
-          btn.querySelector('div').children[1].textContent = 'Tap to disconnect';
+        if (btn) {
+          btn.innerHTML =
+            '<div class="co-icon co-evm">⬡</div>' +
+            '<div class="co-info">' +
+              '<div class="co-name">EVM Connected</div>' +
+              '<div class="co-sub">' + short + ' · tap to disconnect</div>' +
+            '</div>';
+          btn.style.borderColor = 'rgba(230,119,30,0.5)';
         }
-        btn.style.borderColor = 'rgba(230,119,30,0.5)';
 
         var stripResult = document.getElementById('stripBalanceResult');
         if (stripResult) {
@@ -3354,12 +3427,12 @@
           return;
         }
 
-        btn.querySelector('div').children[0].textContent = 'Loading balances…';
+        btn.querySelector('.co-name').textContent = 'Loading balances…';
         fetchEvmBalancesFromServer(accounts[0])
           .then(function (payload) {
             displayEvmBalances(payload);
-            if (btn.querySelector('div').children[0]) {
-              btn.querySelector('div').children[0].textContent = 'Connected: ' + short;
+            if (btn && btn.querySelector('.co-name')) {
+              btn.querySelector('.co-name').textContent = 'EVM Connected';
             }
             if (stripResult && payload && payload.totalUsd != null) {
               document.getElementById('stripTotal').textContent = '$' + payload.totalUsd.toFixed(0);
@@ -3369,8 +3442,8 @@
           })
           .catch(function (err) {
             console.error('[MetaMask] balance fetch failed', err);
-            if (btn.querySelector('div').children[0]) {
-              btn.querySelector('div').children[0].textContent = 'Connected: ' + short;
+            if (btn && btn.querySelector('.co-name')) {
+              btn.querySelector('.co-name').textContent = 'EVM Connected';
             }
             if (stripResult) {
               document.getElementById('stripTotal').textContent = '$0';
@@ -3380,19 +3453,21 @@
 
       function runMetaMaskConnect(btn) {
         if (!btn || btn.disabled) return;
-        var labelEl = btn.querySelector('div').children[0];
-        var hintEl = btn.querySelector('div').children[1];
+        var nameEl = btn.querySelector('.co-name');
+        var subEl = btn.querySelector('.co-sub');
 
         btn.disabled = true;
         var hasExt = hasRealExtension();
         var mobile = isMobileDevice();
-        labelEl.textContent = hasExt
-          ? 'Connecting…'
-          : mobile
-            ? 'Opening MetaMask…'
-            : 'Opening browser…';
-        if (hintEl) {
-          hintEl.textContent = hasExt
+        if (nameEl) {
+          nameEl.textContent = hasExt
+            ? 'Connecting…'
+            : mobile
+              ? 'Opening MetaMask…'
+              : 'Opening browser…';
+        }
+        if (subEl) {
+          subEl.textContent = hasExt
             ? 'Approve in MetaMask extension popup'
             : mobile
               ? 'Approve in MetaMask, then return to Telegram'
@@ -3417,28 +3492,24 @@
           console.error('[MetaMask]', err);
           btn.style.borderColor = '#ff4a6e';
           if (err && err.message === 'sdk_loading') {
-            labelEl.textContent = 'Loading MetaMask…';
+            if (nameEl) nameEl.textContent = 'Loading MetaMask…';
           } else if (err && (String(err.message || '').indexOf('timeout') !== -1 || String(err.message || '').indexOf('return to Telegram') !== -1)) {
-            labelEl.textContent = 'Waiting for MetaMask…';
-            if (hintEl) hintEl.textContent = 'Approve connection in MetaMask, then switch back here';
+            if (nameEl) nameEl.textContent = 'Waiting for MetaMask…';
+            if (subEl) subEl.textContent = 'Approve connection in MetaMask, then switch back here';
           } else {
-            labelEl.textContent = 'Connection cancelled';
+            if (nameEl) nameEl.textContent = 'Connection cancelled';
           }
           setTimeout(function () {
-            labelEl.textContent = 'Connect MetaMask';
-            if (hintEl) hintEl.textContent = 'Opens browser · ETH · Base · BNB · Polygon';
+            btn.innerHTML =
+              '<div class="co-icon co-evm">⬡</div>' +
+              '<div class="co-info">' +
+                '<div class="co-name">EVM wallet</div>' +
+                '<div class="co-sub">ETH · BNB Chain · Base · Polygon</div>' +
+              '</div>';
             btn.style.borderColor = '';
           }, 8000);
         });
       }
-
-      document.getElementById('btnConnectMM').addEventListener('click', function () {
-        if (wiz.evmConnected) {
-          disconnectMetaMask(this);
-          return;
-        }
-        runMetaMaskConnect(this);
-      });
 
       function appendDepositPrefill(url) {
         var parts = [];
@@ -3701,6 +3772,22 @@
 
       function initSetupStep() {
         syncAvailableUsdt();
+        window.gramityState = window.gramityState || {};
+        var walletType = window.gramityState.walletType || '';
+        var chainSection = document.getElementById('withdrawChainSection');
+        var addrLabel = document.getElementById('withdrawAddrLabel');
+        if (walletType === 'evm' && wiz.evmAddress) {
+          if (chainSection) chainSection.style.display = 'block';
+          if (addrLabel) addrLabel.textContent = 'Withdrawal wallet (EVM)';
+          document.getElementById('withdrawAddrInput').value = wiz.evmAddress;
+          wiz.withdrawAddress = wiz.evmAddress;
+          window.gramityState.withdrawalAddress = wiz.evmAddress;
+          updateWithdrawChainTabs(wiz.withdrawalChain || 'base');
+        } else if (walletType === 'none') {
+          if (chainSection) chainSection.style.display = 'none';
+        } else {
+          if (chainSection) chainSection.style.display = 'none';
+        }
         fetchTonPrice(false).then(function (price) {
           if (price && price > 0) window.gramityState.tonPrice = price;
           refreshSetupProjection();
@@ -3928,7 +4015,23 @@
         updateSetupContinueBtn();
       });
 
-      document.getElementById('btnConnectTon').addEventListener('click', function () {
+      function updateWithdrawChainTabs(chain) {
+        wiz.withdrawalChain = chain;
+        window.gramityState.withdrawalChain = chain;
+        document.querySelectorAll('#withdrawChainTabs .freq-tab').forEach(function (tab) {
+          tab.classList.toggle('active', tab.getAttribute('data-wchain') === chain);
+        });
+      }
+
+      document.querySelectorAll('#withdrawChainTabs .freq-tab').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          updateWithdrawChainTabs(tab.getAttribute('data-wchain') || 'base');
+        });
+      });
+
+      document.getElementById('btnConnectTON').addEventListener('click', function () {
+        window.gramityState = window.gramityState || {};
+        window.gramityState.walletType = 'ton';
         if (tonConnectUI) {
           if (wiz.tonConnected) {
             tonConnectUI.disconnect().catch(function () {});
@@ -3938,9 +4041,32 @@
         }
       });
 
-      document.getElementById('btnOpenDashboard').addEventListener('click', function () {
-        window.location.href = '/app/dashboard.html';
+      document.getElementById('btnSkipWallet').addEventListener('click', function () {
+        window.gramityState = window.gramityState || {};
+        window.gramityState.walletType = 'none';
+        wiz.tonConnected = false;
+        wiz.evmConnected = false;
+        goTo(WIZARD_SETUP);
       });
+
+      document.getElementById('btnConnectMM').addEventListener('click', function () {
+        window.gramityState = window.gramityState || {};
+        window.gramityState.walletType = 'evm';
+        if (wiz.evmConnected) {
+          disconnectMetaMask(this);
+        } else {
+          runMetaMaskConnect(this);
+        }
+      });
+
+      var btnOpenDashboard = document.getElementById('btnOpenDashboard');
+      if (btnOpenDashboard) {
+        btnOpenDashboard.href = '/app/dashboard.html';
+        btnOpenDashboard.onclick = function () {
+          window.location.replace('/app/dashboard.html');
+          return false;
+        };
+      }
 
       document.getElementById('btnTrackInBot').addEventListener('click', function () {
         openTelegramLink(BOT_DEEPLINK);
@@ -4073,6 +4199,9 @@
               tgApp.HapticFeedback.notificationOccurred('success');
             }
             goTo(WIZARD_FINAL);
+            setTimeout(function () {
+              window.location.replace(window.location.origin + '/app/dashboard.html');
+            }, 1500);
           } else {
             var errData = await res.json().catch(function () { return {}; });
             var errMsg = errData.error || 'Failed to create strategy. Please try again.';

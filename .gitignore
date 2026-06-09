@@ -3,3 +3,8 @@ dist/
 .env
 gramity-state.json
 HACKATHON_AUDIT.md
+SECURITY-AUDIT.md
+gitleaks-report.json
+semgrep-report.json
+npm-audit-report.json
+miniapp/npm-audit-report.json

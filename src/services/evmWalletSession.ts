@@ -172,6 +172,11 @@ export function clearEvmWalletSessionsForTelegram(telegramId: number): void {
   replaceExistingSession(telegramId);
 }
 
+export function touchEvmWalletSession(sessionId: string): void {
+  const session = sessions.get(sessionId);
+  if (session) session.expiresAt = Date.now() + SESSION_TTL_MS;
+}
+
 export function getEvmWalletSession(sessionId: string): EvmWalletSession | null {
   purgeExpiredSessions();
   const session = sessions.get(sessionId);

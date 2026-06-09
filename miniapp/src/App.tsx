@@ -1,41 +1,15 @@
-import React, { useState } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { TonConnectUIProvider } from "@tonconnect/ui-react";
 import { ConnectWallet } from "./ConnectWallet";
-import { PortfolioScreen } from "./screens/PortfolioScreen";
-import { WalletsScreen } from "./screens/WalletsScreen";
-import { WithdrawScreen } from "./screens/WithdrawScreen";
-import { BuyScreen } from "./screens/BuyScreen";
 import { DepositScreen } from "./screens/DepositScreen";
+import { LegacyTabApp } from "./LegacyTabApp";
+import { Router } from "./screens/Router";
+import { OnboardingScreen } from "./screens/Onboarding";
+import { DashboardScreen } from "./screens/Dashboard";
+import { DepositScreenRoute } from "./screens/Deposit";
+import { MANIFEST_URL } from "./config";
 
-const MANIFEST_URL = `${window.location.origin}/app/tonconnect-manifest.json`;
-
-type Screen = "portfolio" | "wallets" | "withdraw" | "buy";
-
-const TAB_STYLE: React.CSSProperties = {
-  display: "flex",
-  borderTop: "1px solid var(--tg-theme-hint-color, #ccc)",
-  position: "fixed",
-  bottom: 0,
-  left: 0,
-  right: 0,
-  background: "var(--tg-theme-bg-color, #fff)",
-};
-
-const TAB_BTN: React.CSSProperties = {
-  flex: 1,
-  padding: "10px 4px",
-  border: "none",
-  background: "transparent",
-  cursor: "pointer",
-  fontSize: 11,
-  color: "var(--tg-theme-hint-color, #999)",
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  gap: 2,
-};
-
-export function App() {
+function LegacyModes() {
   const params = new URLSearchParams(window.location.search);
   const mode = params.get("mode");
 
@@ -51,40 +25,27 @@ export function App() {
     return <DepositScreen />;
   }
 
-  const [screen, setScreen] = useState<Screen>("portfolio");
+  return null;
+}
 
-  const tabs: Array<{ id: Screen; label: string; emoji: string }> = [
-    { id: "portfolio", label: "Портфель", emoji: "📊" },
-    { id: "wallets", label: "Кошельки", emoji: "👛" },
-    { id: "withdraw", label: "Вывод", emoji: "💸" },
-    { id: "buy", label: "Купить", emoji: "🛒" },
-  ];
+export function App() {
+  const params = new URLSearchParams(window.location.search);
+  const mode = params.get("mode");
+
+  if (mode === "connect" || mode === "deposit") {
+    return <LegacyModes />;
+  }
 
   return (
-    <div style={{ paddingBottom: 60 }}>
-      {screen === "portfolio" && <PortfolioScreen />}
-      {screen === "wallets" && <WalletsScreen />}
-      {screen === "withdraw" && <WithdrawScreen />}
-      {screen === "buy" && <BuyScreen />}
-
-      <div style={TAB_STYLE}>
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            style={{
-              ...TAB_BTN,
-              color:
-                screen === t.id
-                  ? "var(--tg-theme-link-color, #2481cc)"
-                  : "var(--tg-theme-hint-color, #999)",
-            }}
-            onClick={() => setScreen(t.id)}
-          >
-            <span style={{ fontSize: 20 }}>{t.emoji}</span>
-            {t.label}
-          </button>
-        ))}
-      </div>
-    </div>
+    <BrowserRouter basename="/app">
+      <Routes>
+        <Route path="/" element={<Router />} />
+        <Route path="/onboarding" element={<OnboardingScreen />} />
+        <Route path="/dashboard" element={<DashboardScreen />} />
+        <Route path="/deposit" element={<DepositScreenRoute />} />
+        <Route path="/legacy" element={<LegacyTabApp />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }

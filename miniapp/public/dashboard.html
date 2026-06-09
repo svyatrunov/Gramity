@@ -5,261 +5,870 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
   <title>Gramity — Dashboard</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script type="module" src="/app/assets/metamask-connect.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* ── РАЗДЕЛ 1 — ТОКЕНЫ ── */
     :root {
-      --bg: #07070e;
-      --accent: #4a8aff;
-      --accent2: #2d6dcc;
-      --green: #4aff8c;
-      --red: #ff6b6b;
-      --yellow: #fbbf24;
-      --text-primary: #ffffff;
-      --text-secondary: #4a5568;
-      --border: rgba(255, 255, 255, 0.06);
-      --radius: 16px;
-      --font: -apple-system, BlinkMacSystemFont, sans-serif;
+      /* Фоны */
+      --g-bg:       #0B0B12;
+      --g-card:     #14141E;
+      --g-card2:    #1C1C28;
+
+      /* Цвета текста */
+      --g-text:     #FFFFFF;
+      --g-muted:    rgba(255,255,255,0.50);
+      --g-faint:    rgba(255,255,255,0.25);
+
+      /* Акцентные цвета */
+      --g-blue:     #4F87F7;
+      --g-green:    #32D074;
+      --g-yellow:   #F5A524;
+      --g-red:      #FF4D4D;
+
+      /* Служебные */
+      --g-border:   rgba(255,255,255,0.07);
+      --g-mono:     'SF Mono', 'Fira Mono', 'Consolas', monospace;
+
+      /* Радиусы */
+      --g-r-sm:     8px;
+      --g-r-md:     12px;
+      --g-r-lg:     14px;
+      --g-r-pill:   20px;
+
+      --sticky-h: 124px;
     }
 
-    html, body {
-      min-height: 100%;
-      background: var(--bg);
-      color: var(--text-primary);
-      font-family: var(--font);
-      font-size: 15px;
-      -webkit-font-smoothing: antialiased;
+    /* ── РАЗДЕЛ 2 — ТИПОГРАФИКА ── */
+    html {
+      height: 100%;
       -webkit-tap-highlight-color: transparent;
     }
 
     body {
-      overflow-x: hidden;
-      padding-bottom: env(safe-area-inset-bottom, 0);
+      background: var(--g-bg);
+      color: var(--g-text);
+      font-family: -apple-system, 'SF Pro Display', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.4;
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
     }
 
-    .app {
-      max-width: 390px;
-      margin: 0 auto;
-      min-height: 100dvh;
-    }
-
-    .header {
-      padding: max(20px, env(safe-area-inset-top)) 20px 14px;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background: linear-gradient(to bottom, var(--bg) 80%, transparent);
-    }
-
-    .header-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-weight: 700;
-      font-size: 18px;
-      letter-spacing: -0.02em;
-    }
-
-    .logo-mark {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      background: radial-gradient(circle at 50% 40%, #1a2030 0%, #080810 100%);
-      border: 1px solid rgba(74, 138, 255, 0.45);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-    }
-
-    .status-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 5px 11px;
-      border-radius: 20px;
+    .g-label {
       font-size: 11px;
-      font-weight: 600;
-    }
-
-    .status-active { background: rgba(74, 255, 140, 0.1); color: var(--green); border: 1px solid rgba(74, 255, 140, 0.25); }
-    .status-paused { background: rgba(251, 191, 36, 0.1); color: var(--yellow); border: 1px solid rgba(251, 191, 36, 0.25); }
-
-    .scroll-body {
-      padding: 4px 20px 28px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .card {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: var(--radius);
-      padding: 16px;
-    }
-
-    .card-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-secondary);
+      font-weight: 500;
+      color: var(--g-faint);
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.07em;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .g-hero {
+      font-size: 38px;
+      font-weight: 500;
+      color: var(--g-text);
+      letter-spacing: -0.5px;
+      line-height: 1;
+      margin: 4px 0;
+    }
+
+    .g-addr {
+      font-family: var(--g-mono);
+      font-size: 13px;
+      color: var(--g-blue);
+      word-break: break-all;
+      line-height: 1.5;
+    }
+
+    .g-num {
+      font-family: var(--g-mono);
+      font-size: 14px;
+      color: var(--g-text);
+    }
+
+    /* ── РАЗДЕЛ 3 — КАРТОЧКИ ── */
+    .g-card {
+      background: var(--g-card);
+      border-radius: var(--g-r-lg);
+      border: 0.5px solid var(--g-border);
+      padding: 14px 16px;
       margin-bottom: 10px;
     }
 
-    .portfolio-value {
-      font-size: 32px;
-      font-weight: 700;
-      letter-spacing: -0.03em;
+    .g-card-accent {
+      background: var(--g-card);
+      border-radius: 0 var(--g-r-lg) var(--g-r-lg) 0;
+      border: 0.5px solid var(--g-border);
+      border-left: 3px solid var(--g-green);
+      padding: 14px 16px;
+      margin-bottom: 10px;
     }
 
-    .portfolio-pnl { font-size: 13px; margin-top: 4px; }
-    .pnl-pos { color: var(--green); }
-    .pnl-neg { color: var(--red); }
-
-    .breakdown {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-top: 14px;
+    .g-card-inner {
+      background: var(--g-card2);
+      border-radius: var(--g-r-md);
+      padding: 9px 10px;
     }
 
-    .breakdown-item {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 10px 12px;
+    .g-strat-card {
+      background: var(--g-card);
+      border-radius: var(--g-r-lg);
+      border: 0.5px solid var(--g-border);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .g-strat-card:hover {
+      border-color: rgba(79,135,247,0.30);
     }
 
-    .bd-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 3px; }
-    .bd-value { font-size: 15px; font-weight: 600; }
-
-    .strategy-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 9px 0;
-      border-bottom: 1px solid var(--border);
-      font-size: 14px;
+    .g-wal-card {
+      background: var(--g-card);
+      border-radius: var(--g-r-lg);
+      border: 0.5px solid var(--g-border);
+      margin-bottom: 10px;
+      overflow: hidden;
     }
 
-    .strategy-row:last-child { border-bottom: none; }
-    .strategy-row .label { color: var(--text-secondary); }
-    .strategy-row .val { font-weight: 600; }
-
-    .next-cycle {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .cycle-icon {
-      width: 40px;
-      height: 40px;
-      background: rgba(74, 138, 255, 0.12);
-      border: 1px solid rgba(74, 138, 255, 0.25);
-      border-radius: 12px;
+    /* ── РАЗДЕЛ 4 — КНОПКИ ── */
+    .g-btn-primary {
+      width: 100%;
+      background: var(--g-yellow);
+      color: #000;
+      border: none;
+      border-radius: var(--g-r-lg);
+      height: 50px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
-      flex-shrink: 0;
+      gap: 8px;
+      margin-bottom: 8px;
+      transition: opacity 0.15s;
+    }
+    .g-btn-primary:active { opacity: 0.75; }
+    .g-btn-primary:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
     }
 
-    .cycle-label { color: var(--text-secondary); font-size: 12px; margin-bottom: 2px; }
-    .cycle-value { font-weight: 600; font-size: 14px; }
-
-    .section-title {
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      padding: 4px 2px 0;
-    }
-
-    .history-list { display: flex; flex-direction: column; gap: 8px; }
-
-    .history-item {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      padding: 12px 14px;
+    .g-btn-secondary {
+      background: var(--g-card2);
+      color: var(--g-text);
+      border: 0.5px solid var(--g-border);
+      border-radius: var(--g-r-md);
+      height: 42px;
+      font-size: 14px;
+      cursor: pointer;
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .hist-left { display: flex; align-items: center; gap: 10px; }
-    .hist-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .hist-dot.success { background: var(--green); }
-    .hist-dot.failed { background: var(--red); }
-    .hist-dot.partial { background: var(--yellow); }
-    .hist-date { font-size: 12px; color: var(--text-secondary); }
-    .hist-amount { font-size: 14px; font-weight: 600; }
-
-    .apy-total { color: var(--accent) !important; font-weight: 700; }
-
-    .btn {
-      display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
-      border: none;
-      border-radius: var(--radius);
-      font-family: var(--font);
-      font-size: 15px;
-      font-weight: 600;
+      transition: background 0.15s;
+    }
+    .g-btn-secondary:active { background: rgba(255,255,255,0.06); }
+
+    .g-btn-ghost {
+      background: rgba(79,135,247,0.12);
+      border: 0.5px solid rgba(79,135,247,0.25);
+      border-radius: var(--g-r-sm);
+      color: var(--g-blue);
+      font-size: 11px;
+      padding: 3px 8px;
       cursor: pointer;
-      transition: opacity 0.2s, transform 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s;
+    }
+    .g-btn-ghost.copied { color: var(--g-green); border-color: rgba(50,208,116,0.30); }
+
+    .g-btn-danger {
+      background: rgba(255,77,77,0.08);
+      color: var(--g-red);
+      border: 0.5px solid rgba(255,77,77,0.20);
+      border-radius: var(--g-r-md);
+    }
+
+    .g-btn-add {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: rgba(79,135,247,0.10);
+      border: 0.5px solid rgba(79,135,247,0.25);
+      border-radius: var(--g-r-lg);
+      padding: 14px;
+      color: var(--g-blue);
+      font-size: 14px;
+      cursor: pointer;
       width: 100%;
-      padding: 14px 20px;
+      margin-bottom: 10px;
     }
 
-    .btn:active { transform: scale(0.98); }
-    .btn:disabled { opacity: 0.45; cursor: default; pointer-events: none; }
-
-    .btn-primary { background: var(--accent); color: #fff; }
-    .btn-ghost {
-      background: transparent;
-      color: var(--text-primary);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+    .g-btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
     }
 
-    .btn-danger {
-      background: rgba(255, 107, 107, 0.12);
-      color: var(--red);
-      border: 1px solid rgba(255, 107, 107, 0.35);
+    /* ── РАЗДЕЛ 5 — БЕЙДЖИ СТАТУСА ── */
+    .g-badge {
+      border-radius: var(--g-r-pill);
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .g-badge-active {
+      background: rgba(50,208,116,0.15);
+      color: var(--g-green);
+      border: 0.5px solid rgba(50,208,116,0.30);
+    }
+    .g-badge-paused {
+      background: rgba(245,165,36,0.12);
+      color: var(--g-yellow);
+      border: 0.5px solid rgba(245,165,36,0.20);
+    }
+    .g-badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
     }
 
-    .btn-warn {
-      background: rgba(251, 191, 36, 0.1);
-      color: var(--yellow);
-      border: 1px solid rgba(251, 191, 36, 0.3);
+    /* ── РАЗДЕЛ 6 — СТРОКИ ── */
+    .g-divider {
+      height: 0.5px;
+      background: var(--g-border);
+      margin: 10px 0;
     }
 
-    .cta-row { display: flex; gap: 10px; }
-    .cta-row .btn { flex: 1; padding: 13px 10px; font-size: 14px; }
-    .cta-stack { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+    .g-setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 0;
+      border-bottom: 0.5px solid var(--g-border);
+    }
+    .g-setting-row:last-child { border-bottom: none; }
+    .g-setting-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .g-setting-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 17px;
+      flex-shrink: 0;
+    }
 
-    .hint-line {
+    .g-wal-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      border-bottom: 0.5px solid var(--g-border);
+    }
+    .g-wal-row:last-child { border-bottom: none; }
+
+    .g-cycle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 0.5px solid var(--g-border);
+    }
+    .g-cycle-row:last-child { border-bottom: none; }
+    .g-cycle-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .g-cycle-dot-ok   { background: var(--g-green); }
+    .g-cycle-dot-fail { background: var(--g-red); }
+
+    .g-yield-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      padding: 3px 0;
+    }
+
+    /* ── РАЗДЕЛ 7 — СЕТКА МЕТРИК ── */
+    .g-metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .g-metric {
+      background: var(--g-card2);
+      border-radius: var(--g-r-md);
+      padding: 9px 10px;
+    }
+    .g-metric-label {
+      font-size: 11px;
+      color: var(--g-muted);
+      margin-bottom: 2px;
+    }
+    .g-metric-value {
+      font-size: 14px;
+      color: var(--g-text);
+      font-weight: 500;
+    }
+    .g-metric-value-green { color: var(--g-green); }
+
+    /* ── РАЗДЕЛ 8 — ИКОНКИ КАНАЛОВ ── */
+    .g-chain-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--g-card2);
+      border: 0.5px solid var(--g-border);
+      border-radius: var(--g-r-md);
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .g-chain-btn:active { border-color: rgba(255,255,255,0.15); }
+    .g-chain-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--g-r-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .g-chain-ton { background: rgba(79,135,247,0.15); color: var(--g-blue); }
+    .g-chain-evm { background: rgba(245,165,36,0.12); color: var(--g-yellow); }
+
+    /* ── Tab content helpers ── */
+    .home-addr-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+      min-width: 0;
+    }
+    .home-addr-row .g-addr { flex: 1; min-width: 0; }
+    .home-bal-line { font-size: 13px; margin-top: 8px; color: var(--g-muted); }
+    .home-bal-line.warn { color: var(--g-yellow); }
+    .home-pnl { font-size: 13px; margin-top: 4px; }
+    .home-strat-line1 {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .home-strat-main { font-size: 15px; font-weight: 500; flex: 1; min-width: 0; }
+    .home-strat-line2 { font-size: 13px; color: var(--g-muted); margin-top: 6px; }
+    .home-cycle-info { flex: 1; min-width: 0; font-size: 13px; }
+    .home-cycle-date { color: var(--g-muted); font-size: 12px; display: block; margin-top: 1px; }
+    .home-empty { font-size: 13px; color: var(--g-muted); padding: 8px 0; }
+
+    .assets-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      margin-bottom: 12px;
+      padding: 0 2px;
+    }
+    .assets-summary-right { color: var(--g-muted); }
+
+    .g-strat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .g-strat-name { font-size: 15px; font-weight: 500; }
+
+    .g-wal-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-bottom: 0.5px solid var(--g-border);
+    }
+    .g-wal-head-info { flex: 1; min-width: 0; }
+    .g-wal-head-name { font-size: 14px; font-weight: 500; }
+    .g-wal-head-addr {
       font-size: 12px;
-      color: var(--text-secondary);
+      color: var(--g-muted);
+      font-family: var(--g-mono);
+      margin-top: 2px;
+      word-break: break-all;
+    }
+
+    .g-yield-total .g-yield-val { font-weight: 500; }
+    .g-chain-btn-text { flex: 1; min-width: 0; text-align: left; }
+    .g-chain-btn-title { font-size: 14px; font-weight: 500; }
+    .g-chain-btn-sub { font-size: 12px; color: var(--g-muted); margin-top: 2px; }
+    .g-chain-btn-arrow { color: var(--g-muted); font-size: 16px; flex-shrink: 0; }
+
+    .deposit-addr-full {
+      font-family: var(--g-mono);
+      font-size: 13px;
+      color: var(--g-blue);
+      word-break: break-all;
       line-height: 1.5;
+      margin-top: 4px;
+      display: block;
+    }
+    .deposit-copy-btn {
+      width: 100%;
+      height: 38px;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+    .deposit-bal-card .g-wal-row { padding: 10px 16px; }
+    .deposit-bal-card .g-wal-row:first-of-type { padding-top: 4px; }
+    .deposit-bal-card .g-wal-row:last-of-type { padding-bottom: 4px; }
+    .deposit-ton-hint {
+      font-size: 13px;
+      color: var(--g-muted);
+      line-height: 1.5;
+      padding: 10px 14px;
+      margin: -4px 0 8px;
+      background: var(--g-card2);
+      border-radius: var(--g-r-md);
+      border: 0.5px solid var(--g-border);
+    }
+    .wal-row-warn { color: var(--g-yellow); }
+
+    .more-group { margin-bottom: 14px; }
+    .more-group .g-label { margin-bottom: 8px; }
+    .g-setting-value {
+      font-size: 13px;
+      color: var(--g-muted);
+      flex-shrink: 0;
+      max-width: 45%;
+      text-align: right;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .g-setting-value.warn { color: var(--g-yellow); }
+    .g-setting-arrow { color: var(--g-muted); font-size: 14px; margin-left: 6px; flex-shrink: 0; }
+    .g-setting-row.danger-row { color: var(--g-red); }
+    .g-setting-row.danger-row .g-setting-label { color: var(--g-red); }
+    .g-setting-label { font-size: 15px; }
+    .g-setting-row { cursor: pointer; }
+    .g-setting-icon-blue { background: rgba(79,135,247,0.15); color: var(--g-blue); }
+    .g-setting-icon-yellow { background: rgba(245,165,36,0.15); color: var(--g-yellow); }
+    .g-setting-icon-green { background: rgba(50,208,116,0.15); color: var(--g-green); }
+    .g-setting-icon-red { background: rgba(255,77,77,0.12); color: var(--g-red); }
+
+    #withdraw-drawer-backdrop {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(11,11,18,0.72);
+      z-index: 90;
+    }
+    #withdraw-drawer-backdrop.open { display: block; }
+    #withdraw-drawer {
+      display: none;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--g-card);
+      border-radius: 20px 20px 0 0;
+      border-top: 0.5px solid var(--g-border);
+      padding: 20px 16px max(24px, env(safe-area-inset-bottom));
+      z-index: 100;
+    }
+    #withdraw-drawer.open { display: block; }
+    .withdraw-drawer-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .withdraw-drawer-title { font-size: 17px; font-weight: 600; }
+    .withdraw-drawer-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: var(--g-card2);
+      border-radius: 50%;
+      color: var(--g-muted);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .withdraw-drawer-addr {
+      font-family: var(--g-mono);
+      font-size: 13px;
+      color: var(--g-muted);
+      margin-bottom: 14px;
+      word-break: break-all;
+      line-height: 1.5;
+    }
+    .withdraw-drawer-addr.warn { color: var(--g-yellow); }
+    .withdraw-drawer-usdt { width: 100%; margin-bottom: 8px; }
+    .withdraw-drawer-all { width: 100%; }
+    .withdraw-drawer-note {
+      font-size: 12px;
+      color: var(--g-muted);
+      text-align: center;
       margin-top: 6px;
     }
 
+    #withdraw-addr-sheet {
+      display: none;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--g-card);
+      border-radius: 20px 20px 0 0;
+      border-top: 0.5px solid var(--g-border);
+      padding: 20px 16px max(24px, env(safe-area-inset-bottom));
+      z-index: 110;
+    }
+    #withdraw-addr-sheet.open { display: block; }
+    .withdraw-addr-input {
+      width: 100%;
+      background: var(--g-card2);
+      border: 0.5px solid var(--g-border);
+      border-radius: var(--g-r-md);
+      color: var(--g-text);
+      font-family: var(--g-mono);
+      font-size: 13px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+    }
+    .withdraw-addr-input:focus { outline: none; border-color: rgba(79,135,247,0.4); }
+
+    /* ── App shell (4-tab layout) ── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      height: 100dvh;
+      max-width: 430px;
+      margin: 0 auto;
+      background: var(--g-bg);
+      overflow: hidden;
+      position: relative;
+    }
+
+    #app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: max(16px, env(safe-area-inset-top)) 18px 12px;
+      background: var(--g-bg);
+      border-bottom: 0.5px solid var(--g-border);
+      flex-shrink: 0;
+    }
+    .header-gem {
+      width: 28px;
+      height: 28px;
+      background: var(--g-blue);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 15px;
+      margin-right: 8px;
+    }
+    .header-logo { display: flex; align-items: center; }
+    .header-title { font-size: 16px; font-weight: 500; color: var(--g-text); }
+
+    #scroll-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 14px 0;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    #scroll-area::-webkit-scrollbar { display: none; }
+
+    .tab-pane { display: none; padding-bottom: 14px; }
+    .tab-pane.active { display: block; }
+
+    #sticky-cta {
+      flex-shrink: 0;
+      padding: 10px 14px 6px;
+      background: var(--g-bg);
+      border-top: 0.5px solid var(--g-border);
+    }
+
+    #bottom-nav {
+      flex-shrink: 0;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      background: var(--g-card);
+      border-top: 0.5px solid var(--g-border);
+      padding: 8px 0 max(10px, env(safe-area-inset-bottom));
+    }
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 4px 0;
+      background: none;
+      border: none;
+      cursor: pointer;
+      position: relative;
+      font-family: inherit;
+    }
+    .nav-icon { font-size: 20px; color: var(--g-muted); font-style: normal; }
+    .nav-label { font-size: 10px; color: var(--g-muted); }
+    .nav-item.active .nav-icon { color: var(--g-blue); }
+    .nav-item.active .nav-label { color: var(--g-blue); }
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 15%;
+      right: 15%;
+      height: 2px;
+      background: var(--g-blue);
+      border-radius: 0 0 2px 2px;
+    }
+
+    /* ── Legacy aliases (tab content) ── */
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--g-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .card,
+    .agent-wallet-card {
+      background: var(--g-card);
+      border-radius: var(--g-r-lg);
+      border: 0.5px solid var(--g-border);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+
+    .earnings-card {
+      background: var(--g-card);
+      border-radius: 0 var(--g-r-lg) var(--g-r-lg) 0;
+      border: 0.5px solid var(--g-border);
+      border-left: 3px solid var(--g-green);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+
+    .wallet-addr-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .wallet-addr {
+      font-family: var(--g-mono);
+      font-size: 13px;
+      color: var(--g-blue);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .btn-copy {
+      flex-shrink: 0;
+      background: rgba(79,135,247,0.12);
+      border: 0.5px solid rgba(79,135,247,0.25);
+      border-radius: var(--g-r-sm);
+      color: var(--g-blue);
+      font-size: 14px;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+    .btn-copy:active { background: rgba(79,135,247,0.20); }
+    .btn-copy.copied { color: var(--g-green); border-color: rgba(50,208,116,0.30); }
+
+    .wallet-balances {
+      font-size: 13px;
+      color: var(--g-muted);
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+    .wallet-balances.warn {
+      color: var(--g-yellow);
+    }
+
+    .hero-lp {
+      font-size: 38px;
+      font-weight: 500;
+      color: var(--g-text);
+      letter-spacing: -0.5px;
+      line-height: 1;
+      margin: 4px 0;
+    }
+
+    .pnl-line {
+      font-size: 13px;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+    .pnl-pos { color: var(--g-green); }
+    .pnl-neg { color: var(--g-red); }
+    .pnl-zero { color: var(--g-muted); }
+
+    .divider {
+      height: 0.5px;
+      background: var(--g-border);
+      margin: 10px 0;
+    }
+
+    .yield-line {
+      font-size: 13px;
+      color: var(--g-muted);
+      line-height: 1.5;
+    }
+    .yield-line .num { color: var(--g-green); }
+
+    .strategy-card {
+      background: var(--g-card);
+      border-radius: var(--g-r-lg);
+      border: 0.5px solid var(--g-border);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      position: relative;
+    }
+
+    .strategy-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .strategy-main {
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.4;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .btn-edit {
+      flex-shrink: 0;
+      background: rgba(79,135,247,0.12);
+      border: 0.5px solid rgba(79,135,247,0.25);
+      border-radius: var(--g-r-sm);
+      color: var(--g-blue);
+      font-size: 11px;
+      padding: 3px 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .strategy-next {
+      font-size: 13px;
+      color: var(--g-muted);
+      margin-top: 6px;
+    }
+
+    .cycles-section { margin-top: 2px; }
+    .cycle-list { display: flex; flex-direction: column; }
+
+    .cycle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 0.5px solid var(--g-border);
+      min-width: 0;
+    }
+    .cycle-row:last-child { border-bottom: none; }
+
+    .cycle-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .cycle-dot.success { background: var(--g-green); }
+    .cycle-dot.failed { background: var(--g-red); }
+
+    .cycle-text {
+      flex: 1;
+      font-size: 13px;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .cycle-text .reason {
+      color: var(--g-muted);
+      font-size: 12px;
+    }
+
+    .view-all {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--g-blue);
+      text-decoration: none;
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: inherit;
+      padding: 0;
+    }
+
+    .btn {
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+    }
+    .btn:disabled { pointer-events: none; }
+
     .modal-overlay {
-      position: fixed;
+      position: absolute;
       inset: 0;
-      background: rgba(0, 0, 0, 0.72);
-      z-index: 50;
+      background: rgba(11,11,18,0.72);
+      z-index: 300;
       display: flex;
       align-items: flex-end;
       justify-content: center;
@@ -267,26 +876,149 @@
       pointer-events: none;
       transition: opacity 0.2s;
     }
-
     .modal-overlay.open { opacity: 1; pointer-events: all; }
 
     .modal-sheet {
-      background: #0e0e16;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 20px 20px 0 0;
-      padding: 24px 20px max(28px, env(safe-area-inset-bottom));
+      background: var(--g-card);
+      border: 0.5px solid var(--g-border);
+      border-radius: var(--g-r-pill) var(--g-r-pill) 0 0;
+      padding: 20px 16px max(24px, env(safe-area-inset-bottom));
       width: 100%;
       max-width: 390px;
       transform: translateY(100%);
       transition: transform 0.25s;
+      max-height: 60vh;
+      overflow-y: auto;
     }
-
     .modal-overlay.open .modal-sheet { transform: translateY(0); }
 
+    .sheet-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .sheet-title { font-size: 17px; font-weight: 700; }
+
+    .btn-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: var(--g-card2);
+      border-radius: 50%;
+      color: var(--g-muted);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .sheet-addr {
+      font-family: var(--g-mono);
+      font-size: 13px;
+      color: var(--g-muted);
+      margin-bottom: 16px;
+      word-break: break-all;
+      line-height: 1.5;
+    }
+    .sheet-addr.warn { color: var(--g-yellow); }
+
+    .withdraw-option {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 14px 16px;
+      border-radius: var(--g-r-md);
+      background: var(--g-card2);
+      border: 0.5px solid var(--g-border);
+      color: var(--g-text);
+      font-family: inherit;
+      cursor: pointer;
+      margin-bottom: 10px;
+      transition: background 0.15s;
+    }
+    .withdraw-option:active { background: rgba(255,255,255,0.06); }
+    .withdraw-option:disabled { opacity: 0.4; pointer-events: none; }
+    .withdraw-option.danger {
+      background: rgba(255,77,77,0.08);
+      border-color: rgba(255,77,77,0.20);
+    }
+
+    .wo-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .wo-desc {
+      font-size: 13px;
+      color: var(--g-muted);
+      line-height: 1.4;
+    }
+    .withdraw-option.danger .wo-title { color: var(--g-red); }
+
     .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
-    .modal-body { font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 18px; }
-    .modal-body strong { color: var(--text-primary); }
+    .modal-body { font-size: 14px; color: var(--g-muted); line-height: 1.6; margin-bottom: 18px; }
+    .modal-body strong { color: var(--g-text); }
     .modal-row { display: flex; gap: 10px; }
+
+    .btn-ghost {
+      background: var(--g-card2);
+      color: var(--g-text);
+      border: 0.5px solid var(--g-border);
+      border-radius: var(--g-r-md);
+      padding: 14px 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: var(--g-blue);
+      color: var(--g-text);
+      border: none;
+      border-radius: var(--g-r-md);
+      padding: 14px 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .btn-warn {
+      background: rgba(245,165,36,0.12);
+      color: var(--g-yellow);
+      border: 0.5px solid rgba(245,165,36,0.20);
+      border-radius: var(--g-r-md);
+      padding: 14px 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .btn-danger {
+      background: rgba(255,77,77,0.08);
+      color: var(--g-red);
+      border: 0.5px solid rgba(255,77,77,0.20);
+      border-radius: var(--g-r-md);
+      padding: 14px 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
 
     .loading {
       display: flex;
@@ -295,83 +1027,79 @@
       justify-content: center;
       gap: 16px;
       padding: 60px 20px;
-      color: var(--text-secondary);
+      color: var(--g-muted);
       text-align: center;
     }
 
     .spinner {
       width: 36px;
       height: 36px;
-      border: 3px solid var(--border);
-      border-top-color: var(--accent);
+      border: 3px solid var(--g-border);
+      border-top-color: var(--g-blue);
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
-
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .empty-icon { font-size: 40px; margin-bottom: 4px; }
-    .empty-title { font-size: 17px; font-weight: 700; color: var(--text-primary); }
-    .empty-sub { font-size: 13px; margin-top: 4px; }
+    .empty-title { font-size: 17px; font-weight: 700; color: var(--g-text); }
+    .empty-sub { font-size: 13px; margin-top: 4px; color: var(--g-muted); }
 
     .error-banner {
-      background: rgba(255, 107, 107, 0.1);
-      border: 1px solid rgba(255, 107, 107, 0.3);
-      border-radius: 12px;
+      background: rgba(255,77,77,0.08);
+      border: 0.5px solid rgba(255,77,77,0.20);
+      border-radius: var(--g-r-md);
       padding: 12px 14px;
       font-size: 13px;
-      color: var(--red);
+      color: var(--g-red);
       text-align: center;
     }
 
     .toast {
-      position: fixed;
-      bottom: calc(20px + env(safe-area-inset-bottom, 0));
+      position: absolute;
+      bottom: calc(var(--sticky-cta-height, 120px) + 16px);
       left: 50%;
       transform: translateX(-50%);
       padding: 10px 20px;
-      border-radius: 20px;
+      border-radius: var(--g-r-pill);
       font-size: 14px;
-      font-weight: 600;
+      font-weight: 500;
       opacity: 0;
       transition: opacity 0.25s;
       pointer-events: none;
       white-space: nowrap;
       z-index: 200;
-      color: #fff;
-      background: var(--accent);
+      color: var(--g-text);
+      background: var(--g-blue);
     }
-
     .toast.show { opacity: 1; }
-    .toast.err { background: var(--red); }
-    .toast.ok { background: var(--green); color: #0a0a12; }
+    .toast.err { background: var(--g-red); }
+    .toast.ok { background: var(--g-green); color: #000; }
 
     .auth-gate {
       display: none;
       position: fixed;
       inset: 0;
       z-index: 9999;
-      background: rgba(7, 7, 14, 0.98);
+      background: rgba(11,11,18,0.98);
       align-items: center;
       justify-content: center;
       padding: 24px;
       text-align: center;
     }
-
     .auth-gate.visible { display: flex; }
 
     .auth-gate-card {
       max-width: 340px;
       padding: 28px 22px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: var(--radius);
+      background: var(--g-card);
+      border: 0.5px solid var(--g-border);
+      border-radius: var(--g-r-lg);
     }
-
     .auth-gate-card h1 { font-size: 22px; margin-bottom: 10px; }
-    .auth-gate-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 20px; }
-    .auth-gate-card strong { color: var(--accent); }
-    body.auth-locked #mainContent { pointer-events: none; filter: blur(5px); }
+    .auth-gate-card p { font-size: 14px; color: var(--g-muted); line-height: 1.5; margin-bottom: 20px; }
+    .auth-gate-card strong { color: var(--g-blue); }
+    body.auth-locked #app { pointer-events: none; filter: blur(5px); }
   </style>
 </head>
 <body>
@@ -384,49 +1112,105 @@
   </div>
 </div>
 
-<div id="mainContent" class="app">
-  <div class="header">
-    <div class="header-row">
-      <div class="logo">
-        <span class="logo-mark">✦</span>
-        Gramity
+<div id="app">
+
+  <header id="app-header">
+    <div class="header-logo">
+      <div class="header-gem">✦</div>
+      <span class="header-title">Gramity</span>
+    </div>
+    <div id="header-status" class="g-badge g-badge-active">
+      <div class="g-badge-dot"></div>
+      Active
+    </div>
+  </header>
+
+  <main id="scroll-area">
+    <div id="tab-home" class="tab-pane active">
+      <div class="loading" id="loadingState">
+        <div class="spinner"></div>
+        <span>Loading your portfolio…</span>
       </div>
-      <div id="statusPill"></div>
+    </div>
+    <div id="tab-assets" class="tab-pane"></div>
+    <div id="tab-deposit" class="tab-pane"></div>
+    <div id="tab-more" class="tab-pane"></div>
+  </main>
+
+  <div id="sticky-cta" style="display:none">
+    <button class="g-btn-primary" id="btn-run-dca" type="button">⚡ Run DCA now</button>
+    <div class="g-btn-row">
+      <button class="g-btn-secondary" id="btn-pause" type="button">⏸ Pause</button>
+      <button class="g-btn-secondary" id="btn-withdraw" type="button">↑ Withdraw</button>
     </div>
   </div>
 
-  <div class="scroll-body" id="mainBody">
-    <div class="loading" id="loadingState">
-      <div class="spinner"></div>
-      <span>Loading your portfolio…</span>
+  <nav id="bottom-nav">
+    <button class="nav-item active" data-tab="home" type="button">
+      <i class="nav-icon">⌂</i>
+      <span class="nav-label">Home</span>
+    </button>
+    <button class="nav-item" data-tab="assets" type="button">
+      <i class="nav-icon">⊞</i>
+      <span class="nav-label">Assets</span>
+    </button>
+    <button class="nav-item" data-tab="deposit" type="button">
+      <i class="nav-icon">↓</i>
+      <span class="nav-label">Deposit</span>
+    </button>
+    <button class="nav-item" data-tab="more" type="button">
+      <i class="nav-icon">⋯</i>
+      <span class="nav-label">More</span>
+    </button>
+  </nav>
+
+  <div id="withdraw-drawer-backdrop"></div>
+  <div id="withdraw-drawer">
+    <div class="withdraw-drawer-head">
+      <div class="withdraw-drawer-title">Withdraw funds</div>
+      <button type="button" class="withdraw-drawer-close" id="withdraw-drawer-close" aria-label="Close">×</button>
     </div>
+    <div class="withdraw-drawer-addr" id="withdraw-drawer-addr"></div>
+    <button type="button" class="g-btn-secondary withdraw-drawer-usdt" id="withdraw-drawer-usdt">Withdraw USDT</button>
+    <button type="button" class="g-btn-secondary g-btn-danger withdraw-drawer-all" id="withdraw-drawer-all">Withdraw all (LP + tsTON + USDT)</button>
+    <div class="withdraw-drawer-note">Closes position · irreversible</div>
   </div>
+
+  <div id="withdraw-addr-sheet">
+    <div class="withdraw-drawer-head">
+      <div class="withdraw-drawer-title">Withdrawal address</div>
+      <button type="button" class="withdraw-drawer-close" id="withdraw-addr-close" aria-label="Close">×</button>
+    </div>
+    <input type="text" class="withdraw-addr-input" id="withdraw-addr-input" placeholder="TON wallet address (UQ… or EQ…)" autocomplete="off" spellcheck="false"/>
+    <button type="button" class="g-btn-secondary" id="withdraw-addr-save" style="width:100%;height:42px">Save address</button>
+  </div>
+
 </div>
 
 <div class="modal-overlay" id="runModal">
   <div class="modal-sheet">
     <div class="modal-title">⚡ Run DCA now</div>
     <div class="modal-body">
-      Executes <strong>real mainnet cycles</strong> immediately. Your schedule stays unchanged.<br><br>
+      Executes <strong>real mainnet purchases</strong> immediately. Your schedule stays unchanged.<br><br>
       Results appear in Telegram with tonviewer links.
     </div>
     <div class="modal-row">
       <button class="btn btn-ghost" id="runCancelBtn" style="flex:0.6">Cancel</button>
-      <button class="btn btn-primary" id="runOneBtn" style="flex:1">▶️ 1 cycle</button>
-      <button class="btn btn-warn" id="runThreeBtn" style="flex:1">▶️ 3 cycles</button>
+      <button class="btn btn-primary" id="runOneBtn" style="flex:1">▶️ 1 purchase</button>
+      <button class="btn btn-warn" id="runThreeBtn" style="flex:1">▶️ 3 purchases</button>
     </div>
   </div>
 </div>
 
-<div class="modal-overlay" id="withdrawModal">
+<div class="modal-overlay" id="withdrawAllModal">
   <div class="modal-sheet">
-    <div class="modal-title">📤 Withdraw everything?</div>
+    <div class="modal-title">Withdraw everything?</div>
     <div class="modal-body">
-      Gramity will <strong>exit LP</strong>, unstake tsTON, and send USDT to your withdrawal wallet. Strategy will be paused. This may take a few minutes.
+      This closes your LP position. Gramity will exit LP, unstake tsTON, and send USDT to your withdrawal wallet. Continue?
     </div>
     <div class="modal-row">
-      <button class="btn btn-ghost" id="withdrawCancelBtn" style="flex:0.6">Cancel</button>
-      <button class="btn btn-danger" id="withdrawConfirmBtn" style="flex:1">Withdraw all</button>
+      <button class="btn btn-ghost" id="withdrawAllCancelBtn" style="flex:0.6">Cancel</button>
+      <button class="btn btn-danger" id="withdrawAllConfirmBtn" style="flex:1">Withdraw all</button>
     </div>
   </div>
 </div>
@@ -439,14 +1223,49 @@
   if (tg) {
     tg.ready();
     tg.expand();
-    if (tg.setHeaderColor) tg.setHeaderColor('#07070e');
-    if (tg.setBackgroundColor) tg.setBackgroundColor('#07070e');
+    if (tg.setHeaderColor) tg.setHeaderColor('#0B0B12');
+    if (tg.setBackgroundColor) tg.setBackgroundColor('#0B0B12');
   }
 
   var initData = (tg && tg.initData) || '';
   var HAS_TG_AUTH = initData.indexOf('hash=') !== -1;
   var BOT_AUTH_URL = 'https://t.me/GramityBot';
   var portfolioData = null;
+  var hasStickyActions = false;
+
+  function updateStickyCta() {
+    var sticky = document.getElementById('sticky-cta');
+    if (!sticky) return;
+    var activeNav = document.querySelector('.nav-item.active');
+    var tabId = activeNav ? activeNav.getAttribute('data-tab') : 'home';
+    sticky.style.display = (tabId === 'home' && hasStickyActions) ? 'block' : 'none';
+  }
+
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-pane').forEach(function (p) { p.classList.remove('active'); });
+    var pane = document.getElementById('tab-' + tabId);
+    if (pane) pane.classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(function (n) { n.classList.remove('active'); });
+    var navBtn = document.querySelector('[data-tab="' + tabId + '"]');
+    if (navBtn) navBtn.classList.add('active');
+    updateStickyCta();
+    var scrollArea = document.getElementById('scroll-area');
+    if (scrollArea) scrollArea.scrollTop = 0;
+  }
+
+  function applyRouteHash() {
+    var startTab = new URLSearchParams(window.location.search).get('tab');
+    var validTabs = ['home', 'assets', 'deposit', 'more'];
+    if (!startTab || !validTabs.includes(startTab)) {
+      var hash = (location.hash || '').replace(/^#/, '');
+      if (hash === 'assets' || hash === 'deposit' || hash === 'more') {
+        startTab = hash;
+      } else {
+        startTab = 'home';
+      }
+    }
+    switchTab(startTab);
+  }
 
   function openBotForAuth() {
     try {
@@ -465,14 +1284,29 @@
     return;
   }
 
+  document.querySelectorAll('[data-tab]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      switchTab(btn.getAttribute('data-tab'));
+    });
+  });
+  window.addEventListener('hashchange', applyRouteHash);
+  applyRouteHash();
+
   var FREQ_LABELS = {
-    weekly: 'weekly',
-    biweekly: 'every 2 weeks',
-    monthly: 'monthly',
-    daily: 'daily',
-    minutely: 'every minute',
-    hourly: 'every hour',
-    demo: 'demo',
+    weekly: 'Weekly',
+    biweekly: 'Every 2 weeks',
+    monthly: 'Monthly',
+    daily: 'Daily',
+    minutely: 'Every minute',
+    hourly: 'Every hour',
+    demo: 'Demo',
+  };
+
+  var STRATEGY_LABELS = {
+    full: 'Multiply Tokens',
+    multiply: 'Multiply Tokens',
+    stake_only: 'Stake Only',
+    accumulate: 'Accumulate TON',
   };
 
   function fmt(v, d) {
@@ -485,11 +1319,17 @@
     return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
   }
 
+  function truncateAddr(addr) {
+    if (!addr || addr.length < 12) return addr || '—';
+    return addr.slice(0, 6) + '...' + addr.slice(-4);
+  }
+
   function el(tag, attrs, children) {
     var e = document.createElement(tag);
     if (attrs) Object.keys(attrs).forEach(function (k) {
       if (k === 'class') e.className = attrs[k];
       else if (k === 'style') e.style.cssText = attrs[k];
+      else if (k === 'text') e.textContent = attrs[k];
       else e.setAttribute(k, attrs[k]);
     });
     (children || []).forEach(function (c) {
@@ -507,13 +1347,54 @@
     setTimeout(function () { toast.className = 'toast'; }, 3200);
   }
 
+  function copyText(text, btn) {
+    if (!text) return;
+    var done = function () {
+      if (btn) {
+        btn.classList.add('copied');
+        btn.textContent = '✓';
+        setTimeout(function () {
+          btn.classList.remove('copied');
+          btn.textContent = '⎘';
+        }, 1500);
+      }
+      showToast('Copied!', 'ok');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(function () {
+        showToast('Copy failed', 'err');
+      });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) { showToast('Copy failed', 'err'); }
+      document.body.removeChild(ta);
+    }
+  }
+
+  window.gramityState = window.gramityState || {};
+
+  function apiHeaders() {
+    return { 'X-Telegram-Init-Data': initData };
+  }
+
+  function apiGet(path) {
+    return fetch('/api' + path, { headers: apiHeaders() }).then(function (r) {
+      return r.json().then(function (data) {
+        if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+        return data;
+      });
+    });
+  }
+
   function apiPost(path, body) {
     return fetch('/api' + path, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Telegram-Init-Data': initData,
-      },
+      headers: Object.assign({ 'Content-Type': 'application/json' }, apiHeaders()),
       body: body ? JSON.stringify(body) : '{}',
     }).then(function (r) {
       return r.json().then(function (data) {
@@ -523,115 +1404,793 @@
     });
   }
 
-  function reloadPortfolio() {
-    return fetch('/api/portfolio', { headers: { 'X-Telegram-Init-Data': initData } })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
-      .then(function (data) {
-        portfolioData = data;
-        render(data);
+  function totalInvestedInLp(execs) {
+    return (execs || []).reduce(function (s, e) {
+      return s + (e.status === 'success' ? (e.usdt_spent || 0) : 0);
+    }, 0);
+  }
+
+  function successCycleCount(execs) {
+    return (execs || []).filter(function (e) { return e.status === 'success'; }).length;
+  }
+
+  function failReason(e, plan, tonBalance) {
+    if (!plan || !plan.ton_address || plan.ton_address.length < 8) return 'No address';
+    if (tonBalance < 0.5) return 'Low gas';
+    return 'Failed';
+  }
+
+  function strategyLabel(mode) {
+    return STRATEGY_LABELS[mode] || STRATEGY_LABELS.full;
+  }
+
+  function formatHomePnl(lpUsd, invested, cycles) {
+    if (invested <= 0) {
+      return { text: cycles + ' cycle' + (cycles === 1 ? '' : 's'), color: 'var(--g-muted)' };
+    }
+    var delta = lpUsd - invested;
+    var pct = (delta / invested) * 100;
+    if (delta > 0) {
+      return {
+        text: '+$' + fmt(delta) + ' · +' + fmt(pct, 1) + '% · ' + cycles + ' cycles',
+        color: 'var(--g-green)',
+      };
+    }
+    return {
+      text: cycles + ' cycle' + (cycles === 1 ? '' : 's'),
+      color: 'var(--g-muted)',
+    };
+  }
+
+  function buildStrategyItem(portfolio) {
+    var plan = portfolio.plan;
+    if (!plan) return null;
+    var lpUsd = portfolio.lpValue != null ? portfolio.lpValue : 0;
+    var usdtBal = portfolio.usdtBalance || 0;
+    var freqLabel = FREQ_LABELS[plan.frequency] || plan.frequency;
+    return {
+      id: 'primary',
+      name: strategyLabel(plan.strategy_mode),
+      active: plan.active,
+      lpPositionUsd: lpUsd,
+      depositBalance: '$' + fmt(usdtBal),
+      amount: '$' + fmt(plan.usdt_amount, 0),
+      frequency: freqLabel,
+      apy: '~5.4%',
+      plan: plan,
+    };
+  }
+
+  function hydrateGramityState(portfolio) {
+    var gs = window.gramityState;
+    var user = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+    gs.telegramId = user ? user.id : null;
+    gs.plan = portfolio.plan || null;
+    gs.balance = {
+      usdt: portfolio.usdtBalance || 0,
+      ton: portfolio.tonBalance || 0,
+      lpPositionUsd: portfolio.lpValue,
+      depositAddress: portfolio.depositAddress || '',
+      totalValue: portfolio.totalValue || 0,
+    };
+    gs.agentWallet = {
+      address: portfolio.depositAddress || '',
+      usdt: portfolio.usdtBalance || 0,
+      ton: portfolio.tonBalance || 0,
+    };
+    gs.cycles = (portfolio.executions || []).slice(0, 3);
+    var strat = buildStrategyItem(portfolio);
+    gs.strategies = strat ? [strat] : [];
+    gs.tonWallet = portfolio.depositAddress ? {
+      name: 'Agent wallet',
+      address: portfolio.depositAddress,
+      rows: [
+        { ticker: 'USDT', balance: '$' + fmt(portfolio.usdtBalance || 0) },
+        { ticker: 'TON', balance: fmt(portfolio.tonBalance || 0, 2) },
+      ],
+    } : null;
+    portfolioData = portfolio;
+  }
+
+  function restoreEvmWalletFromStorage() {
+    try {
+      var raw = localStorage.getItem('gramity_evm_wallet');
+      if (!raw) {
+        delete window.gramityState.evmWallet;
+        return Promise.resolve();
+      }
+      var saved = JSON.parse(raw);
+      if (!saved || !saved.address) return Promise.resolve();
+      window.gramityState.evmWallet = saved;
+      return apiGet('/evm-wallet/balances?address=' + encodeURIComponent(saved.address))
+        .then(function (balances) {
+          window.gramityState.evmWallet.walletBalance = balances;
+          window.gramityState.evmWallet.connected = true;
+          saveEvmWalletToStorage(window.gramityState.evmWallet);
+        })
+        .catch(function () { /* keep cached */ });
+    } catch (e) {
+      return Promise.resolve();
+    }
+  }
+
+  function saveEvmWalletToStorage(evmWallet) {
+    try {
+      if (evmWallet && evmWallet.address) {
+        localStorage.setItem('gramity_evm_wallet', JSON.stringify({
+          address: evmWallet.address,
+          walletBalance: evmWallet.walletBalance || null,
+          connected: true,
+        }));
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  function loadGramityState() {
+    return apiGet('/portfolio')
+      .then(function (portfolio) {
+        hydrateGramityState(portfolio);
+        return restoreEvmWalletFromStorage().then(function () {
+          return window.gramityState;
+        });
       });
   }
 
-  function render(data) {
-    var body = document.getElementById('mainBody');
+  function reloadPortfolio() {
+    return loadGramityState().then(function () {
+      renderAll();
+    });
+  }
+
+  function updateHeaderStatus(plan) {
+    var status = document.getElementById('header-status');
+    if (!status) return;
+    if (!plan) {
+      status.className = 'g-badge g-badge-paused';
+      status.innerHTML = '';
+      status.appendChild(el('div', { class: 'g-badge-dot' }));
+      status.appendChild(document.createTextNode('No plan'));
+      return;
+    }
+    status.className = 'g-badge ' + (plan.active ? 'g-badge-active' : 'g-badge-paused');
+    status.innerHTML = '';
+    status.appendChild(el('div', { class: 'g-badge-dot' }));
+    status.appendChild(document.createTextNode(plan.active ? 'Active' : 'Paused'));
+  }
+
+  function renderHome(gs) {
+    var body = document.getElementById('tab-home');
+    if (!body) return;
     body.innerHTML = '';
 
-    if (!data || !data.plan) {
-      body.innerHTML = '<div class="loading"><div class="empty-icon">📊</div><div class="empty-title">No strategy yet</div><div class="empty-sub">Create your first DCA strategy to see the dashboard</div></div>';
-      appendCTA(body, null);
+    if (!gs.plan) {
+      body.innerHTML = '<div class="loading"><div class="empty-icon">📊</div><div class="empty-title">No strategy yet</div><div class="empty-sub">Create your first DCA strategy to see the dashboard</div><button type="button" class="g-btn-add" id="home-create-strategy" style="margin-top:16px">+ New strategy</button></div>';
+      var createBtn = document.getElementById('home-create-strategy');
+      if (createBtn) {
+        createBtn.addEventListener('click', function () {
+          window.location.href = '/app/onboarding.html';
+        });
+      }
       return;
     }
 
-    var plan = data.plan;
-    var execs = data.executions || [];
-    var invested = execs.reduce(function (s, e) { return s + (e.status === 'success' ? (e.usdt_spent || 0) : 0); }, 0);
+    var plan = gs.plan;
+    var balance = gs.balance || {};
+    var cycles = gs.cycles || [];
+    var allExecs = portfolioData && portfolioData.executions ? portfolioData.executions : cycles;
+    var invested = totalInvestedInLp(allExecs);
+    var cycleCount = successCycleCount(allExecs);
+    var lpUsd = balance.lpPositionUsd != null ? balance.lpPositionUsd : 0;
+    var tonBal = balance.ton || 0;
+    var usdtBal = balance.usdt || 0;
+    var addr = (gs.agentWallet && gs.agentWallet.address) || balance.depositAddress || '';
 
-    var pill = document.getElementById('statusPill');
-    pill.innerHTML = '';
-    var pillEl = el('span', { class: 'status-pill ' + (plan.active ? 'status-active' : 'status-paused') });
-    pillEl.textContent = plan.active ? '⚡ Active' : '⏸ Paused';
-    pill.appendChild(pillEl);
+    /* 1 — Agent wallet */
+    var walletCard = el('div', { class: 'g-card' });
+    walletCard.appendChild(el('span', { class: 'g-label', text: 'Agent wallet' }));
+    var addrRow = el('div', { class: 'home-addr-row' });
+    addrRow.appendChild(el('span', { class: 'g-addr', text: truncateAddr(addr) }));
+    var copyBtn = el('button', { class: 'g-btn-ghost', type: 'button', 'aria-label': 'Copy address' }, ['⎘']);
+    copyBtn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      copyText(addr, copyBtn);
+    });
+    addrRow.appendChild(copyBtn);
+    walletCard.appendChild(addrRow);
+    var balLine = el('div', { class: 'home-bal-line' + (tonBal < 0.5 ? ' warn' : '') });
+    var balText = '$' + fmt(usdtBal) + ' USDT · ' + fmt(tonBal, 2) + ' TON gas';
+    if (tonBal < 0.5) balText += ' · ⚠ top up for gas';
+    balLine.textContent = balText;
+    walletCard.appendChild(balLine);
+    body.appendChild(walletCard);
 
-    var totalVal = (data.usdtBalance || 0) + (data.lpValue || 0);
-    var pCard = el('div', { class: 'card' });
-    pCard.innerHTML = [
-      '<div class="card-title">Total portfolio</div>',
-      '<div class="portfolio-value">$' + fmt(totalVal) + '</div>',
-      invested > 0 ? ('<div class="portfolio-pnl ' + (totalVal >= invested ? 'pnl-pos' : 'pnl-neg') + '">' +
-        (totalVal >= invested ? '+' : '') + '$' + fmt(totalVal - invested) + ' vs invested</div>') : '',
-      '<div class="breakdown">',
-      '  <div class="breakdown-item"><div class="bd-label">USDT on deposit</div><div class="bd-value">$' + fmt(data.usdtBalance) + '</div></div>',
-      '  <div class="breakdown-item"><div class="bd-label">LP position</div><div class="bd-value">' + (data.lpValue != null ? '$' + fmt(data.lpValue) : '—') + '</div></div>',
-      '  <div class="breakdown-item"><div class="bd-label">TON balance</div><div class="bd-value">' + fmt(data.tonBalance, 3) + ' TON</div></div>',
-      '  <div class="breakdown-item"><div class="bd-label">Total invested</div><div class="bd-value">$' + fmt(invested) + '</div></div>',
-      '</div>',
-    ].join('');
-    body.appendChild(pCard);
+    /* 2 — Earnings */
+    var earnCard = el('div', { class: 'g-card-accent' });
+    earnCard.appendChild(el('span', { class: 'g-label', text: 'Your earnings' }));
+    earnCard.appendChild(el('div', { class: 'g-hero', text: balance.lpPositionUsd != null ? '$' + fmt(lpUsd) : '—' }));
+    var pnl = formatHomePnl(lpUsd, invested, cycleCount);
+    var pnlEl = el('div', { class: 'home-pnl', text: pnl.text });
+    pnlEl.style.color = pnl.color;
+    earnCard.appendChild(pnlEl);
+    earnCard.appendChild(el('div', { class: 'g-divider' }));
+    var y1 = el('div', { class: 'g-yield-row' });
+    y1.appendChild(el('span', { text: 'tsTON staking' }));
+    y1.appendChild(el('span', { class: 'g-metric-value-green', text: '~5.0%' }));
+    earnCard.appendChild(y1);
+    var y2 = el('div', { class: 'g-yield-row' });
+    y2.appendChild(el('span', { text: 'LP + farming' }));
+    y2.appendChild(el('span', { class: 'g-metric-value-green', text: '~0.4%' }));
+    earnCard.appendChild(y2);
+    var y3 = el('div', { class: 'g-yield-row g-yield-total' });
+    y3.appendChild(el('span', { text: 'Total APY' }));
+    y3.appendChild(el('span', { class: 'g-yield-val g-metric-value-green', text: '~5.4%' }));
+    earnCard.appendChild(y3);
+    body.appendChild(earnCard);
 
+    /* 3 — Strategy */
     var freqLabel = FREQ_LABELS[plan.frequency] || plan.frequency;
-    var sCard = el('div', { class: 'card' });
-    sCard.innerHTML = [
-      '<div class="card-title">DCA strategy</div>',
-      '<div class="strategy-row"><span class="label">Amount per cycle</span><span class="val">$' + fmt(plan.usdt_amount, 0) + ' USDT</span></div>',
-      '<div class="strategy-row"><span class="label">Frequency</span><span class="val">' + freqLabel + '</span></div>',
-      '<div class="strategy-row"><span class="label">Mode</span><span class="val">' + (plan.strategy_mode || 'full') + '</span></div>',
-      '<div class="strategy-row"><span class="label">Cycles run</span><span class="val">' + execs.filter(function (e) { return e.status === 'success'; }).length + '</span></div>',
-    ].join('');
-    body.appendChild(sCard);
-
-    var ncCard = el('div', { class: 'card next-cycle' });
-    ncCard.innerHTML =
-      '<div class="cycle-icon">⏰</div>' +
-      '<div><div class="cycle-label">Next cycle</div><div class="cycle-value">' + fmtDate(plan.next_execution_at) + '</div></div>';
-    body.appendChild(ncCard);
-
-    var apyCard = el('div', { class: 'card' });
-    apyCard.innerHTML = [
-      '<div class="card-title">Yield breakdown</div>',
-      '<div class="strategy-row"><span class="label">tsTON staking</span><span class="val" style="color:var(--green)">~5.0%</span></div>',
-      '<div class="strategy-row"><span class="label">LP + farming</span><span class="val" style="color:var(--green)">~0.4%</span></div>',
-      '<div class="strategy-row"><span class="label" style="font-weight:700;color:var(--text-primary)">Total APY</span><span class="val apy-total">~5.4%</span></div>',
-    ].join('');
-    body.appendChild(apyCard);
-
-    if (execs.length > 0) {
-      body.appendChild(el('div', { class: 'section-title' }, ['Recent cycles']));
-      var histList = el('div', { class: 'history-list' });
-      execs.slice(0, 5).forEach(function (e) {
-        var item = el('div', { class: 'history-item' });
-        item.innerHTML =
-          '<div class="hist-left">' +
-          '<div class="hist-dot ' + (e.status || 'success') + '"></div>' +
-          '<div><div style="font-size:14px;font-weight:600">' + (e.status === 'success' ? '✅ Success' : e.status === 'failed' ? '❌ Failed' : '⚡ Partial') + '</div>' +
-          '<div class="hist-date">' + fmtDate(e.executed_at) + '</div></div>' +
-          '</div>' +
-          '<div class="hist-amount">' + (e.usdt_spent ? '$' + fmt(e.usdt_spent) : '') + '</div>';
-        histList.appendChild(item);
-      });
-      body.appendChild(histList);
-    }
-
-    appendCTA(body, plan, data);
-  }
-
-  function appendCTA(body, plan, data) {
-    var stack = el('div', { class: 'cta-stack' });
-
-    var row = el('div', { class: 'cta-row' });
-    var newBtn = el('button', { class: 'btn btn-primary' });
-    newBtn.textContent = '+ New Strategy';
-    newBtn.addEventListener('click', function () {
+    var stratCard = el('div', { class: 'g-card' });
+    var line1 = el('div', { class: 'home-strat-line1' });
+    line1.appendChild(el('div', {
+      class: 'home-strat-main',
+      text: '$' + fmt(plan.usdt_amount, 0) + ' · ' + freqLabel + ' · ' + strategyLabel(plan.strategy_mode),
+    }));
+    var editBtn = el('button', { class: 'g-btn-ghost', type: 'button' }, ['Edit']);
+    editBtn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
       window.location.href = '/app/onboarding.html';
     });
-    row.appendChild(newBtn);
+    line1.appendChild(editBtn);
+    stratCard.appendChild(line1);
+    stratCard.appendChild(el('div', {
+      class: 'home-strat-line2',
+      text: 'Next cycle: ' + fmtDate(plan.next_execution_at),
+    }));
+    body.appendChild(stratCard);
+
+    /* 4 — Recent cycles */
+    var cyclesCard = el('div', { class: 'g-card' });
+    cyclesCard.appendChild(el('span', { class: 'g-label', text: 'Recent cycles' }));
+    if (!cycles.length) {
+      cyclesCard.appendChild(el('div', {
+        class: 'home-empty',
+        text: 'No cycles yet. Run your first DCA.',
+      }));
+    } else {
+      cycles.forEach(function (e) {
+        var row = el('div', { class: 'g-cycle-row' });
+        var ok = e.status === 'success';
+        row.appendChild(el('div', { class: 'g-cycle-dot ' + (ok ? 'g-cycle-dot-ok' : 'g-cycle-dot-fail') }));
+        var info = el('div', { class: 'home-cycle-info' });
+        info.appendChild(document.createTextNode(ok ? 'Success' : ('Failed — ' + failReason(e, plan, tonBal))));
+        info.appendChild(el('span', { class: 'home-cycle-date', text: fmtDate(e.executed_at) }));
+        row.appendChild(info);
+        row.appendChild(el('span', {
+          class: 'g-num',
+          text: e.usdt_spent ? '$' + fmt(e.usdt_spent) : '—',
+        }));
+        cyclesCard.appendChild(row);
+      });
+    }
+    body.appendChild(cyclesCard);
+  }
+
+  function renderAssets(gs) {
+    var body = document.getElementById('tab-assets');
+    if (!body) return;
+    body.innerHTML = '';
+
+    var strategies = gs.strategies || [];
+    var totalUsd = strategies.reduce(function (s, st) {
+      var dep = parseFloat((st.depositBalance || '0').replace(/[$,]/g, '')) || 0;
+      return s + (st.lpPositionUsd || 0) + dep;
+    }, 0);
+    var invested = totalInvestedInLp(portfolioData && portfolioData.executions ? portfolioData.executions : []);
+    var lpTotal = strategies.reduce(function (s, st) { return s + (st.lpPositionUsd || 0); }, 0);
+    var todayPnl = lpTotal > invested ? lpTotal - invested : 0;
+
+    var summary = el('div', { class: 'assets-summary' });
+    summary.appendChild(el('span', {
+      text: strategies.length + ' strateg' + (strategies.length === 1 ? 'y' : 'ies') + ' · $' + fmt(totalUsd) + ' total',
+    }));
+    summary.appendChild(el('span', {
+      class: 'assets-summary-right',
+      text: (todayPnl > 0 ? '+$' + fmt(todayPnl) : '+$0.00') + ' today',
+    }));
+    body.appendChild(summary);
+
+    strategies.forEach(function (st) {
+      var card = el('div', { class: 'g-strat-card' });
+      var head = el('div', { class: 'g-strat-header' });
+      head.appendChild(el('span', { class: 'g-strat-name', text: st.name }));
+      var badge = el('span', {
+        class: 'g-badge ' + (st.active ? 'g-badge-active' : 'g-badge-paused'),
+      });
+      badge.appendChild(el('div', { class: 'g-badge-dot' }));
+      badge.appendChild(document.createTextNode(st.active ? 'Active' : 'Paused'));
+      head.appendChild(badge);
+      card.appendChild(head);
+
+      var metrics = el('div', { class: 'g-metrics' });
+      metrics.appendChild(metricCell('LP position', st.lpPositionUsd != null ? '$' + fmt(st.lpPositionUsd) : '—', true));
+      metrics.appendChild(metricCell('Deposit', st.depositBalance, false));
+      metrics.appendChild(metricCell('Amount', st.amount + ' / ' + st.frequency, false));
+      metrics.appendChild(metricCell('APY', st.apy, true));
+      card.appendChild(metrics);
+
+      card.addEventListener('click', function () {
+        switchTab('home');
+      });
+      body.appendChild(card);
+    });
+
+    var addBtn = el('button', { class: 'g-btn-add', type: 'button' }, ['+ New strategy']);
+    addBtn.addEventListener('click', function () {
+      window.location.href = '/app/onboarding.html';
+    });
+    body.appendChild(addBtn);
+
+    body.appendChild(el('span', { class: 'g-label', text: 'Connected wallets' }));
+
+    if (gs.tonWallet) {
+      body.appendChild(buildWalletCard(gs.tonWallet, 'ton'));
+    }
+
+    if (gs.evmWallet && gs.evmWallet.connected && gs.evmWallet.address) {
+      body.appendChild(buildEvmWalletCard(gs.evmWallet));
+    } else {
+      var connectBtn = el('button', { class: 'g-chain-btn', type: 'button' });
+      var icon = el('div', { class: 'g-chain-icon g-chain-evm' }, ['🦊']);
+      var text = el('div', { class: 'g-chain-btn-text' });
+      text.appendChild(el('div', { class: 'g-chain-btn-title', text: 'Connect EVM wallet' }));
+      text.appendChild(el('div', { class: 'g-chain-btn-sub', text: 'ETH · BNB · Polygon' }));
+      connectBtn.appendChild(icon);
+      connectBtn.appendChild(text);
+      connectBtn.addEventListener('click', connectEvmWallet);
+      body.appendChild(connectBtn);
+    }
+  }
+
+  function metricCell(label, value, green) {
+    var cell = el('div', { class: 'g-metric' });
+    cell.appendChild(el('div', { class: 'g-metric-label', text: label }));
+    cell.appendChild(el('div', {
+      class: 'g-metric-value' + (green ? ' g-metric-value-green' : ''),
+      text: value,
+    }));
+    return cell;
+  }
+
+  function buildWalletCard(wallet, type) {
+    var card = el('div', { class: 'g-wal-card' });
+    var head = el('div', { class: 'g-wal-head' });
+    head.appendChild(el('div', {
+      class: 'g-chain-icon ' + (type === 'ton' ? 'g-chain-ton' : 'g-chain-evm'),
+    }, [type === 'ton' ? '💎' : '🦊']));
+    var info = el('div', { class: 'g-wal-head-info' });
+    info.appendChild(el('div', { class: 'g-wal-head-name', text: wallet.name }));
+    info.appendChild(el('div', { class: 'g-wal-head-addr', text: truncateAddr(wallet.address) }));
+    head.appendChild(info);
+    card.appendChild(head);
+    (wallet.rows || []).forEach(function (row) {
+      var walRow = el('div', { class: 'g-wal-row' });
+      walRow.appendChild(el('span', { text: row.ticker }));
+      walRow.appendChild(el('span', { class: 'g-num', text: row.balance }));
+      card.appendChild(walRow);
+    });
+    return card;
+  }
+
+  function buildEvmWalletCard(evmWallet) {
+    var rows = [];
+    var wb = evmWallet.walletBalance;
+    if (wb && wb.chainBalances && wb.chainBalances.length) {
+      wb.chainBalances.forEach(function (c) {
+        rows.push({ ticker: (c.symbol || c.chain || 'ETH').toUpperCase(), balance: '$' + fmt(c.usd || 0) });
+      });
+    } else if (wb && wb.totalUsd != null) {
+      rows.push({ ticker: 'Total', balance: '$' + fmt(wb.totalUsd) });
+    }
+    return buildWalletCard({
+      name: 'MetaMask',
+      address: evmWallet.address,
+      rows: rows.length ? rows : [{ ticker: '—', balance: '—' }],
+    }, 'evm');
+  }
+
+  function isMobileDevice() {
+    if (window.GramityMetaMask && window.GramityMetaMask.isMobileDevice) {
+      return window.GramityMetaMask.isMobileDevice();
+    }
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+  }
+
+  function openMetaMaskUrl(url) {
+    if (tg && tg.openLink) tg.openLink(url);
+    else window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  function pollEvmWalletSession(token) {
+    var attempts = 0;
+    return new Promise(function (resolve, reject) {
+      function check() {
+        attempts++;
+        fetch('/api/evm-wallet/status?token=' + encodeURIComponent(token))
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (data) {
+            if (data && data.status === 'connected' && data.evmAddress) {
+              resolve({
+                address: data.evmAddress,
+                walletBalance: data.walletBalance || null,
+              });
+              return;
+            }
+            if (attempts >= 120) {
+              reject(new Error('MetaMask connect timeout'));
+              return;
+            }
+            setTimeout(check, 2500);
+          })
+          .catch(function () {
+            if (attempts >= 120) reject(new Error('MetaMask connect timeout'));
+            else setTimeout(check, 2500);
+          });
+      }
+      check();
+    });
+  }
+
+  var APP_VERSION = 'v0.1.0';
+
+  function copyDepositAddress(text, btn) {
+    if (!text) return;
+    var original = btn.textContent;
+    var done = function () {
+      btn.textContent = 'Copied!';
+      showToast('Copied!', 'ok');
+      setTimeout(function () { btn.textContent = original; }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(function () {
+        showToast('Copy failed', 'err');
+      });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) { showToast('Copy failed', 'err'); }
+      document.body.removeChild(ta);
+    }
+  }
+
+  function chainBtn(iconClass, iconChar, title, sub, onClick) {
+    var btn = el('button', { class: 'g-chain-btn', type: 'button' });
+    btn.appendChild(el('div', { class: 'g-chain-icon ' + iconClass }, [iconChar]));
+    var text = el('div', { class: 'g-chain-btn-text' });
+    text.appendChild(el('div', { class: 'g-chain-btn-title', text: title }));
+    text.appendChild(el('div', { class: 'g-chain-btn-sub', text: sub }));
+    btn.appendChild(text);
+    btn.appendChild(el('span', { class: 'g-chain-btn-arrow', text: '→' }));
+    btn.addEventListener('click', onClick);
+    return btn;
+  }
+
+  function settingRow(iconClass, iconChar, label, rightEl, onClick, extraClass) {
+    var row = el('div', { class: 'g-setting-row' + (extraClass ? ' ' + extraClass : '') });
+    var left = el('div', { class: 'g-setting-left' });
+    left.appendChild(el('div', { class: 'g-setting-icon ' + iconClass }, [iconChar]));
+    left.appendChild(el('span', { class: 'g-setting-label', text: label }));
+    row.appendChild(left);
+    if (rightEl) row.appendChild(rightEl);
+    if (onClick) row.addEventListener('click', onClick);
+    return row;
+  }
+
+  function openEvmDepositFlow() {
+    apiPost('/evm-deposit/session', {})
+      .then(function (session) {
+        var url = session.metamaskUrl || session.pageUrl;
+        if (window.GramityMetaMask && window.GramityMetaMask.resolveSessionOpenUrl) {
+          url = window.GramityMetaMask.resolveSessionOpenUrl(session);
+        } else if (!isMobileDevice() && session.pageUrl) {
+          url = session.pageUrl;
+        }
+        openMetaMaskUrl(url);
+      })
+      .catch(function (err) {
+        showToast(err.message || 'Failed to open deposit', 'err');
+      });
+  }
+
+  function renderDeposit(gs) {
+    var body = document.getElementById('tab-deposit');
+    if (!body) return;
+    body.innerHTML = '';
+
+    var addr = (gs.agentWallet && gs.agentWallet.address) || (gs.balance && gs.balance.depositAddress) || '';
+    var balance = gs.balance || {};
+    var usdtBal = balance.usdt || 0;
+    var tonBal = balance.ton || 0;
+
+    var addrCard = el('div', { class: 'g-card' });
+    addrCard.appendChild(el('span', { class: 'g-label', text: 'DCA wallet address' }));
+    addrCard.appendChild(el('span', { class: 'deposit-addr-full', text: addr || '—' }));
+    var copyBtn = el('button', {
+      class: 'g-btn-secondary deposit-copy-btn',
+      type: 'button',
+    }, ['Copy address']);
+    copyBtn.disabled = !addr;
+    copyBtn.addEventListener('click', function () { copyDepositAddress(addr, copyBtn); });
+    addrCard.appendChild(copyBtn);
+    body.appendChild(addrCard);
+
+    var balCard = el('div', { class: 'g-card deposit-bal-card' });
+    var usdtRow = el('div', { class: 'g-wal-row' });
+    usdtRow.appendChild(el('span', { text: 'USDT' }));
+    usdtRow.appendChild(el('span', { class: 'g-num', text: '$' + fmt(usdtBal) }));
+    balCard.appendChild(usdtRow);
+
+    var tonRow = el('div', { class: 'g-wal-row' });
+    tonRow.appendChild(el('span', { text: 'TON for gas' }));
+    var tonVal = el('span', {
+      class: 'g-num' + (tonBal < 0.5 ? ' wal-row-warn' : ''),
+      text: fmt(tonBal, 2) + (tonBal < 0.5 ? ' ⚠' : ''),
+    });
+    tonRow.appendChild(tonVal);
+    balCard.appendChild(tonRow);
+
+    var recRow = el('div', { class: 'g-wal-row' });
+    recRow.appendChild(el('span', { text: 'Recommended gas' }));
+    var recVal = el('span', { class: 'g-num', text: '≥ 0.5 TON' });
+    recVal.style.color = 'var(--g-muted)';
+    recRow.appendChild(recVal);
+    balCard.appendChild(recRow);
+    body.appendChild(balCard);
+
+    body.appendChild(el('span', { class: 'g-label', text: 'Fund from' }));
+
+    var tonHint = el('div', { class: 'deposit-ton-hint', style: 'display:none' });
+    tonHint.textContent = 'Send USDT jetton to the DCA wallet address above using Tonkeeper, Wallet in Telegram, or any TON wallet.';
+
+    var tonBtn = chainBtn('g-chain-ton', '💎', 'TON wallet', 'Send USDT jetton to the address above', function () {
+      tonHint.style.display = tonHint.style.display === 'none' ? 'block' : 'none';
+    });
+    body.appendChild(tonBtn);
+    body.appendChild(tonHint);
+
+    body.appendChild(chainBtn('g-chain-evm', '🦊', 'EVM wallet (MetaMask)', 'ETH · Base · BNB · Polygon — auto-bridge', openEvmDepositFlow));
+  }
+
+  function togglePauseStrategy() {
+    var plan = window.gramityState.plan;
+    if (!plan) return;
+    var action = plan.active ? 'pause' : 'resume';
+    apiPost('/plan/' + action)
+      .then(function () {
+        showToast(action === 'pause' ? 'Strategy paused' : 'Strategy resumed', 'ok');
+        return reloadPortfolio();
+      })
+      .catch(function (err) {
+        showToast(err.message || 'Action failed', 'err');
+      });
+  }
+
+  function openWithdrawAddrSheet() {
+    var plan = window.gramityState.plan;
+    var inp = document.getElementById('withdraw-addr-input');
+    if (inp && plan && plan.ton_address) inp.value = plan.ton_address;
+    document.getElementById('withdraw-addr-sheet').classList.add('open');
+    document.getElementById('withdraw-drawer-backdrop').classList.add('open');
+  }
+
+  function closeWithdrawAddrSheet() {
+    document.getElementById('withdraw-addr-sheet').classList.remove('open');
+    if (!document.getElementById('withdraw-drawer').classList.contains('open')) {
+      document.getElementById('withdraw-drawer-backdrop').classList.remove('open');
+    }
+  }
+
+  function saveWithdrawalAddress() {
+    var inp = document.getElementById('withdraw-addr-input');
+    var addr = inp && inp.value ? inp.value.trim() : '';
+    if (!addr || addr.length < 8) {
+      showToast('Enter a valid TON address', 'err');
+      return;
+    }
+    var btn = document.getElementById('withdraw-addr-save');
+    btn.disabled = true;
+    apiPost('/plans/withdrawal-address', { ton_address: addr })
+      .then(function () {
+        closeWithdrawAddrSheet();
+        showToast('Withdrawal address saved', 'ok');
+        return reloadPortfolio();
+      })
+      .catch(function (err) {
+        showToast(err.message || 'Save failed', 'err');
+      })
+      .finally(function () {
+        btn.disabled = false;
+      });
+  }
+
+  function renderMore(gs) {
+    var body = document.getElementById('tab-more');
+    if (!body) return;
+    body.innerHTML = '';
+
+    var plan = gs.plan;
+    var balance = gs.balance || {};
+    var usdtBal = balance.usdt || 0;
+
+    var stratGroup = el('div', { class: 'more-group' });
+    stratGroup.appendChild(el('span', { class: 'g-label', text: 'Strategy' }));
+    var stratCard = el('div', { class: 'g-card' });
 
     if (plan) {
-      var pauseBtn = el('button', { class: 'btn btn-ghost' });
-      pauseBtn.textContent = plan.active ? '⏸ Pause' : '▶️ Resume';
-      pauseBtn.addEventListener('click', function () {
+      var freqLabel = FREQ_LABELS[plan.frequency] || plan.frequency;
+      var editRight = el('span', {
+        class: 'g-setting-value',
+        text: '$' + fmt(plan.usdt_amount, 0) + ' / ' + freqLabel,
+      });
+      stratCard.appendChild(settingRow('g-setting-icon-blue', '✎', 'Edit strategy', editRight, function () {
+        window.location.href = '/app/onboarding.html';
+      }));
+
+      var hasWithdrawAddr = !!(plan.ton_address && plan.ton_address.length > 8);
+      var addrRight = el('span', {
+        class: 'g-setting-value' + (hasWithdrawAddr ? '' : ' warn'),
+        text: hasWithdrawAddr ? truncateAddr(plan.ton_address) : 'Not set',
+      });
+      stratCard.appendChild(settingRow('g-setting-icon-blue', '👛', 'Withdrawal address', addrRight, openWithdrawAddrSheet));
+
+      var pauseRight = el('span', {
+        class: 'g-badge ' + (plan.active ? 'g-badge-active' : 'g-badge-paused'),
+      });
+      pauseRight.appendChild(el('div', { class: 'g-badge-dot' }));
+      pauseRight.appendChild(document.createTextNode(plan.active ? 'Active' : 'Paused'));
+      var pauseRow = settingRow('g-setting-icon-yellow', '⏸', 'Pause strategy', pauseRight, togglePauseStrategy);
+      pauseRow.style.borderBottom = 'none';
+      stratCard.appendChild(pauseRow);
+    } else {
+      stratCard.appendChild(el('div', {
+        class: 'home-empty',
+        text: 'No active strategy. Create one to manage settings.',
+      }));
+    }
+    stratGroup.appendChild(stratCard);
+    body.appendChild(stratGroup);
+
+    var fundsGroup = el('div', { class: 'more-group' });
+    fundsGroup.appendChild(el('span', { class: 'g-label', text: 'Funds' }));
+    var fundsCard = el('div', { class: 'g-card' });
+
+    if (plan) {
+      var usdtRight = el('div', { style: 'display:flex;align-items:center' });
+      usdtRight.appendChild(el('span', {
+        class: 'g-setting-value',
+        text: '$' + fmt(usdtBal) + ' avail.',
+      }));
+      usdtRight.appendChild(el('span', { class: 'g-setting-arrow', text: '→' }));
+      fundsCard.appendChild(settingRow('g-setting-icon-green', '↑', 'Withdraw USDT', usdtRight, function () {
+        openWithdrawDrawer(plan, portfolioData);
+      }));
+
+      var allRight = el('span', { class: 'g-setting-arrow', text: '→' });
+      var allRow = settingRow('g-setting-icon-red', '⏏', 'Withdraw all & close', allRight, function () {
+        if (!plan.ton_address || plan.ton_address.length < 8) {
+          showToast('Set withdrawal address first', 'err');
+          return;
+        }
+        if (confirm('This closes your LP position. Continue?')) {
+          document.getElementById('withdrawAllModal').classList.add('open');
+        }
+      }, 'danger-row');
+      allRow.style.borderBottom = 'none';
+      fundsCard.appendChild(allRow);
+    } else {
+      fundsCard.appendChild(el('div', { class: 'home-empty', text: 'No funds to withdraw yet.' }));
+    }
+    fundsGroup.appendChild(fundsCard);
+    body.appendChild(fundsGroup);
+
+    var acctGroup = el('div', { class: 'more-group' });
+    acctGroup.appendChild(el('span', { class: 'g-label', text: 'Account' }));
+    var acctCard = el('div', { class: 'g-card' });
+
+    var newRight = el('span', { class: 'g-setting-arrow', text: '→' });
+    acctCard.appendChild(settingRow('g-setting-icon-blue', '＋', 'New strategy', newRight, function () {
+      window.location.href = '/app/onboarding.html';
+    }));
+
+    var botRight = el('span', { class: 'g-setting-value', text: APP_VERSION });
+    var botRow = settingRow('g-setting-icon-blue', '✈', '@gramitybot', botRight, function () {
+      var url = 'https://t.me/GramityBot';
+      if (tg && tg.openTelegramLink) tg.openTelegramLink(url);
+      else if (tg && tg.openLink) tg.openLink(url);
+      else window.open(url, '_blank');
+    });
+    botRow.style.borderBottom = 'none';
+    acctCard.appendChild(botRow);
+
+    acctGroup.appendChild(acctCard);
+    body.appendChild(acctGroup);
+  }
+
+  function connectEvmWallet() {
+    apiPost('/evm-wallet/session', {})
+      .then(function (session) {
+        var url = session.metamaskUrl || session.pageUrl;
+        if (window.GramityMetaMask && window.GramityMetaMask.resolveSessionOpenUrl) {
+          url = window.GramityMetaMask.resolveSessionOpenUrl(session);
+        } else if (!isMobileDevice() && session.pageUrl) {
+          url = session.pageUrl;
+        }
+        openMetaMaskUrl(url);
+        return pollEvmWalletSession(session.token);
+      })
+      .then(function (result) {
+        window.gramityState.evmWallet = {
+          address: result.address,
+          walletBalance: result.walletBalance,
+          connected: true,
+        };
+        saveEvmWalletToStorage(window.gramityState.evmWallet);
+        if (!result.walletBalance && result.address) {
+          return apiGet('/evm-wallet/balances?address=' + encodeURIComponent(result.address))
+            .then(function (balances) {
+              window.gramityState.evmWallet.walletBalance = balances;
+              saveEvmWalletToStorage(window.gramityState.evmWallet);
+            });
+        }
+      })
+      .then(function () {
+        renderAll();
+        showToast('EVM wallet connected', 'ok');
+      })
+      .catch(function (err) {
+        showToast(err.message || 'Connect failed', 'err');
+      });
+  }
+
+  function renderAll() {
+    var gs = window.gramityState;
+    updateHeaderStatus(gs.plan);
+    renderHome(gs);
+    renderAssets(gs);
+    renderDeposit(gs);
+    renderMore(gs);
+    hasStickyActions = !!gs.plan;
+    bindStickyActions(gs.plan, portfolioData);
+    updateStickyCta();
+  }
+
+  function bindStickyActions(plan, data) {
+    var runBtn = document.getElementById('btn-run-dca');
+    var pauseBtn = document.getElementById('btn-pause');
+    var withdrawBtn = document.getElementById('btn-withdraw');
+
+    if (!plan) {
+      if (runBtn) { runBtn.disabled = true; runBtn.onclick = null; }
+      if (pauseBtn) { pauseBtn.onclick = null; }
+      if (withdrawBtn) { withdrawBtn.onclick = null; }
+      return;
+    }
+
+    if (runBtn) {
+      runBtn.textContent = plan.active ? '⚡ Run DCA now' : 'Resume first';
+      runBtn.disabled = !plan.active;
+      runBtn.onclick = function () {
+        if (!plan.active) return;
+        document.getElementById('runModal').classList.add('open');
+      };
+    }
+
+    if (pauseBtn) {
+      pauseBtn.textContent = plan.active ? '⏸ Pause' : '▶ Resume';
+      pauseBtn.onclick = function () {
         var action = plan.active ? 'pause' : 'resume';
         pauseBtn.disabled = true;
         apiPost('/plan/' + action)
@@ -645,63 +2204,75 @@
           .finally(function () {
             pauseBtn.disabled = false;
           });
-      });
-      row.appendChild(pauseBtn);
-    }
-    stack.appendChild(row);
-
-    if (plan) {
-      var withdrawCard = el('div', { class: 'card' });
-      withdrawCard.innerHTML = '<div class="card-title">Withdraw funds</div>';
-
-      var hasAddr = !!(plan.ton_address && plan.ton_address.length > 8);
-      var hint = el('p', { class: 'hint-line' });
-      hint.textContent = hasAddr
-        ? 'Funds go to your locked withdrawal wallet.'
-        : 'Set a withdrawal wallet in onboarding before withdrawing.';
-      withdrawCard.appendChild(hint);
-
-      var usdtBtn = el('button', { class: 'btn btn-ghost', style: 'margin-top:12px' });
-      usdtBtn.textContent = '💵 Withdraw USDT';
-      usdtBtn.disabled = !hasAddr || !(data && data.usdtBalance >= 0.01);
-      usdtBtn.addEventListener('click', function () {
-        usdtBtn.disabled = true;
-        usdtBtn.textContent = '⏳ Sending…';
-        apiPost('/withdraw/usdt')
-          .then(function (r) {
-            showToast('Sent $' + fmt(r.sent) + ' USDT', 'ok');
-            return reloadPortfolio();
-          })
-          .catch(function (err) {
-            showToast(err.message || 'Withdraw failed', 'err');
-          })
-          .finally(function () {
-            usdtBtn.disabled = false;
-            usdtBtn.textContent = '💵 Withdraw USDT';
-          });
-      });
-      withdrawCard.appendChild(usdtBtn);
-
-      var allBtn = el('button', { class: 'btn btn-danger', style: 'margin-top:10px' });
-      allBtn.textContent = '📤 Withdraw all (LP + tsTON + USDT)';
-      allBtn.disabled = !hasAddr;
-      allBtn.addEventListener('click', function () {
-        document.getElementById('withdrawModal').classList.add('open');
-      });
-      withdrawCard.appendChild(allBtn);
-
-      stack.appendChild(withdrawCard);
-
-      var runBtn = el('button', { class: 'btn btn-warn' });
-      runBtn.textContent = '⚡ Run DCA now';
-      runBtn.addEventListener('click', function () {
-        document.getElementById('runModal').classList.add('open');
-      });
-      stack.appendChild(runBtn);
+      };
     }
 
-    body.appendChild(stack);
+    if (withdrawBtn) {
+      withdrawBtn.onclick = function () {
+        openWithdrawDrawer(plan, data);
+      };
+    }
   }
+
+  function closeWithdrawDrawer() {
+    document.getElementById('withdraw-drawer').classList.remove('open');
+    document.getElementById('withdraw-drawer-backdrop').classList.remove('open');
+  }
+
+  function openWithdrawDrawer(plan, data) {
+    if (!plan) return;
+    var hasAddr = !!(plan.ton_address && plan.ton_address.length > 8);
+    if (!hasAddr) {
+      showToast('Set withdrawal address first', 'err');
+      openWithdrawAddrSheet();
+      return;
+    }
+
+    var addrEl = document.getElementById('withdraw-drawer-addr');
+    var usdtBtn = document.getElementById('withdraw-drawer-usdt');
+    var allBtn = document.getElementById('withdraw-drawer-all');
+    var usdtBal = data && data.usdtBalance != null ? data.usdtBalance : 0;
+
+    addrEl.className = 'withdraw-drawer-addr';
+    addrEl.textContent = 'Sent to ' + plan.ton_address;
+    usdtBtn.textContent = 'Withdraw USDT · $' + fmt(usdtBal) + ' avail.';
+    usdtBtn.disabled = usdtBal < 0.01;
+    allBtn.disabled = false;
+
+    document.getElementById('withdraw-drawer').classList.add('open');
+    document.getElementById('withdraw-drawer-backdrop').classList.add('open');
+  }
+
+  document.getElementById('withdraw-drawer-close').addEventListener('click', closeWithdrawDrawer);
+  document.getElementById('withdraw-drawer-backdrop').addEventListener('click', function () {
+    closeWithdrawDrawer();
+    closeWithdrawAddrSheet();
+  });
+
+  document.getElementById('withdraw-drawer-usdt').addEventListener('click', function () {
+    var btn = this;
+    btn.disabled = true;
+    apiPost('/withdraw/usdt')
+      .then(function (r) {
+        closeWithdrawDrawer();
+        showToast('Sent $' + fmt(r.sent) + ' USDT', 'ok');
+        return reloadPortfolio();
+      })
+      .catch(function (err) {
+        showToast(err.message || 'Withdraw failed', 'err');
+      })
+      .finally(function () {
+        btn.disabled = false;
+      });
+  });
+
+  document.getElementById('withdraw-drawer-all').addEventListener('click', function () {
+    closeWithdrawDrawer();
+    document.getElementById('withdrawAllModal').classList.add('open');
+  });
+
+  document.getElementById('withdraw-addr-close').addEventListener('click', closeWithdrawAddrSheet);
+  document.getElementById('withdraw-addr-save').addEventListener('click', saveWithdrawalAddress);
 
   document.getElementById('runCancelBtn').addEventListener('click', function () {
     document.getElementById('runModal').classList.remove('open');
@@ -718,6 +2289,7 @@
       .then(function () {
         document.getElementById('runModal').classList.remove('open');
         showToast(count + ' cycle(s) started — watch Telegram', 'ok');
+        return reloadPortfolio();
       })
       .catch(function (err) {
         showToast(err.message || 'Failed', 'err');
@@ -725,30 +2297,25 @@
       .finally(function () {
         oneBtn.disabled = false;
         threeBtn.disabled = false;
-        oneBtn.textContent = '▶️ 1 cycle';
-        threeBtn.textContent = '▶️ 3 cycles';
+        oneBtn.textContent = '▶️ 1 purchase';
+        threeBtn.textContent = '▶️ 3 purchases';
       });
   }
 
-  document.getElementById('runOneBtn').addEventListener('click', function () {
-    runCycles(1);
+  document.getElementById('runOneBtn').addEventListener('click', function () { runCycles(1); });
+  document.getElementById('runThreeBtn').addEventListener('click', function () { runCycles(3); });
+
+  document.getElementById('withdrawAllCancelBtn').addEventListener('click', function () {
+    document.getElementById('withdrawAllModal').classList.remove('open');
   });
 
-  document.getElementById('runThreeBtn').addEventListener('click', function () {
-    runCycles(3);
-  });
-
-  document.getElementById('withdrawCancelBtn').addEventListener('click', function () {
-    document.getElementById('withdrawModal').classList.remove('open');
-  });
-
-  document.getElementById('withdrawConfirmBtn').addEventListener('click', function () {
+  document.getElementById('withdrawAllConfirmBtn').addEventListener('click', function () {
     var btn = this;
     btn.disabled = true;
     btn.textContent = '⏳ Processing…';
     apiPost('/withdraw/all')
       .then(function (r) {
-        document.getElementById('withdrawModal').classList.remove('open');
+        document.getElementById('withdrawAllModal').classList.remove('open');
         var msg = (r.summary && r.summary.length) ? r.summary.join(', ') : 'Withdrawal started';
         showToast(msg, 'ok');
         return reloadPortfolio();
@@ -765,32 +2332,33 @@
   document.getElementById('runModal').addEventListener('click', function (e) {
     if (e.target === this) this.classList.remove('open');
   });
-  document.getElementById('withdrawModal').addEventListener('click', function (e) {
+  document.getElementById('withdrawAllModal').addEventListener('click', function (e) {
     if (e.target === this) this.classList.remove('open');
   });
 
   function renderError(msg) {
-    var body = document.getElementById('mainBody');
-    body.innerHTML = '';
-    var banner = el('div', { class: 'error-banner' });
-    banner.textContent = msg || 'Failed to load portfolio. Please try again.';
-    body.appendChild(banner);
-    appendCTA(body, null, null);
+    var tabs = ['tab-home', 'tab-assets', 'tab-deposit', 'tab-more'];
+    tabs.forEach(function (id, i) {
+      var pane = document.getElementById(id);
+      if (!pane) return;
+      pane.innerHTML = '';
+      if (i === 0) {
+        var banner = el('div', { class: 'error-banner' });
+        banner.textContent = msg || 'Failed to load portfolio. Please try again.';
+        pane.appendChild(banner);
+      }
+    });
+    hasStickyActions = false;
+    updateStickyCta();
+    updateHeaderStatus(null);
   }
 
-  fetch('/api/portfolio', { headers: { 'X-Telegram-Init-Data': initData } })
-    .then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    })
-    .then(function (data) {
-      portfolioData = data;
-      document.getElementById('loadingState').style.display = 'none';
-      render(data);
+  loadGramityState()
+    .then(function () {
+      renderAll();
     })
     .catch(function (err) {
-      document.getElementById('loadingState').style.display = 'none';
-      renderError('Could not load portfolio: ' + err.message);
+      renderError('Could not load dashboard: ' + err.message);
     });
 })();
 </script>

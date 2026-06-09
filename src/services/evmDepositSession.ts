@@ -81,7 +81,6 @@ export function verifyDepositToken(
       exp?: number;
     };
     if (!body.sid || !body.sub) return null;
-    if (body.exp && body.exp < Math.floor(Date.now() / 1000)) return null;
 
     const telegramId = Number(body.sub);
     if (!Number.isFinite(telegramId)) return null;
@@ -96,6 +95,11 @@ function purgeExpiredSessions(): void {
   for (const [id, session] of sessions) {
     if (session.expiresAt <= now) sessions.delete(id);
   }
+}
+
+export function touchEvmDepositSession(sessionId: string): void {
+  const session = sessions.get(sessionId);
+  if (session) session.expiresAt = Date.now() + SESSION_TTL_MS;
 }
 
 export function getEvmDepositSession(sessionId: string): EvmDepositSession | null {

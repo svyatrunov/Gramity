@@ -15,8 +15,10 @@
     "@telegram-apps/sdk-react": "^2.0.0",
     "@tonconnect/ui-react": "^2.0.0",
     "ethers": "^6.13.5",
+    "qrcode.react": "^4.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-router-dom": "^7.17.0",
     "rxjs": "^7.8.1",
     "simple-icons": "^16.23.0"
   },

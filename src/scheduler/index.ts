@@ -209,6 +209,10 @@ async function checkAndExecute() {
 
         // ── 3. Execute full DCA cycle (logged to cycles table) ─────────────────
         const result = await executeDcaCycle(plan);
+        if (result.skipped) {
+          console.log(`[SCHEDULER] Plan ${plan.id} skipped: ${result.reason}`);
+          return;
+        }
         console.log(`[SCHEDULER] Plan ${plan.id} done: status=${result.status}`);
 
         if (result.status !== "success") {

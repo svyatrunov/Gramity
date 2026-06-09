@@ -7,7 +7,8 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
-import { createHmac } from "crypto";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import path from "path";
 import { startBot } from "./bot/index.js";
 import { startScheduler } from "./scheduler/index.js";
@@ -41,11 +42,60 @@ import {
   formatPlanFrequency,
 } from "./constants/dca.js";
 import { normalizeTonAddress, hasWithdrawalAddress } from "./utils/tonAddress.js";
+import { tgAuth } from "./utils/telegramAuth.js";
+import { sanitizeLog } from "./utils/sanitizeLog.js";
+import { registerMiraRoutes } from "./mira/routes.js";
 
 // ─── Express app ──────────────────────────────────────────────────────────────
 
 const app = express();
-app.use(express.json());
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "https://telegram.org"],
+        connectSrc: ["'self'", "https://tonapi.io", "https://toncenter.com"],
+        frameSrc: ["'none'"],
+        objectSrc: ["'none'"],
+      },
+    },
+    hsts: { maxAge: 31536000, includeSubDomains: true },
+  })
+);
+
+app.use(express.json({ limit: "64kb" }));
+app.use(express.urlencoded({ extended: false, limit: "16kb" }));
+
+const apiLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) =>
+    req.telegramUserId?.toString() ?? req.ip ?? "unknown",
+});
+
+const mutationLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const mcpLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use("/api/", apiLimiter);
+app.use("/api/run-now", mutationLimiter);
+app.use("/api/withdraw", mutationLimiter);
+app.use("/api/plans", mutationLimiter);
+app.use("/mcp", mcpLimiter);
 
 // Serve Mini App static files at /app
 const miniappDist = path.resolve(__dirname, "../dist-miniapp");
@@ -92,58 +142,10 @@ app.get("/api/example-tx", async (_req, res) => {
 
 // ─── Mini App REST API ─────────────────────────────────────────────────────────
 
-/** Validate Telegram WebApp initData and return telegram_id */
-function validateInitData(initDataStr: string): number | null {
-  try {
-    if (!initDataStr) return null;
-    const params = new URLSearchParams(initDataStr);
-    const hash = params.get("hash");
-    if (!hash) return null;
-    params.delete("hash");
-
-    const dataCheckString = Array.from(params.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([k, v]) => `${k}=${v}`)
-      .join("\n");
-
-    const secretKey = createHmac("sha256", "WebAppData")
-      .update(process.env.BOT_TOKEN ?? "")
-      .digest();
-    const expectedHash = createHmac("sha256", secretKey)
-      .update(dataCheckString)
-      .digest("hex");
-
-    if (expectedHash !== hash) return null;
-
-    const userParam = params.get("user");
-    if (!userParam) return null;
-    const user = JSON.parse(userParam) as { id?: number };
-    return user.id ?? null;
-  } catch {
-    return null;
-  }
-}
-
-/** Express middleware: authenticate via Telegram initData */
-function tgAuth(
-  req: express.Request,
-  res: express.Response,
-  next: express.NextFunction
-): void {
-  const initData = (req.headers["x-telegram-init-data"] as string) ?? "";
-  const telegramId = validateInitData(initData);
-  if (!telegramId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  (req as express.Request & { telegramId: number }).telegramId = telegramId;
-  next();
-}
-
 // Portfolio
 app.get("/api/portfolio", tgAuth, async (req, res) => {
   try {
-    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const telegramId = req.telegramId!;
     const { getPlanByTelegramId, getLastExecutions } = await import("./db/index.js");
     const { StonApiClient } = await import("@ston-fi/api");
     const { POOL_ADDRESS, STON_API_URL: STON_URL } = await import("./config.js");
@@ -170,12 +172,18 @@ app.get("/api/portfolio", tgAuth, async (req, res) => {
 
     const executions = plan ? await getLastExecutions(plan.id, 10) : [];
 
+    const estValueUsd = usdtBalance + (lpValue ?? 0);
+    const cyclesCompleted =
+      plan?.cycles_completed ??
+      executions.filter((e) => e.status === "success").length;
+
     res.json({
       depositAddress,
       usdtBalance,
       tonBalance,
       lpValue,
-      totalValue: usdtBalance + (lpValue ?? 0),
+      totalValue: estValueUsd,
+      est_value_usd: estValueUsd,
       plan: plan
         ? {
             usdt_amount: plan.usdt_amount,
@@ -184,13 +192,17 @@ app.get("/api/portfolio", tgAuth, async (req, res) => {
             active: plan.active,
             next_execution_at: plan.next_execution_at,
             ton_address: plan.ton_address,
-            withdrawal_address_set: Boolean(plan.ton_address),
+            withdrawal_address_set: hasWithdrawalAddress(plan.ton_address),
+            cycles_completed: cyclesCompleted,
+            is_running: plan.is_running ?? false,
+            consecutive_failures: plan.consecutive_failures ?? 0,
           }
         : null,
       executions: executions.map((e) => ({
         executed_at: e.executed_at,
         usdt_spent: e.usdt_spent,
         status: e.status,
+        tx_swap: e.tx_swap ?? null,
       })),
     });
   } catch (err) {
@@ -201,7 +213,7 @@ app.get("/api/portfolio", tgAuth, async (req, res) => {
 // Wallets list
 app.get("/api/wallets", tgAuth, async (req, res) => {
   try {
-    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const telegramId = req.telegramId!;
     const wallets = await getUserWallets(telegramId);
     const result = await Promise.all(
       wallets.map(async (w) => ({
@@ -220,7 +232,7 @@ app.get("/api/wallets", tgAuth, async (req, res) => {
 // Create wallet
 app.post("/api/wallets", tgAuth, async (req, res) => {
   try {
-    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const telegramId = req.telegramId!;
     const alias = (req.body?.alias as string) ?? "New Wallet";
     const address = await createNamedWallet(telegramId, alias);
     res.json({ address });
@@ -232,7 +244,7 @@ app.post("/api/wallets", tgAuth, async (req, res) => {
 // Withdraw USDT
 app.post("/api/withdraw/usdt", tgAuth, async (req, res) => {
   try {
-    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const telegramId = req.telegramId!;
     const { getPlanByTelegramId } = await import("./db/index.js");
     const plan = await getPlanByTelegramId(telegramId);
     if (!plan) { res.status(404).json({ error: "No plan" }); return; }
@@ -257,7 +269,7 @@ app.post("/api/withdraw/usdt", tgAuth, async (req, res) => {
 // Pause / resume strategy (dashboard + API)
 app.post("/api/plan/pause", tgAuth, async (req, res) => {
   try {
-    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const telegramId = req.telegramId!;
     const { getPlanByTelegramId, updatePlan } = await import("./db/index.js");
     const plan = await getPlanByTelegramId(telegramId);
     if (!plan) { res.status(404).json({ error: "No plan" }); return; }
@@ -274,7 +286,7 @@ app.post("/api/plan/pause", tgAuth, async (req, res) => {
 
 app.post("/api/plan/resume", tgAuth, async (req, res) => {
   try {
-    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const telegramId = req.telegramId!;
     const { getPlanByTelegramId, updatePlan } = await import("./db/index.js");
     const plan = await getPlanByTelegramId(telegramId);
     if (!plan) { res.status(404).json({ error: "No plan" }); return; }
@@ -296,7 +308,7 @@ app.post("/api/plan/resume", tgAuth, async (req, res) => {
 // Withdraw all
 app.post("/api/withdraw/all", tgAuth, async (req, res) => {
   try {
-    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const telegramId = req.telegramId!;
     const { getPlanByTelegramId, updatePlan } = await import("./db/index.js");
     const plan = await getPlanByTelegramId(telegramId);
     if (!plan) { res.status(404).json({ error: "No plan" }); return; }
@@ -310,6 +322,10 @@ app.post("/api/withdraw/all", tgAuth, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
+});
+
+app.get("/api/tokens/buy", tgAuth, (_req, res) => {
+  res.json({ tokens: [], message: "Coming soon" });
 });
 
 // Popular tokens (shared registry + prices from TonAPI)
@@ -350,7 +366,7 @@ app.get("/api/tokens/popular", async (_req, res) => {
 // Cross-chain deposit config — returns per-user agentic wallet as deposit destination
 app.get("/api/deposit/config", tgAuth, async (req, res) => {
   try {
-    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const telegramId = req.telegramId!;
     const { createUserWallet } = await import("./services/userWallet.js");
     const depositAddress = await createUserWallet(telegramId);
 
@@ -368,7 +384,7 @@ app.get("/api/deposit/config", tgAuth, async (req, res) => {
 // Onboarding: agent wallet + balances (+ optional gas seed at deposit step)
 app.get("/api/onboarding/wallet", tgAuth, async (req, res) => {
   try {
-    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const telegramId = req.telegramId!;
     const seed = String(req.query.seed_gas ?? "") === "1";
     const { createUserWallet } = await import("./services/userWallet.js");
     const { seedGasIfNeeded } = await import("./services/gasSeed.js");
@@ -401,7 +417,7 @@ app.get("/api/onboarding/wallet", tgAuth, async (req, res) => {
 // EVM deposit session — JWT for MetaMask in-app browser (no initData in URL)
 app.post("/api/evm-deposit/session", tgAuth, async (req, res) => {
   try {
-    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const telegramId = req.telegramId!;
     const { createEvmDepositSession } = await import("./services/evmDepositSession.js");
     const session = await createEvmDepositSession(telegramId);
     res.json(session);
@@ -413,13 +429,14 @@ app.post("/api/evm-deposit/session", tgAuth, async (req, res) => {
 app.get("/api/evm-deposit/session", async (req, res) => {
   try {
     const token = String(req.query.token ?? "");
-    const { resolveDepositToken, getEvmDepositConfigForSession, updateEvmDepositSession } =
+    const { resolveDepositToken, getEvmDepositConfigForSession, updateEvmDepositSession, touchEvmDepositSession } =
       await import("./services/evmDepositSession.js");
     const resolved = resolveDepositToken(token);
     if (!resolved) {
       res.status(401).json({ error: "Invalid or expired session token" });
       return;
     }
+    touchEvmDepositSession(resolved.session.id);
     updateEvmDepositSession(resolved.session.id, { status: "opened" });
     res.json(getEvmDepositConfigForSession(resolved.session));
   } catch (err) {
@@ -539,7 +556,7 @@ app.post("/api/evm-deposit/order-update", async (req, res) => {
 // EVM wallet connect session — MetaMask in-app browser (no MWP relay in Telegram WebView)
 app.post("/api/evm-wallet/session", tgAuth, async (req, res) => {
   try {
-    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const telegramId = req.telegramId!;
     const { createEvmWalletSession } = await import("./services/evmWalletSession.js");
     const session = createEvmWalletSession(telegramId);
     console.log(`[EVM-WALLET] Session created user=${telegramId} id=${session.sessionId}`);
@@ -552,13 +569,14 @@ app.post("/api/evm-wallet/session", tgAuth, async (req, res) => {
 app.get("/api/evm-wallet/session", async (req, res) => {
   try {
     const token = String(req.query.token ?? "");
-    const { resolveWalletToken, updateEvmWalletSession } =
+    const { resolveWalletToken, updateEvmWalletSession, touchEvmWalletSession } =
       await import("./services/evmWalletSession.js");
     const resolved = resolveWalletToken(token);
     if (!resolved) {
       res.status(401).json({ error: "Invalid or expired session token" });
       return;
     }
+    touchEvmWalletSession(resolved.session.id);
     updateEvmWalletSession(resolved.session.id, { status: "opened" });
     res.json({ status: resolved.session.status, expiresAt: resolved.session.expiresAt });
   } catch (err) {
@@ -621,13 +639,14 @@ app.post("/api/evm-wallet/connected", async (req, res) => {
       return;
     }
 
-    const { resolveWalletToken, connectEvmWalletSession } =
+    const { resolveWalletToken, connectEvmWalletSession, touchEvmWalletSession } =
       await import("./services/evmWalletSession.js");
     const resolved = resolveWalletToken(token);
     if (!resolved) {
       res.status(401).json({ error: "Invalid or expired session token" });
       return;
     }
+    touchEvmWalletSession(resolved.session.id);
 
     const result = await connectEvmWalletSession(
       resolved.session.id,
@@ -724,7 +743,7 @@ async function notifyDepositOrderUpdate(
 // Omniston orderTrack terminal status (after orderRegisterSignedOrder)
 app.post("/api/deposit-order-update", tgAuth, async (req, res) => {
   try {
-    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const telegramId = req.telegramId!;
     const { quoteId, orderStatus, phase, message } = req.body ?? {};
 
     console.log(
@@ -747,7 +766,7 @@ app.post("/api/deposit-order-update", tgAuth, async (req, res) => {
 // Notify bot after cross-chain deposit tx confirmed
 app.post("/api/deposit-initiated", tgAuth, async (req, res) => {
   try {
-    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const telegramId = req.telegramId!;
     const { txHash, amount, sourceChain, sourceToken } = req.body ?? {};
 
     if (!txHash || typeof txHash !== "string") {
@@ -793,27 +812,33 @@ app.get("/api/dca/limits", (_req, res) => {
 
 // Create / update DCA plan from Mini App
 async function handleCreatePlan(
-  req: express.Request & { telegramId: number },
+  req: express.Request,
   res: express.Response
 ): Promise<void> {
   try {
-    const telegramId = req.telegramId;
+    const telegramId = req.telegramId!;
     const body = req.body ?? {};
     const rawAddress =
       body.ton_address ?? body.withdrawalAddress ?? body.withdrawal_address;
     const { amount_usdt, amount, frequency, strategy, demo_mode } = body;
 
+    if (rawAddress == null || String(rawAddress).trim() === "") {
+      res.status(400).json({
+        error: "withdrawal_address_required",
+        message: "Set TON withdrawal address before creating strategy",
+      });
+      return;
+    }
+
     let normalizedAddress: string | null = null;
-    if (rawAddress != null && String(rawAddress).trim() !== "") {
-      if (typeof rawAddress !== "string") {
-        res.status(400).json({ error: "Invalid ton_address" });
-        return;
-      }
-      normalizedAddress = normalizeTonAddress(rawAddress);
-      if (!normalizedAddress) {
-        res.status(400).json({ error: "Invalid TON withdrawal address" });
-        return;
-      }
+    if (typeof rawAddress !== "string") {
+      res.status(400).json({ error: "Invalid ton_address" });
+      return;
+    }
+    normalizedAddress = normalizeTonAddress(rawAddress);
+    if (!normalizedAddress) {
+      res.status(400).json({ error: "Invalid TON withdrawal address" });
+      return;
     }
 
     const isQuickMode = demo_mode === true || demo_mode === "true";
@@ -893,9 +918,7 @@ async function handleCreatePlan(
     const planKb = new InlineKeyboard()
       .text("📊 Track Status", "status_check");
 
-    const withdrawalLine = normalizedAddress
-      ? `Withdrawal: \`${normalizedAddress.slice(0, 8)}…${normalizedAddress.slice(-6)}\`\n\n`
-      : `⚠️ Withdrawal address not set — open App to add before cycles run.\n\n`;
+    const withdrawalLine = `Withdrawal: \`${normalizedAddress.slice(0, 8)}…${normalizedAddress.slice(-6)}\`\n\n`;
 
     if (isQuickMode) {
       await bot.api.sendMessage(
@@ -931,7 +954,15 @@ async function handleCreatePlan(
     }
 
     console.log(
-      `[API/plans] Strategy created user=${telegramId} amount=${amountUsdt} freq=${normalizedFreq} quick=${isQuickMode} withdrawal=${normalizedAddress ? "set" : "pending"}`
+      `[API/plans] Strategy created`,
+      sanitizeLog({
+        user: telegramId,
+        amount: amountUsdt,
+        freq: normalizedFreq,
+        quick: isQuickMode,
+        withdrawal: normalizedAddress ? "set" : "pending",
+        ton_address: normalizedAddress,
+      })
     );
 
     const { getTonPriceUsd } = await import("./services/tonapi.js");
@@ -959,16 +990,16 @@ async function handleCreatePlan(
 }
 
 app.post("/api/plans", tgAuth, (req, res) => {
-  void handleCreatePlan(req as express.Request & { telegramId: number }, res);
+  void handleCreatePlan(req, res);
 });
 app.post("/api/strategy/create", tgAuth, (req, res) => {
-  void handleCreatePlan(req as express.Request & { telegramId: number }, res);
+  void handleCreatePlan(req, res);
 });
 
 // Lock withdrawal address after first set (during onboarding skip flow)
 app.post("/api/plans/withdrawal-address", tgAuth, async (req, res) => {
   try {
-    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const telegramId = req.telegramId!;
     const raw = req.body?.ton_address ?? req.body?.withdrawalAddress;
     if (raw == null || String(raw).trim() === "") {
       res.status(400).json({ error: "ton_address is required" });
@@ -981,7 +1012,7 @@ app.post("/api/plans/withdrawal-address", tgAuth, async (req, res) => {
       return;
     }
 
-    const { getPlanByTelegramId, updatePlan } = await import("./db/index.js");
+    const { getPlanByTelegramId, setWithdrawalAddress } = await import("./db/index.js");
     const plan = await getPlanByTelegramId(telegramId);
     if (!plan) {
       res.status(404).json({ error: "No plan found" });
@@ -995,7 +1026,14 @@ app.post("/api/plans/withdrawal-address", tgAuth, async (req, res) => {
       return;
     }
 
-    await updatePlan(telegramId, { ton_address: normalized });
+    const updated = await setWithdrawalAddress(telegramId, normalized);
+    if (!updated) {
+      res.status(409).json({
+        error: "Withdrawal address is already set and locked",
+        ton_address: plan.ton_address,
+      });
+      return;
+    }
 
     const { bot } = await import("./bot/index.js");
     await bot.api.sendMessage(
@@ -1019,8 +1057,27 @@ app.post("/api/plans/withdrawal-address", tgAuth, async (req, res) => {
 // Kick off 1–3 DCA cycles immediately — no scheduler
 app.post("/api/run-now", tgAuth, async (req, res) => {
   try {
-    const telegramId = (req as express.Request & { telegramId: number }).telegramId;
+    const telegramId = req.telegramId!;
     const cycles = Math.min(Math.max(parseInt(String(req.body?.cycles ?? 3)), 1), 3);
+
+    const { getPlanByTelegramId } = await import("./db/index.js");
+    const plan = await getPlanByTelegramId(telegramId);
+    if (!plan) {
+      res.status(404).json({ error: "No plan" });
+      return;
+    }
+    if (plan.is_running) {
+      res.status(409).json({ error: "Cycle already running" });
+      return;
+    }
+    if (!plan.active) {
+      res.status(400).json({ error: "Strategy is paused" });
+      return;
+    }
+    if (!hasWithdrawalAddress(plan.ton_address)) {
+      res.status(400).json({ error: "Withdrawal address not set" });
+      return;
+    }
 
     const { handleRunNow } = await import("./bot/handlers/runNow.js");
     const { bot } = await import("./bot/index.js");
@@ -1056,6 +1113,8 @@ app.get("/api/gas/:action", async (req, res) => {
     usd: tonPrice > 0 ? gasTon * tonPrice : null,
   });
 });
+
+registerMiraRoutes(app);
 
 // ─── Start server ─────────────────────────────────────────────────────────────
 

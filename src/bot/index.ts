@@ -14,8 +14,16 @@ import {
   handleWithdrawUsdtConfirm,
   handleWithdrawAllConfirm,
   handleWithdrawLpConfirm,
+  handleWithdrawCancel,
 } from "./handlers/withdraw.js";
 import { handleSettings, handleSettingsCallback } from "./handlers/settings.js";
+import {
+  awaitingWalletData,
+  handleSettingsWallet,
+  handleChainSelected,
+} from "./handlers/withdrawalWallet.js";
+import type { WithdrawalChain } from "../constants/chains.js";
+import { getPlanByTelegramId } from "../db/index.js";
 import {
   setNotifyUser,
   setNotifyInsufficientFunds,
@@ -28,8 +36,22 @@ import { BOT_TOKEN, RAILWAY_PUBLIC_URL } from "../config.js";
 import type { ExecutionResult } from "../execution/index.js";
 import { notify } from "./notifications.js";
 import { InlineKeyboard } from "grammy";
+import { hasWithdrawalAddress } from "../utils/tonAddress.js";
 
-const MINI_APP_URL = `${RAILWAY_PUBLIC_URL}/app`;
+const dashboardUrl = `${RAILWAY_PUBLIC_URL}/app/dashboard.html`;
+const depositUrl   = `${RAILWAY_PUBLIC_URL}/app/dashboard.html?tab=deposit`;
+const settingsUrl  = `${RAILWAY_PUBLIC_URL}/app/dashboard.html?tab=more`;
+
+function failureWebAppButton(error?: string): { label: string; url: string } {
+  const err = (error ?? "").toLowerCase();
+  if (err.includes("withdrawal address") || err.includes("withdrawal wallet")) {
+    return { label: "Set wallet", url: settingsUrl };
+  }
+  if (err.includes("low gas") || err.includes("⛽")) {
+    return { label: "Top up gas", url: depositUrl };
+  }
+  return { label: "Status", url: dashboardUrl };
+}
 
 if (!BOT_TOKEN) throw new Error("BOT_TOKEN is not set in environment");
 
@@ -54,9 +76,9 @@ bot.command("settings", handleSettings);
 
 bot.command("help", async (ctx) => {
   await ctx.reply(
-    "📋 *Gramity*\n\n" +
+    "*Gramity*\n\n" +
       "/start — open Mini App\n" +
-      "/status — portfolio & next cycle\n" +
+      "/status — portfolio and next cycle\n" +
       "/settings — amount, frequency, mode\n" +
       "/pause · /resume — control DCA\n" +
       "/withdraw — exit positions\n\n" +
@@ -70,6 +92,35 @@ bot.command("help", async (ctx) => {
 bot.on("callback_query:data", async (ctx) => {
   const data = ctx.callbackQuery.data;
 
+  if (data.startsWith("wallet_chain:")) {
+    await ctx.answerCallbackQuery();
+    const chain = data.split(":")[1];
+    if (chain === "back") {
+      const telegramId = ctx.from?.id;
+      if (telegramId) awaitingWalletData.delete(String(telegramId));
+      const plan = telegramId
+        ? await getPlanByTelegramId(telegramId).catch(() => null)
+        : null;
+      await handleSettingsWallet(ctx, plan);
+      return;
+    }
+    await handleChainSelected(ctx, chain as WithdrawalChain);
+    return;
+  }
+  if (data === "settings:wallet") {
+    await ctx.answerCallbackQuery();
+    const telegramId = ctx.from?.id;
+    const plan = telegramId
+      ? await getPlanByTelegramId(telegramId).catch(() => null)
+      : null;
+    await handleSettingsWallet(ctx, plan);
+    return;
+  }
+  if (data === "settings_back") {
+    await ctx.answerCallbackQuery();
+    await handleSettings(ctx);
+    return;
+  }
   if (data === "pause") {
     await ctx.answerCallbackQuery();
     await handlePause(ctx);
@@ -85,9 +136,14 @@ bot.on("callback_query:data", async (ctx) => {
     await handleWithdrawMenu(ctx);
     return;
   }
-  if (data === "withdraw_usdt_confirm") {
+  if (data === "withdraw:usdt:confirm" || data === "withdraw_usdt_confirm") {
     await ctx.answerCallbackQuery();
     await handleWithdrawUsdtConfirm(ctx);
+    return;
+  }
+  if (data === "withdraw:cancel" || data === "withdraw_cancel") {
+    await ctx.answerCallbackQuery();
+    await handleWithdrawCancel(ctx);
     return;
   }
   if (data === "withdraw_lp_confirm") {
@@ -98,11 +154,6 @@ bot.on("callback_query:data", async (ctx) => {
   if (data === "withdraw_all_confirm") {
     await ctx.answerCallbackQuery();
     await handleWithdrawAllConfirm(ctx);
-    return;
-  }
-  if (data === "withdraw_cancel") {
-    await ctx.answerCallbackQuery();
-    await ctx.reply("❌ Withdrawal cancelled.");
     return;
   }
   if (data.startsWith("settings_")) {
@@ -159,6 +210,18 @@ bot.on("message:web_app_data", async (ctx) => {
 
       console.log(`[WebApp] Friendly address: ${friendlyAddress}`);
 
+      const { getPlanByTelegramId, setWithdrawalAddress } = await import("../db/index.js");
+      const existingPlan = await getPlanByTelegramId(telegramId);
+
+      if (existingPlan && hasWithdrawalAddress(existingPlan.ton_address)) {
+        const { sanitizeLog } = await import("../utils/sanitizeLog.js");
+        console.warn(
+          "[web_app_data] Attempt to change locked withdrawal address",
+          sanitizeLog({ telegramId, ton_address: friendlyAddress })
+        );
+        return;
+      }
+
       // If in onboarding OR session was reset after deploy (step is idle/empty) → go to deposit step
       const isOnboarding =
         !ctx.session.step ||
@@ -167,19 +230,19 @@ bot.on("message:web_app_data", async (ctx) => {
 
       if (isOnboarding) {
         await continueToDepositStep(ctx, friendlyAddress);
-      } else {
-        // Already has plan — update withdrawal address
-        const { updatePlan } = await import("../db/index.js");
-        await updatePlan(telegramId, { ton_address: friendlyAddress });
-        ctx.session.tonAddress = friendlyAddress;
-
-        await ctx.reply(
-          `✅ *Wallet updated*\n\n` +
-            `Withdrawal address:\n\`${friendlyAddress}\`\n\n` +
-            (data.walletName ? `Wallet: ${data.walletName}\n\n` : "") +
-            `Funds will be sent to this address on /withdraw.`,
-          { parse_mode: "Markdown" }
-        );
+      } else if (existingPlan && !hasWithdrawalAddress(existingPlan.ton_address)) {
+        const updated = await setWithdrawalAddress(telegramId, friendlyAddress);
+        if (updated) {
+          const { awaitingWalletData } = await import("./handlers/withdrawalWallet.js");
+          awaitingWalletData.delete(String(telegramId));
+          ctx.session.tonAddress = friendlyAddress;
+          await ctx.reply(
+            `✅ Withdrawal address set\n\n` +
+              `\`${friendlyAddress.slice(0, 6)}...${friendlyAddress.slice(-4)}\`\n\n` +
+              `Locked.`,
+            { parse_mode: "Markdown" }
+          );
+        }
       }
     }
   } catch (err) {
@@ -205,23 +268,17 @@ async function sendExecutionNotification(
   error?: string
 ) {
   try {
-    // Resolve plan for dashboard deep-link and cycle count (best-effort)
-    let planId: string | null = null;
+    // Resolve plan for cycle count (best-effort)
     let cyclesDone = 1;
     let totalCycles: number | null = null;
     try {
       const { getPlanByTelegramId } = await import("../db/index.js");
       const plan = await getPlanByTelegramId(telegramId);
       if (plan) {
-        planId = plan.id;
         cyclesDone = plan.cycles_completed + 1;
         totalCycles = plan.max_cycles;
       }
     } catch { /* non-critical */ }
-
-    const dashboardUrl = planId
-      ? `${MINI_APP_URL}/dashboard.html#strategy-${planId}`
-      : `${MINI_APP_URL}/dashboard.html`;
 
     // ── Failed cycle ───────────────────────────────────────────────────────
     if (!result || result.status === "failed") {
@@ -229,31 +286,29 @@ async function sendExecutionNotification(
       const msg = result?.failedStep
         ? notify.stepFailed(result.failedStep, errText)
         : notify.cycleFailed(errText);
+      const btn = failureWebAppButton(error);
 
       await bot.api.sendMessage(telegramId, msg, {
         parse_mode: "Markdown",
         link_preview_options: { is_disabled: true },
-        reply_markup: new InlineKeyboard().webApp("📊 View Dashboard", dashboardUrl),
+        reply_markup: new InlineKeyboard().webApp(btn.label, btn.url),
       });
       return;
     }
 
-    // ── Partial cycle ──────────────────────────────────────────────────────
     if (result.status === "partial") {
       const msg =
-        `⚡ *Partial cycle — ${result.failedStep ?? "unknown step"} failed*\n\n` +
-        `$${result.usdtSpent.toFixed(2)} USDT swapped → ${result.tonReceived.toFixed(3)} TON\n` +
-        `Liquidity provision skipped.\n\n` +
-        `Funds are safe. Next attempt is scheduled.\n/status — check position`;
+        `Cycle failed\n\n` +
+        `Reason   partial — ${result.failedStep ?? "unknown step"}\n\n` +
+        `$${result.usdtSpent.toFixed(2)} USDT swapped → ${result.tonReceived.toFixed(3)} TON`;
 
       await bot.api.sendMessage(telegramId, msg, {
         parse_mode: "Markdown",
-        reply_markup: new InlineKeyboard().webApp("📊 View Dashboard", dashboardUrl),
+        reply_markup: new InlineKeyboard().webApp("Status", dashboardUrl),
       });
       return;
     }
 
-    // ── Successful cycle — use notify.cycleComplete template ───────────────
     const msg = notify.cycleComplete({
       amountUsdt:    result.usdtSpent,
       tonAmount:     result.tonReceived,
@@ -267,8 +322,8 @@ async function sendExecutionNotification(
     });
 
     const kb = new InlineKeyboard()
-      .webApp("📊 Dashboard", dashboardUrl)
-      .text("⏸ Pause", "pause");
+      .webApp("View position", dashboardUrl)
+      .text("Pause", "pause");
 
     await bot.api.sendMessage(telegramId, msg, {
       parse_mode: "Markdown",
@@ -286,27 +341,16 @@ setNotifyUser(sendExecutionNotification);
 
 setNotifyInsufficientFunds(async (telegramId, balance, required) => {
   try {
-    // Resolve deposit wallet address for deep-link (best-effort)
-    let depositAddr: string | null = null;
-    try {
-      const { createUserWallet } = await import("../services/userWallet.js");
-      depositAddr = await createUserWallet(telegramId);
-    } catch { /* non-critical */ }
-
-    const depositUrl = depositAddr
-      ? `${MINI_APP_URL}/deposit.html?wallet=${encodeURIComponent(depositAddr)}`
-      : `${MINI_APP_URL}/deposit.html`;
-
     const kb = new InlineKeyboard()
-      .webApp("💰 Deposit Funds", depositUrl);
+      .webApp("Deposit", depositUrl);
 
     await bot.api.sendMessage(
       telegramId,
-      `⚠️ *Insufficient USDT for cycle*\n\n` +
-        `On deposit: $${balance.toFixed(2)}\n` +
-        `Required:   $${required.toFixed(2)}\n\n` +
-        `Strategy paused.\n` +
-        `Top up your deposit and tap /resume`,
+      `Cycle skipped\n\n` +
+        `Insufficient USDT on agent wallet.\n` +
+        `Have     *$${balance.toFixed(2)}*\n` +
+        `Required *$${required.toFixed(2)}*\n\n` +
+        `Strategy paused. Top up and /resume`,
       { parse_mode: "Markdown", reply_markup: kb }
     );
   } catch (err) {
@@ -346,7 +390,10 @@ setPollerSender(async (chatId, text, extra) => {
 
 setGasNotifier(async (telegramId, msg) => {
   try {
-    await bot.api.sendMessage(telegramId, msg, { parse_mode: "Markdown" });
+    await bot.api.sendMessage(telegramId, msg, {
+      parse_mode: "Markdown",
+      reply_markup: new InlineKeyboard().webApp("Top up gas", depositUrl),
+    });
   } catch (err) {
     console.error("[BOT] Failed to send gas warning:", err);
   }
