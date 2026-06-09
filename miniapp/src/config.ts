@@ -50,6 +50,8 @@ export const FREQUENCY_LABELS: Record<string, string> = {
   weekly: "Еженедельно",
   biweekly: "Раз в 2 нед.",
   monthly: "Ежемесячно",
+  hourly: "Каждый час",
+  minutely: "Каждую минуту",
   "10s": "Каждые 10 сек",
   "30s": "Каждые 30 сек",
   "60s": "Каждую минуту",

@@ -8,6 +8,7 @@ import { Address } from "@ton/ton";
 import type { GramityContext } from "../session.js";
 import { RAILWAY_PUBLIC_URL } from "../../config.js";
 import { MIN_DCA_USDT } from "../../constants/dca.js";
+import { getInitialPlanExecutionDate } from "../../constants/dca.js";
 import {
   getPlanByTelegramId,
   upsertPlan,
@@ -114,6 +115,25 @@ export async function handleStart(ctx: GramityContext) {
 export async function handleText(ctx: GramityContext) {
   const telegramId = ctx.from?.id;
   const text = ctx.message?.text?.trim() ?? "";
+
+  if (text.startsWith("/")) {
+    const { parseStrategyCommand, handlePauseStrategy, handleResumeStrategy, handleStopStrategy } =
+      await import("./strategies.js");
+    const cmd = parseStrategyCommand(text);
+    if (cmd) {
+      if (cmd.action === "pause") await handlePauseStrategy(ctx, cmd.id);
+      else if (cmd.action === "resume") await handleResumeStrategy(ctx, cmd.id);
+      else if (cmd.action === "stop") await handleStopStrategy(ctx, cmd.id);
+      return;
+    }
+  }
+
+  if (telegramId) {
+    const { handleStrategyWalletInput, handleStrategyCustomAmount } =
+      await import("./strategies.js");
+    if (await handleStrategyWalletInput(ctx, text)) return;
+    if (await handleStrategyCustomAmount(ctx, text)) return;
+  }
 
   if (telegramId) {
     const { handleAddressInput } = await import("./withdrawalWallet.js");
@@ -394,7 +414,9 @@ async function handleActivate(ctx: GramityContext) {
   }
 
   const isTest    = TEST_FREQS.includes(frequency);
-  const firstDate = isTest ? new Date() : getNextCycleDate(frequency);
+  const firstDate = isTest
+    ? getInitialPlanExecutionDate({ frequency })
+    : getNextCycleDate(frequency);
 
   try {
     await upsertPlan({

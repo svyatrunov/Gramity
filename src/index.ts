@@ -8,6 +8,7 @@ dotenv.config();
 
 import express from "express";
 import helmet from "helmet";
+import cors from "cors";
 import rateLimit from "express-rate-limit";
 import path from "path";
 import { startBot } from "./bot/index.js";
@@ -20,6 +21,7 @@ import {
   TON_API_URL,
   BOT_WALLET_ADDRESS,
   OMNISTON_WS_URL,
+  RAILWAY_PUBLIC_URL,
 } from "./config.js";
 import { POPULAR_TON_JETTONS, logoUrlFor } from "./shared/popular-ton-jettons.js";
 import { getAllVerifiedJettons, getTonBalance, getUsdtBalance } from "./services/tonapi.js";
@@ -44,6 +46,7 @@ import {
   buildEconomicsHint,
   normalizePlanFrequency,
   getNextPlanExecutionDate,
+  getInitialPlanExecutionDate,
   formatPlanFrequency,
 } from "./constants/dca.js";
 import { normalizeTonAddress, hasWithdrawalAddress } from "./utils/tonAddress.js";
@@ -55,17 +58,43 @@ import { registerMiraRoutes } from "./mira/routes.js";
 
 const app = express();
 
+app.use((req, res, next) => {
+  res.removeHeader("X-Frame-Options");
+  res.setHeader(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://telegram.org",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https:",
+      "connect-src 'self' " +
+        RAILWAY_PUBLIC_URL +
+        " https://toncenter.com https://tonapi.io https://api.ston.fi wss://omni-ws.ston.fi",
+      "frame-ancestors 'self' https://web.telegram.org https://webk.telegram.org https://webz.telegram.org",
+    ].join("; ")
+  );
+  next();
+});
+
+app.use(
+  cors({
+    origin: [
+      "https://web.telegram.org",
+      "https://webk.telegram.org",
+      "https://webz.telegram.org",
+      "https://gramity-production.up.railway.app",
+      "http://localhost:3333",
+    ],
+    methods: ["GET", "POST", "OPTIONS"],
+  })
+);
+app.options(/.*/, cors());
+
 app.use(
   helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "https://telegram.org"],
-        connectSrc: ["'self'", "https://tonapi.io", "https://toncenter.com"],
-        frameSrc: ["'none'"],
-        objectSrc: ["'none'"],
-      },
-    },
+    contentSecurityPolicy: false,
+    frameguard: false,
+    crossOriginEmbedderPolicy: false,
     hsts: { maxAge: 31536000, includeSubDomains: true },
   })
 );
@@ -100,6 +129,7 @@ app.use("/api/", apiLimiter);
 app.use("/api/run-now", mutationLimiter);
 app.use("/api/withdraw", mutationLimiter);
 app.use("/api/plans", mutationLimiter);
+app.use("/api/strategies", mutationLimiter);
 app.use("/mcp", mcpLimiter);
 
 // Serve Mini App static files at /app
@@ -201,13 +231,15 @@ app.post("/api/auth/telegram", async (req, res) => {
 app.get("/api/portfolio", tgAuth, async (req, res) => {
   try {
     const telegramId = req.telegramId!;
-    const { getPlanByTelegramId, getLastExecutions } = await import("./db/index.js");
+    const { getPlanByTelegramId, getLastExecutions, getStrategiesByTelegramId } =
+      await import("./db/index.js");
     const { StonApiClient } = await import("@ston-fi/api");
     const { POOL_ADDRESS, STON_API_URL: STON_URL } = await import("./config.js");
 
-    const [depositAddress, plan] = await Promise.all([
+    const [depositAddress, plan, strategies] = await Promise.all([
       getUserDepositAddress(telegramId).catch(() => null),
       getPlanByTelegramId(telegramId).catch(() => null),
+      getStrategiesByTelegramId(telegramId).catch(() => []),
     ]);
     const addr = depositAddress ?? "";
     const usdtBalance = addr ? await getUsdtBalance(addr) : 0;
@@ -257,6 +289,20 @@ app.get("/api/portfolio", tgAuth, async (req, res) => {
             consecutive_failures: plan.consecutive_failures ?? 0,
           }
         : null,
+      strategies: strategies.map((s) => ({
+        id: s.id,
+        strategy_type: s.strategy_type,
+        amount_usdt: s.amount_usdt,
+        frequency: s.frequency,
+        withdrawal_wallet: s.withdrawal_wallet,
+        output_mode: s.output_mode,
+        status: s.status,
+        total_cycles: s.total_cycles,
+        total_invested: s.total_invested,
+        last_run_at: s.last_run_at,
+        next_run_at: s.next_run_at,
+        last_error: s.last_error,
+      })),
       executions: executions.map((e) => ({
         executed_at: e.executed_at,
         usdt_spent: e.usdt_spent,
@@ -869,6 +915,165 @@ app.get("/api/dca/limits", (_req, res) => {
   });
 });
 
+// ─── Multi-strategy API (Mini App + bot) ───────────────────────────────────────
+
+function serializeStrategy(s: import("./db/index.js").Strategy) {
+  return {
+    id: s.id,
+    strategy_type: s.strategy_type,
+    amount_usdt: s.amount_usdt,
+    frequency: s.frequency,
+    withdrawal_wallet: s.withdrawal_wallet,
+    output_mode: s.output_mode,
+    status: s.status,
+    total_cycles: s.total_cycles,
+    total_invested: s.total_invested,
+    last_run_at: s.last_run_at,
+    next_run_at: s.next_run_at,
+    last_error: s.last_error,
+  };
+}
+
+app.get("/api/strategies", tgAuth, async (req, res) => {
+  try {
+    const { getStrategiesByTelegramId } = await import("./db/index.js");
+    const strategies = await getStrategiesByTelegramId(req.telegramId!);
+    res.json({ strategies: strategies.map(serializeStrategy) });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post("/api/strategies", tgAuth, async (req, res) => {
+  try {
+    const telegramId = req.telegramId!;
+    const body = req.body ?? {};
+    const strategyType = String(body.strategy_type ?? body.type ?? "");
+    const validTypes = ["dca_ton", "dca_tston", "dca_lp"];
+    if (!validTypes.includes(strategyType)) {
+      res.status(400).json({ error: "invalid_strategy_type" });
+      return;
+    }
+
+    const amountUsdt = Number(body.amount_usdt ?? body.amount);
+    const amountError = validatePlanAmount(amountUsdt, false);
+    if (amountError) {
+      res.status(400).json({ error: amountError, min_usdt: MIN_DCA_USDT });
+      return;
+    }
+
+    const frequency = normalizePlanFrequency(String(body.frequency ?? "hourly"), false);
+    const outputMode =
+      body.output_mode === "reinvest" ? "reinvest" : "withdraw";
+
+    let withdrawalWallet: string | null = null;
+    const rawWallet =
+      body.withdrawal_wallet ?? body.ton_address ?? body.withdrawalAddress;
+    const needsWallet =
+      strategyType !== "dca_lp" || outputMode === "withdraw";
+
+    if (needsWallet) {
+      if (rawWallet == null || String(rawWallet).trim() === "") {
+        res.status(400).json({ error: "withdrawal_address_required" });
+        return;
+      }
+      withdrawalWallet = normalizeTonAddress(String(rawWallet));
+      if (!withdrawalWallet) {
+        res.status(400).json({ error: "Invalid TON withdrawal address" });
+        return;
+      }
+    }
+
+    const { createStrategy } = await import("./db/index.js");
+    const { registerStrategyCron } = await import("./scheduler/index.js");
+    const nextRun = getInitialPlanExecutionDate({ frequency });
+
+    const strategy = await createStrategy({
+      telegram_id: telegramId,
+      strategy_type: strategyType as import("./db/index.js").StrategyType,
+      amount_usdt: amountUsdt,
+      frequency,
+      withdrawal_wallet: withdrawalWallet,
+      output_mode: outputMode,
+      next_run_at: nextRun,
+    });
+
+    const depositAddress = await createUserWallet(telegramId);
+    registerStrategyCron({ ...strategy, telegram_id: telegramId });
+
+    const { startDepositPoller } = await import("./bot/depositPoller.js");
+    startDepositPoller(telegramId, depositAddress);
+
+    res.json({
+      ok: true,
+      strategy: serializeStrategy(strategy),
+      deposit_address: depositAddress,
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post("/api/strategies/:id/pause", tgAuth, async (req, res) => {
+  try {
+    const telegramId = req.telegramId!;
+    const id = Number(req.params.id);
+    const { updateStrategyStatus } = await import("./db/index.js");
+    const { unregisterStrategyCron } = await import("./scheduler/index.js");
+    const updated = await updateStrategyStatus(id, telegramId, "paused");
+    if (!updated) {
+      res.status(404).json({ error: "strategy_not_found" });
+      return;
+    }
+    unregisterStrategyCron(id);
+    res.json({ ok: true, strategy: serializeStrategy(updated) });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post("/api/strategies/:id/resume", tgAuth, async (req, res) => {
+  try {
+    const telegramId = req.telegramId!;
+    const id = Number(req.params.id);
+    const { getStrategyById, updateStrategyStatus } = await import("./db/index.js");
+    const { registerStrategyCron } = await import("./scheduler/index.js");
+    const existing = await getStrategyById(id, telegramId);
+    if (!existing) {
+      res.status(404).json({ error: "strategy_not_found" });
+      return;
+    }
+    const next = getNextPlanExecutionDate({ frequency: existing.frequency });
+    const updated = await updateStrategyStatus(id, telegramId, "active", next);
+    if (!updated) {
+      res.status(404).json({ error: "strategy_not_found" });
+      return;
+    }
+    registerStrategyCron({ ...updated, telegram_id: telegramId });
+    res.json({ ok: true, strategy: serializeStrategy(updated) });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post("/api/strategies/:id/stop", tgAuth, async (req, res) => {
+  try {
+    const telegramId = req.telegramId!;
+    const id = Number(req.params.id);
+    const { stopStrategy } = await import("./db/index.js");
+    const { unregisterStrategyCron } = await import("./scheduler/index.js");
+    const ok = await stopStrategy(id, telegramId);
+    if (!ok) {
+      res.status(404).json({ error: "strategy_not_found" });
+      return;
+    }
+    unregisterStrategyCron(id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 // Create / update DCA plan from Mini App
 async function handleCreatePlan(
   req: express.Request,
@@ -914,7 +1119,7 @@ async function handleCreatePlan(
     }
 
     const normalizedFreq = normalizePlanFrequency(String(frequency ?? ""), isQuickMode);
-    const nextExec = getNextPlanExecutionDate({
+    const nextExec = getInitialPlanExecutionDate({
       frequency: normalizedFreq,
       demo_mode: isQuickMode,
     });
@@ -1208,8 +1413,8 @@ process.on("unhandledRejection", (reason) => {
 });
 
 initDb()
-  .then(() => {
-    startScheduler();
+  .then(async () => {
+    await startScheduler();
     return startBot();
   })
   .catch((err) => {

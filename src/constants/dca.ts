@@ -113,6 +113,40 @@ export function getNextPlanExecutionDate(plan: {
   return next;
 }
 
+/** First run after plan/strategy creation — soon enough to catch post-deposit. */
+export function getInitialPlanExecutionDate(plan: {
+  frequency: string;
+  demo_mode?: boolean;
+}): Date {
+  const quick = isQuickPlan(plan.demo_mode ?? false, plan.frequency);
+  if (quick || plan.frequency === "minutely" || plan.frequency === "hourly") {
+    const next = new Date();
+    next.setMinutes(next.getMinutes() + 2);
+    return next;
+  }
+  return getNextPlanExecutionDate(plan);
+}
+
+export function frequencyToCron(frequency: string): string {
+  switch (frequency) {
+    case "hourly":
+      return "0 * * * *";
+    case "daily":
+      return "0 9 * * *";
+    case "weekly":
+      return "0 9 * * 1";
+    case "monthly":
+      return "0 9 1 * *";
+    case "1min":
+    case "minutely":
+      return "* * * * *";
+    case "5min":
+      return "*/5 * * * *";
+    default:
+      return "0 * * * *";
+  }
+}
+
 export function formatPlanFrequency(frequency: string, quickMode?: boolean): string {
   if (frequency in QUICK_INTERVALS) {
     return QUICK_FREQ_LABELS[frequency as QuickIntervalKey];

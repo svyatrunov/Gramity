@@ -10,12 +10,15 @@
  *      → fail: notify user, increment consecutive_failures, auto-pause at 3
  */
 
-import cron from "node-cron";
+import cron, { type ScheduledTask } from "node-cron";
 import { IS_PRODUCTION } from "../config.js";
 import {
   getDuePlans,
+  getActivePlans,
+  getActiveStrategiesWithTelegram,
   getPlanByTelegramId,
   updatePlan,
+  updateStrategyNextRun,
   incrementConsecutiveFailures,
   resetConsecutiveFailures,
   logNotification,
@@ -25,7 +28,16 @@ import { InsufficientFundsError, type ExecutionResult } from "../execution/index
 import { executeDcaCycle } from "../execution/cycle.js";
 import { preflightCheck } from "../execution/preflight.js";
 import type { Plan } from "../db/index.js";
-import { getNextPlanExecutionDate, isQuickPlan } from "../constants/dca.js";
+import type { Strategy } from "../db/index.js";
+import {
+  getNextPlanExecutionDate,
+  getInitialPlanExecutionDate,
+  isQuickPlan,
+  frequencyToCron,
+} from "../constants/dca.js";
+import { walletQueue } from "../wallet-queue.js";
+import { executeMultiStrategy } from "../strategy-executor.js";
+import { getUserDepositAddress } from "../services/userWallet.js";
 
 const AUTO_PAUSE_THRESHOLD = 3;
 
@@ -62,6 +74,133 @@ function getNextExecutionDate(plan: Plan): Date {
 
 /** Plans currently executing — prevents double-runs across cron ticks. */
 const executing = new Set<string>();
+const executingStrategies = new Set<number>();
+
+/** Per-strategy cron jobs (restored from DB on startup). */
+const strategyCronJobs = new Map<number, ScheduledTask>();
+
+function getNextStrategyRunDate(strategy: Strategy): Date {
+  return getNextPlanExecutionDate({ frequency: strategy.frequency });
+}
+
+async function runStrategyJob(
+  strategy: Strategy & { telegram_id: number }
+): Promise<void> {
+  if (executingStrategies.has(strategy.id)) {
+    console.log(`[SCHEDULER] Strategy ${strategy.id} already executing, skipping`);
+    return;
+  }
+
+  if (strategy.next_run_at && new Date(strategy.next_run_at) > new Date()) {
+    return;
+  }
+
+  executingStrategies.add(strategy.id);
+
+  try {
+    const walletAddress =
+      (await getUserDepositAddress(strategy.telegram_id)) ?? String(strategy.telegram_id);
+
+    await walletQueue.add(walletAddress, async () => {
+      const nextDate = getNextStrategyRunDate(strategy);
+      await updateStrategyNextRun(strategy.id, nextDate);
+
+      const syntheticPlan: Plan = {
+        id: String(strategy.id),
+        telegram_id: strategy.telegram_id,
+        ton_address: strategy.withdrawal_wallet,
+        agent_wallet: null,
+        usdt_amount: strategy.amount_usdt,
+        frequency: strategy.frequency as Plan["frequency"],
+        strategy_mode: "full",
+        active: true,
+        next_execution_at: nextDate.toISOString(),
+        created_at: strategy.created_at,
+        demo_mode: false,
+        cycles_completed: strategy.total_cycles,
+        max_cycles: null,
+        consecutive_failures: 0,
+        last_error: strategy.last_error,
+        is_running: false,
+      };
+
+      const preflight = await preflightCheck(syntheticPlan);
+      if (!preflight.ok) {
+        console.log(
+          `[SCHEDULER] Strategy ${strategy.id} preflight failed: ${preflight.reason}`
+        );
+        return;
+      }
+
+      await executeMultiStrategy(strategy, strategy.telegram_id);
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[SCHEDULER] Strategy ${strategy.id} failed:`, msg);
+  } finally {
+    executingStrategies.delete(strategy.id);
+  }
+}
+
+export function registerStrategyCron(
+  strategy: Strategy & { telegram_id: number }
+): void {
+  const existing = strategyCronJobs.get(strategy.id);
+  if (existing) {
+    existing.stop();
+    strategyCronJobs.delete(strategy.id);
+  }
+
+  if (strategy.status !== "active") return;
+
+  const cronExpr = frequencyToCron(strategy.frequency);
+  const job = cron.schedule(
+    cronExpr,
+    () => {
+      void runStrategyJob(strategy);
+    },
+    { timezone: "UTC", name: `strategy_${strategy.id}` }
+  );
+  strategyCronJobs.set(strategy.id, job);
+  console.log(
+    `[SCHEDULER] Registered cron for strategy #${strategy.id} (${cronExpr})`
+  );
+}
+
+export function unregisterStrategyCron(strategyId: number): void {
+  const job = strategyCronJobs.get(strategyId);
+  if (job) {
+    job.stop();
+    strategyCronJobs.delete(strategyId);
+  }
+}
+
+/** Re-register active strategies after Railway restart. */
+export async function restoreSchedules(): Promise<void> {
+  const [plans, strategies] = await Promise.all([
+    getActivePlans(),
+    getActiveStrategiesWithTelegram(),
+  ]);
+
+  for (const plan of plans) {
+    const nextAt = new Date(plan.next_execution_at);
+    if (Number.isNaN(nextAt.getTime())) {
+      const fixed = getInitialPlanExecutionDate(plan);
+      await updatePlan(plan.telegram_id, { next_execution_at: fixed.toISOString() });
+      console.warn(
+        `[SCHEDULER] Fixed invalid next_execution_at for plan ${plan.id}`
+      );
+    }
+  }
+
+  for (const strategy of strategies) {
+    registerStrategyCron(strategy);
+  }
+
+  console.log(
+    `[SCHEDULER] Restored ${plans.length} active plan(s), ${strategies.length} active strategy(ies)`
+  );
+}
 
 // ── Failure handler helper ────────────────────────────────────────────────────
 
@@ -128,158 +267,152 @@ async function checkAndExecute() {
 
     executing.add(plan.id);
 
-    // Fire-and-forget — don't block cron loop
-    (async () => {
-      try {
-        console.log(`[SCHEDULER] Executing plan ${plan.id}${plan.demo_mode ? " [DEMO]" : ""}`);
+    const walletAddress =
+      (await getUserDepositAddress(plan.telegram_id)) ?? String(plan.telegram_id);
 
-        // ── 1. Pre-flight check ──────────────────────────────────────────────
-        const preflight = await preflightCheck(plan);
-        if (!preflight.ok) {
-          if (preflight.reason === "missing_withdrawal_address") {
-            if (preflight.userMessage && notifyUser) {
-              try {
-                await notifyUser(plan.telegram_id, null, preflight.userMessage);
-                await logNotification(plan.id, "missing_withdrawal_address", true, preflight.userMessage);
-              } catch (err) {
-                await logNotification(
-                  plan.id,
-                  "missing_withdrawal_address",
-                  false,
-                  preflight.userMessage,
-                  err instanceof Error ? err.message : String(err)
-                );
+    void (async () => {
+      try {
+        await walletQueue.add(walletAddress, async () => {
+          console.log(`[SCHEDULER] Executing plan ${plan.id}${plan.demo_mode ? " [DEMO]" : ""}`);
+
+          const preflight = await preflightCheck(plan);
+          if (!preflight.ok) {
+            if (preflight.reason === "missing_withdrawal_address") {
+              if (preflight.userMessage && notifyUser) {
+                try {
+                  await notifyUser(plan.telegram_id, null, preflight.userMessage);
+                  await logNotification(plan.id, "missing_withdrawal_address", true, preflight.userMessage);
+                } catch (err) {
+                  await logNotification(
+                    plan.id,
+                    "missing_withdrawal_address",
+                    false,
+                    preflight.userMessage,
+                    err instanceof Error ? err.message : String(err)
+                  );
+                }
+              }
+              const nextDate = getNextExecutionDate(plan);
+              await updatePlan(plan.telegram_id, { next_execution_at: nextDate.toISOString() });
+              return;
+            }
+
+            if (!preflight.silent) {
+              if (preflight.reason === "insufficient_usdt" && notifyInsufficientFunds && preflight.walletAddress) {
+                try {
+                  await notifyInsufficientFunds(
+                    plan.telegram_id,
+                    preflight.usdtBalance ?? 0,
+                    plan.usdt_amount
+                  );
+                  if (preflight.userMessage) {
+                    await logNotification(plan.id, "preflight_insufficient_usdt", true, preflight.userMessage);
+                  }
+                } catch (err) {
+                  if (preflight.userMessage) {
+                    await logNotification(plan.id, "preflight_insufficient_usdt", false,
+                      preflight.userMessage, err instanceof Error ? err.message : String(err));
+                  }
+                }
+              } else if (preflight.userMessage) {
+                await handleFailure(plan, preflight.reason ?? "preflight", preflight.userMessage);
+                const nextDate = getNextExecutionDate(plan);
+                await updatePlan(plan.telegram_id, { next_execution_at: nextDate.toISOString() });
+                return;
               }
             }
+
+            const failures = await incrementConsecutiveFailures(plan.id).catch(() => 1);
+            console.log(
+              `[SCHEDULER] Plan ${plan.id} preflight failed: ${preflight.reason}, consecutive: ${failures}`
+            );
+
+            if (failures >= AUTO_PAUSE_THRESHOLD) {
+              await updatePlan(plan.telegram_id, { active: false }).catch(() => {});
+              console.warn(`[SCHEDULER] Plan ${plan.id} auto-paused after ${failures} consecutive preflight failures`);
+              if (notifyAutoPaused) {
+                try {
+                  await notifyAutoPaused(plan.telegram_id, preflight.reason ?? "balance");
+                  await logNotification(plan.id, "auto_paused", true);
+                } catch {}
+              }
+            }
+
             const nextDate = getNextExecutionDate(plan);
             await updatePlan(plan.telegram_id, { next_execution_at: nextDate.toISOString() });
             return;
           }
 
-          if (!preflight.silent) {
-            // Specific notifications for gas vs USDT
-            if (preflight.reason === "insufficient_usdt" && notifyInsufficientFunds && preflight.walletAddress) {
-              try {
-                await notifyInsufficientFunds(
-                  plan.telegram_id,
-                  preflight.usdtBalance ?? 0,
-                  plan.usdt_amount
-                );
-                if (preflight.userMessage) {
-                  await logNotification(plan.id, "preflight_insufficient_usdt", true, preflight.userMessage);
-                }
-              } catch (err) {
-                if (preflight.userMessage) {
-                  await logNotification(plan.id, "preflight_insufficient_usdt", false,
-                    preflight.userMessage, err instanceof Error ? err.message : String(err));
+          const nextDate = getNextExecutionDate(plan);
+          await updatePlan(plan.telegram_id, { next_execution_at: nextDate.toISOString() });
+
+          const result = await executeDcaCycle(plan);
+          if (result.skipped) {
+            console.log(`[SCHEDULER] Plan ${plan.id} skipped: ${result.reason}`);
+            return;
+          }
+          console.log(`[SCHEDULER] Plan ${plan.id} done: status=${result.status}`);
+
+          if (result.status !== "success") {
+            const errMsg = result.failedStep
+              ? `Failed at ${result.failedStep}`
+              : "Cycle failed";
+            await handleFailure(plan, "cycle_failed", errMsg);
+            return;
+          }
+
+          await resetConsecutiveFailures(plan.id).catch(() => {});
+
+          if (isQuickPlan(plan.demo_mode, plan.frequency)) {
+            const updated = await getPlanByTelegramId(plan.telegram_id);
+            const completed = updated?.cycles_completed ?? plan.cycles_completed;
+            console.log(
+              `[SCHEDULER] Demo plan ${plan.id}: cycle ${completed}/${plan.max_cycles ?? "∞"}`
+            );
+
+            if (plan.max_cycles !== null && completed >= plan.max_cycles) {
+              await updatePlan(plan.telegram_id, { active: false });
+              console.log(
+                `[SCHEDULER] Demo plan ${plan.id} completed all ${plan.max_cycles} cycles — stopped`
+              );
+              if (notifyAllComplete) {
+                const totalInvested = await getTotalInvested(plan.id).catch(() => 0);
+                const lpBalance = result.lpTokensAdded > 0
+                  ? result.lpTokensAdded.toFixed(4)
+                  : "N/A";
+                try {
+                  await notifyAllComplete(plan.telegram_id, totalInvested, lpBalance);
+                  await logNotification(plan.id, "all_cycles_complete", true);
+                } catch (err) {
+                  await logNotification(plan.id, "all_cycles_complete", false, undefined,
+                    err instanceof Error ? err.message : String(err));
                 }
               }
-            } else if (preflight.userMessage) {
-              await handleFailure(plan, preflight.reason ?? "preflight", preflight.userMessage);
-              const nextDate = getNextExecutionDate(plan);
-              await updatePlan(plan.telegram_id, { next_execution_at: nextDate.toISOString() });
               return;
             }
           }
 
-          // Increment failures for non-silent preflight failures
-          const failures = await incrementConsecutiveFailures(plan.id).catch(() => 1);
-          console.log(
-            `[SCHEDULER] Plan ${plan.id} preflight failed: ${preflight.reason}, consecutive: ${failures}`
-          );
-
-          if (failures >= AUTO_PAUSE_THRESHOLD) {
-            await updatePlan(plan.telegram_id, { active: false }).catch(() => {});
-            console.warn(`[SCHEDULER] Plan ${plan.id} auto-paused after ${failures} consecutive preflight failures`);
-            if (notifyAutoPaused) {
-              try {
-                await notifyAutoPaused(plan.telegram_id, preflight.reason ?? "balance");
-                await logNotification(plan.id, "auto_paused", true);
-              } catch {}
+          if (notifyUser) {
+            try {
+              await notifyUser(plan.telegram_id, result);
+              await logNotification(plan.id, "cycle_complete", true);
+            } catch (err) {
+              await logNotification(plan.id, "cycle_complete", false, undefined,
+                err instanceof Error ? err.message : String(err));
             }
           }
-
-          const nextDate = getNextExecutionDate(plan);
-          await updatePlan(plan.telegram_id, { next_execution_at: nextDate.toISOString() });
-          return;
-        }
-
-        // ── 2. Advance next_execution_at (prevents duplicate runs) ──────────
-        const nextDate = getNextExecutionDate(plan);
-        await updatePlan(plan.telegram_id, { next_execution_at: nextDate.toISOString() });
-
-        // ── 3. Execute full DCA cycle (logged to cycles table) ─────────────────
-        const result = await executeDcaCycle(plan);
-        if (result.skipped) {
-          console.log(`[SCHEDULER] Plan ${plan.id} skipped: ${result.reason}`);
-          return;
-        }
-        console.log(`[SCHEDULER] Plan ${plan.id} done: status=${result.status}`);
-
-        if (result.status !== "success") {
-          const errMsg = result.failedStep
-            ? `Failed at ${result.failedStep}`
-            : "Cycle failed";
-          await handleFailure(plan, "cycle_failed", errMsg);
-          return;
-        }
-
-        // ── 4. Reset failure counter on successful execution ───────────────────
-        await resetConsecutiveFailures(plan.id).catch(() => {});
-
-        // ── 5. Demo / max_cycles handling ────────────────────────────────────
-        if (isQuickPlan(plan.demo_mode, plan.frequency)) {
-          const updated = await getPlanByTelegramId(plan.telegram_id);
-          const completed = updated?.cycles_completed ?? plan.cycles_completed;
-          console.log(
-            `[SCHEDULER] Demo plan ${plan.id}: cycle ${completed}/${plan.max_cycles ?? "∞"}`
-          );
-
-          if (plan.max_cycles !== null && completed >= plan.max_cycles) {
-            await updatePlan(plan.telegram_id, { active: false });
-            console.log(
-              `[SCHEDULER] Demo plan ${plan.id} completed all ${plan.max_cycles} cycles — stopped`
-            );
-            // "All cycles complete" notification
-            if (notifyAllComplete) {
-              const totalInvested = await getTotalInvested(plan.id).catch(() => 0);
-              const lpBalance = result.lpTokensAdded > 0
-                ? result.lpTokensAdded.toFixed(4)
-                : "N/A";
-              try {
-                await notifyAllComplete(plan.telegram_id, totalInvested, lpBalance);
-                await logNotification(plan.id, "all_cycles_complete", true);
-              } catch (err) {
-                await logNotification(plan.id, "all_cycles_complete", false, undefined,
-                  err instanceof Error ? err.message : String(err));
-              }
-            }
-            return;
-          }
-        }
-
-        // ── 6. Notify user of successful cycle ───────────────────────────────
-        if (notifyUser) {
-          try {
-            await notifyUser(plan.telegram_id, result);
-            await logNotification(plan.id, "cycle_complete", true);
-          } catch (err) {
-            await logNotification(plan.id, "cycle_complete", false, undefined,
-              err instanceof Error ? err.message : String(err));
-          }
-        }
+        });
       } catch (err) {
-        // ── Top-level error handler ────────────────────────────────────────
         if (err instanceof InsufficientFundsError) {
           console.warn(
-            `[SCHEDULER] Plan ${plan.id} — insufficient USDT safety-net: $${err.balance.toFixed(2)} < $${err.required}`
+            `[SCHEDULER] Plan ${plan.id} — insufficient USDT: $${err.balance.toFixed(2)} < $${err.required}`
           );
           if (notifyInsufficientFunds) {
             try {
               await notifyInsufficientFunds(plan.telegram_id, err.balance, err.required);
             } catch {}
           }
-          await handleFailure(plan, "insufficient_usdt", null); // already notified above
+          await handleFailure(plan, "insufficient_usdt", null);
         } else {
           const msg = err instanceof Error ? err.message : String(err);
           console.error(`[SCHEDULER] Plan ${plan.id} failed:`, msg);
@@ -294,16 +427,20 @@ async function checkAndExecute() {
 
 // ── Scheduler startup ─────────────────────────────────────────────────────────
 
-export function startScheduler() {
+export async function startScheduler(): Promise<void> {
+  await restoreSchedules().catch((err) =>
+    console.error("[SCHEDULER] restoreSchedules failed:", err)
+  );
+
   if (IS_DEMO_MODE) {
     setInterval(checkAndExecute, DEV_DEMO_CYCLE_INTERVAL_MS);
     console.log(`[SCHEDULER] DEMO MODE — checking every ${DEV_DEMO_CYCLE_INTERVAL_MS / 1000}s`);
     return;
   }
 
-  const cronExpr = IS_PRODUCTION ? "*/5 * * * *" : "* * * * *";
-  const label = IS_PRODUCTION ? "every 5 minutes" : "every minute (dev mode)";
+  const cronExpr = IS_PRODUCTION ? "* * * * *" : "* * * * *";
+  const label = IS_PRODUCTION ? "every minute" : "every minute (dev mode)";
 
   cron.schedule(cronExpr, checkAndExecute);
-  console.log(`[SCHEDULER] Started — checking ${label}`);
+  console.log(`[SCHEDULER] Started — polling ${label}`);
 }

@@ -183,6 +183,28 @@ CREATE TABLE IF NOT EXISTS cycles (
   error_message       TEXT,
   executed_at         TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS strategies (
+  id                SERIAL PRIMARY KEY,
+  user_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  strategy_type     TEXT NOT NULL CHECK (strategy_type IN ('dca_ton', 'dca_tston', 'dca_lp')),
+  amount_usdt       NUMERIC(18,6) NOT NULL,
+  frequency         TEXT NOT NULL DEFAULT 'hourly',
+  withdrawal_wallet TEXT,
+  output_mode       TEXT DEFAULT 'withdraw' CHECK (output_mode IN ('reinvest', 'withdraw')),
+  status            TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'stopped')),
+  total_cycles      INTEGER DEFAULT 0,
+  total_invested    NUMERIC(18,6) DEFAULT 0,
+  last_run_at       TIMESTAMPTZ,
+  next_run_at       TIMESTAMPTZ,
+  last_error        TEXT,
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_strategies_user_id ON strategies(user_id);
+CREATE INDEX IF NOT EXISTS idx_strategies_status ON strategies(status);
+CREATE INDEX IF NOT EXISTS idx_strategies_next_run ON strategies(status, next_run_at);
 `;
 
 export async function initDb(): Promise<void> {
@@ -629,4 +651,214 @@ export async function logNotification(
   } catch (err) {
     console.error("[DB] Failed to log notification:", err);
   }
+}
+
+// ─── Strategies (multi-strategy engine) ───────────────────────────────────────
+
+export type StrategyType = "dca_ton" | "dca_tston" | "dca_lp";
+export type StrategyStatus = "active" | "paused" | "stopped";
+export type StrategyOutputMode = "reinvest" | "withdraw";
+
+export interface Strategy {
+  id: number;
+  user_id: number;
+  strategy_type: StrategyType;
+  amount_usdt: number;
+  frequency: string;
+  withdrawal_wallet: string | null;
+  output_mode: StrategyOutputMode;
+  status: StrategyStatus;
+  total_cycles: number;
+  total_invested: number;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+function mapStrategyRow(row: Strategy): Strategy {
+  return {
+    ...row,
+    amount_usdt: Number(row.amount_usdt),
+    total_cycles: Number(row.total_cycles),
+    total_invested: Number(row.total_invested),
+  };
+}
+
+export async function getUserIdByTelegramId(telegramId: number): Promise<number | null> {
+  const { rows } = await getPool().query<{ id: number }>(
+    "SELECT id FROM users WHERE telegram_id = $1 LIMIT 1",
+    [telegramId]
+  );
+  return rows[0]?.id ?? null;
+}
+
+export async function getStrategiesByTelegramId(telegramId: number): Promise<Strategy[]> {
+  const userId = await getUserIdByTelegramId(telegramId);
+  if (!userId) return [];
+  const { rows } = await getPool().query<Strategy>(
+    `SELECT * FROM strategies
+     WHERE user_id = $1 AND status != 'stopped'
+     ORDER BY id ASC`,
+    [userId]
+  );
+  return rows.map(mapStrategyRow);
+}
+
+export async function getStrategyById(
+  strategyId: number,
+  telegramId: number
+): Promise<Strategy | null> {
+  const userId = await getUserIdByTelegramId(telegramId);
+  if (!userId) return null;
+  const { rows } = await getPool().query<Strategy>(
+    "SELECT * FROM strategies WHERE id = $1 AND user_id = $2 LIMIT 1",
+    [strategyId, userId]
+  );
+  const row = rows[0];
+  return row ? mapStrategyRow(row) : null;
+}
+
+export async function getActivePlans(): Promise<Plan[]> {
+  const { rows } = await getPool().query<Plan>(
+    "SELECT * FROM plans WHERE active = true ORDER BY next_execution_at ASC"
+  );
+  return rows.map((row) => ({
+    ...row,
+    usdt_amount: Number(row.usdt_amount),
+    cycles_completed: Number(row.cycles_completed),
+    consecutive_failures: Number(row.consecutive_failures),
+    max_cycles: row.max_cycles != null ? Number(row.max_cycles) : null,
+  }));
+}
+
+export async function getActiveStrategies(): Promise<Strategy[]> {
+  const { rows } = await getPool().query<Strategy>(
+    "SELECT * FROM strategies WHERE status = 'active' ORDER BY next_run_at ASC NULLS FIRST"
+  );
+  return rows.map(mapStrategyRow);
+}
+
+export async function getActiveStrategiesWithTelegram(): Promise<
+  (Strategy & { telegram_id: number })[]
+> {
+  const { rows } = await getPool().query<Strategy & { telegram_id: number }>(
+    `SELECT s.*, u.telegram_id
+     FROM strategies s
+     JOIN users u ON u.id = s.user_id
+     WHERE s.status = 'active'
+     ORDER BY s.id ASC`
+  );
+  return rows.map((row) => ({
+    ...mapStrategyRow(row),
+    telegram_id: Number(row.telegram_id),
+  }));
+}
+
+export async function getDueStrategies(): Promise<(Strategy & { telegram_id: number })[]> {
+  const { rows } = await getPool().query<Strategy & { telegram_id: number }>(
+    `SELECT s.*, u.telegram_id
+     FROM strategies s
+     JOIN users u ON u.id = s.user_id
+     WHERE s.status = 'active'
+       AND (s.next_run_at IS NULL OR s.next_run_at <= NOW())`
+  );
+  return rows.map((row) => ({
+    ...mapStrategyRow(row),
+    telegram_id: Number(row.telegram_id),
+  }));
+}
+
+export async function createStrategy(input: {
+  telegram_id: number;
+  strategy_type: StrategyType;
+  amount_usdt: number;
+  frequency: string;
+  withdrawal_wallet?: string | null;
+  output_mode?: StrategyOutputMode;
+  next_run_at: Date;
+}): Promise<Strategy> {
+  const user = await upsertUser({ telegram_id: input.telegram_id });
+  const { rows } = await getPool().query<Strategy>(
+    `INSERT INTO strategies
+       (user_id, strategy_type, amount_usdt, frequency, withdrawal_wallet, output_mode, status, next_run_at)
+     VALUES ($1, $2, $3, $4, $5, $6, 'active', $7)
+     RETURNING *`,
+    [
+      user.id,
+      input.strategy_type,
+      input.amount_usdt,
+      input.frequency,
+      input.withdrawal_wallet ?? null,
+      input.output_mode ?? "withdraw",
+      input.next_run_at.toISOString(),
+    ]
+  );
+  return mapStrategyRow(rows[0]);
+}
+
+export async function updateStrategyStatus(
+  strategyId: number,
+  telegramId: number,
+  status: StrategyStatus,
+  nextRunAt?: Date
+): Promise<Strategy | null> {
+  const userId = await getUserIdByTelegramId(telegramId);
+  if (!userId) return null;
+  const { rows } = await getPool().query<Strategy>(
+    `UPDATE strategies
+     SET status = $3,
+         next_run_at = COALESCE($4, next_run_at),
+         updated_at = NOW()
+     WHERE id = $1 AND user_id = $2
+     RETURNING *`,
+    [strategyId, userId, status, nextRunAt?.toISOString() ?? null]
+  );
+  return rows[0] ? mapStrategyRow(rows[0]) : null;
+}
+
+export async function updateStrategyNextRun(
+  strategyId: number,
+  nextRunAt: Date
+): Promise<void> {
+  await getPool().query(
+    `UPDATE strategies SET next_run_at = $2, updated_at = NOW() WHERE id = $1`,
+    [strategyId, nextRunAt.toISOString()]
+  );
+}
+
+export async function updateStrategyStats(
+  strategyId: number,
+  amountUsdt: number,
+  lastError: string | null
+): Promise<void> {
+  await getPool().query(
+    `UPDATE strategies SET
+       total_cycles = total_cycles + 1,
+       total_invested = total_invested + $2,
+       last_run_at = NOW(),
+       last_error = $3,
+       updated_at = NOW()
+     WHERE id = $1`,
+    [strategyId, amountUsdt, lastError]
+  );
+}
+
+export async function setStrategyLastError(
+  strategyId: number,
+  lastError: string
+): Promise<void> {
+  await getPool().query(
+    `UPDATE strategies SET last_error = $2, updated_at = NOW() WHERE id = $1`,
+    [strategyId, lastError.slice(0, 500)]
+  );
+}
+
+export async function stopStrategy(
+  strategyId: number,
+  telegramId: number
+): Promise<boolean> {
+  const updated = await updateStrategyStatus(strategyId, telegramId, "stopped");
+  return updated != null;
 }

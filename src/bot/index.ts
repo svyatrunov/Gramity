@@ -18,6 +18,12 @@ import {
 } from "./handlers/withdraw.js";
 import { handleSettings, handleSettingsCallback } from "./handlers/settings.js";
 import {
+  handleStrategies,
+  handleAddStrategy,
+  handleStrategyCallback,
+  handleStrategiesStatus,
+} from "./handlers/strategies.js";
+import {
   awaitingWalletData,
   handleSettingsWallet,
   handleChainSelected,
@@ -68,19 +74,24 @@ bot.use(
 // ─── Commands ─────────────────────────────────────────────────────────────────
 
 bot.command("start", handleStart);
-bot.command("status", handleStatus);
+bot.command("status", handleStrategiesStatus);
 bot.command("pause", handlePause);
 bot.command("resume", handleResume);
 bot.command("withdraw", handleWithdrawMenu);
 bot.command("settings", handleSettings);
+bot.command("strategies", handleStrategies);
+bot.command("add", handleAddStrategy);
 
 bot.command("help", async (ctx) => {
   await ctx.reply(
     "*Gramity*\n\n" +
       "/start — open Mini App\n" +
-      "/status — portfolio and next cycle\n" +
+      "/status — portfolio and strategies\n" +
+      "/strategies — list strategies\n" +
+      "/add — new strategy\n" +
       "/settings — amount, frequency, mode\n" +
-      "/pause · /resume — control DCA\n" +
+      "/pause · /resume — control legacy DCA\n" +
+      "/pause_N · /resume_N · /stop_N — per strategy\n" +
       "/withdraw — exit positions\n\n" +
       "_Run a cycle now from the Dashboard in the Mini App._",
     { parse_mode: "Markdown" }
@@ -92,6 +103,10 @@ bot.command("help", async (ctx) => {
 bot.on("callback_query:data", async (ctx) => {
   const data = ctx.callbackQuery.data;
 
+  if (data.startsWith("strat_")) {
+    await handleStrategyCallback(ctx, data);
+    return;
+  }
   if (data.startsWith("wallet_chain:")) {
     await ctx.answerCallbackQuery();
     const chain = data.split(":")[1];
@@ -449,13 +464,15 @@ async function schedulePollingRetry(retryCount: number, reason: string): Promise
 
 export async function startBot(retryCount = 0): Promise<void> {
   await bot.api.setMyCommands([
-    { command: "start",    description: "Open Mini App" },
-    { command: "status",   description: "Portfolio & next cycle" },
-    { command: "settings", description: "Amount, frequency, mode" },
-    { command: "pause",    description: "Pause DCA" },
-    { command: "resume",   description: "Resume DCA" },
-    { command: "withdraw", description: "Withdraw funds" },
-    { command: "help",     description: "Commands" },
+    { command: "start",      description: "Open Mini App" },
+    { command: "status",     description: "Portfolio & strategies" },
+    { command: "strategies", description: "List strategies" },
+    { command: "add",        description: "Add strategy" },
+    { command: "settings",   description: "Amount, frequency, mode" },
+    { command: "pause",      description: "Pause DCA" },
+    { command: "resume",     description: "Resume DCA" },
+    { command: "withdraw",   description: "Withdraw funds" },
+    { command: "help",       description: "Commands" },
   ]);
 
   bot.catch((err) => {

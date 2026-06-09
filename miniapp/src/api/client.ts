@@ -1,5 +1,5 @@
 import { API_BASE } from "../config";
-import { getInitData } from "../lib/telegram";
+import { getInitData, waitForInitData } from "../lib/telegram";
 
 export class ApiError extends Error {
   constructor(
@@ -31,9 +31,10 @@ export function sanitizeUserError(code: string, raw?: string): string {
 export { getInitData } from "../lib/telegram";
 
 export async function apiCall<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const initData = getInitData();
+  const initData =
+    getInitData().includes("hash=") ? getInitData() : await waitForInitData();
 
-  if (!initData && !import.meta.env.DEV) {
+  if (!initData.includes("hash=") && !import.meta.env.DEV) {
     throw new ApiError("NO_INIT_DATA", 0, sanitizeUserError("NO_INIT_DATA"));
   }
 

@@ -1,4 +1,5 @@
 import { apiCall } from "./client";
+import type { StrategyInfo } from "./strategies";
 
 export interface PlanInfo {
   usdt_amount?: number;
@@ -28,6 +29,8 @@ export interface PortfolioResponse {
   totalValue?: number;
   est_value_usd?: number;
   plan?: PlanInfo | null;
+  /** Multi-strategy engine (optional; legacy plan may coexist) */
+  strategies?: StrategyInfo[];
   executions?: ExecutionInfo[];
 }
 

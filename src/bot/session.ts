@@ -20,6 +20,14 @@ export interface UserSession {
   frequency?: "weekly" | "biweekly" | "monthly" | "daily" | "minutely" | "hourly";
   /** @deprecated use NODE_ENV !== production for dev intervals */
   devMode?: boolean;
+  strategyWizard?: {
+    step: "type" | "amount" | "custom_amount" | "frequency" | "wallet" | "output_or_wallet" | "confirm";
+    strategy_type?: "dca_ton" | "dca_tston" | "dca_lp";
+    amount_usdt?: number;
+    frequency?: string;
+    withdrawal_wallet?: string;
+    output_mode?: "reinvest" | "withdraw";
+  };
 }
 
 export type GramityContext = Context & SessionFlavor<UserSession>;

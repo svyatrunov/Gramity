@@ -18,7 +18,11 @@ export function Router() {
 
     getPortfolio()
       .then((p) => {
-        if (!cancelled) setTarget(p.plan == null ? "/onboarding" : "/dashboard");
+        const hasLegacy = p.plan != null;
+        const hasMulti = (p.strategies?.length ?? 0) > 0;
+        if (!cancelled) {
+          setTarget(hasLegacy || hasMulti ? "/dashboard" : "/onboarding");
+        }
       })
       .catch((e) => {
         if (e instanceof ApiError) {

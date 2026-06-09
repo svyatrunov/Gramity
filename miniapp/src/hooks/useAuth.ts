@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { API_BASE } from "../config";
-import { getInitData, initTelegram } from "../lib/telegram";
+import { initTelegram, waitForInitData } from "../lib/telegram";
 
 export interface AuthUser {
   telegram_id: number;
@@ -28,17 +28,22 @@ export function useAuth() {
     async function authenticate() {
       try {
         initTelegram();
-
-        const initData = getInitData();
-        if (!initData) {
+        const initData = await waitForInitData();
+        if (!initData.includes("hash=")) {
+          setError("no_init_data");
           return;
         }
+
+        const controller = new AbortController();
+        const fetchTimeout = setTimeout(() => controller.abort(), 8_000);
 
         const res = await fetch(`${API_BASE}/api/auth/telegram`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ initData }),
+          signal: controller.signal,
         });
+        clearTimeout(fetchTimeout);
 
         if (!res.ok) {
           throw new Error(`auth failed: ${res.status}`);

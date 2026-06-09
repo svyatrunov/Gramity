@@ -3,6 +3,9 @@ import { DEV_INIT_DATA } from "../config";
 export const tg =
   typeof window !== "undefined" ? window.Telegram?.WebApp ?? null : null;
 
+const INIT_DATA_POLL_MS = 100;
+const INIT_DATA_MAX_WAIT_MS = 3_000;
+
 export function initTelegram(): void {
   if (!tg) return;
   try {
@@ -72,7 +75,7 @@ export function getTelegramUserId(): number | null {
   return tg?.initDataUnsafe?.user?.id ?? null;
 }
 
-export function getInitData(): string {
+function readInitDataOnce(): string {
   const live = tg?.initData?.trim();
   if (live && live.includes("hash=")) return live;
 
@@ -96,6 +99,29 @@ export function getInitData(): string {
     }
   }
   return "";
+}
+
+/** Telegram sometimes populates initData shortly after WebApp.ready(). */
+export function getInitData(): string {
+  return readInitDataOnce();
+}
+
+export function waitForInitData(
+  maxWaitMs = INIT_DATA_MAX_WAIT_MS
+): Promise<string> {
+  initTelegram();
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const tick = () => {
+      const data = readInitDataOnce();
+      if (data.includes("hash=") || Date.now() - started >= maxWaitMs) {
+        resolve(data);
+        return;
+      }
+      setTimeout(tick, INIT_DATA_POLL_MS);
+    };
+    tick();
+  });
 }
 
 export function hasTelegramAuth(): boolean {

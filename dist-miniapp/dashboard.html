@@ -1267,6 +1267,10 @@
     return (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user.id : null;
   }
   function getInitData() {
+    return readInitDataOnce();
+  }
+
+  function readInitDataOnce() {
     var d = (tg && tg.initData) ? String(tg.initData).trim() : '';
     if (d && d.indexOf('hash=') !== -1) return d;
     var urlId = new URLSearchParams(window.location.search).get('id');
@@ -1282,6 +1286,29 @@
       try { return localStorage.getItem('gramity_dev_init_data') || ''; } catch (e) { return ''; }
     }
     return '';
+  }
+
+  function waitForInitData(maxMs) {
+    maxMs = maxMs || 3000;
+    return new Promise(function (resolve) {
+      var started = Date.now();
+      function tick() {
+        try {
+          if (tg) { tg.ready(); if (tg.expand) tg.expand(); }
+        } catch (e) { /* ignore */ }
+        var d = readInitDataOnce();
+        if (d && d.indexOf('hash=') !== -1) {
+          resolve(d);
+          return;
+        }
+        if (Date.now() - started >= maxMs) {
+          resolve('');
+          return;
+        }
+        setTimeout(tick, 100);
+      }
+      tick();
+    });
   }
 
   function hasTelegramAuth() {
@@ -1316,9 +1343,10 @@
     var portfolioResolved = false;
     var loadTimeout = setTimeout(function () {
       if (!portfolioResolved) {
+        hideLoader();
         renderError('Loading timed out. Check your connection and reopen from @GramityBot.');
       }
-    }, 5000);
+    }, 12000);
 
     loadGramityState()
       .then(function () {
@@ -1332,6 +1360,7 @@
       })
       .finally(function () {
         clearTimeout(loadTimeout);
+        hideLoader();
       });
   }
 
@@ -1342,43 +1371,49 @@
         hideLoader();
         showAuthError('Could not authorize. Restart from @GramityBot.');
       }
-    }, 5000);
+    }, 8000);
 
-    var initData = getInitData();
-    if (!initData) {
-      authResolved = true;
-      clearTimeout(authTimeout);
-      showAuthGate();
-      showAuthRequiredPane();
-      hideLoader();
-      return;
-    }
-
-    fetch('/api/auth/telegram', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ initData: initData }),
-    })
-      .then(function (response) {
-        if (!response.ok) throw new Error('Auth failed: ' + response.status);
-        return response.json();
-      })
-      .then(function (data) {
-        window.__userId = data.userId || (data.user && (data.user.telegramId || data.user.id));
-        authOk = true;
-        hideAuthGate();
-      })
-      .catch(function (err) {
-        console.error('[AUTH] Error:', err);
-        showAuthGate();
-        showAuthError('Authorization failed. Open from @GramityBot.');
-      })
-      .finally(function () {
+    waitForInitData(3000).then(function (initData) {
+      if (!initData) {
         authResolved = true;
         clearTimeout(authTimeout);
+        showAuthGate();
+        showAuthRequiredPane();
         hideLoader();
-        if (authOk) startPortfolioLoad();
-      });
+        return;
+      }
+
+      var controller = new AbortController();
+      var fetchTimer = setTimeout(function () { controller.abort(); }, 8000);
+
+      fetch('/api/auth/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initData: initData }),
+        signal: controller.signal,
+      })
+        .then(function (response) {
+          if (!response.ok) throw new Error('Auth failed: ' + response.status);
+          return response.json();
+        })
+        .then(function (data) {
+          window.__userId = data.userId || (data.user && data.user.telegramId);
+          authOk = true;
+          hideAuthGate();
+        })
+        .catch(function (err) {
+          console.error('[AUTH] Error:', err);
+          showAuthGate();
+          showAuthError('Authorization failed. Open from @GramityBot.');
+        })
+        .finally(function () {
+          clearTimeout(fetchTimer);
+          authResolved = true;
+          clearTimeout(authTimeout);
+          hideLoader();
+          if (authOk) startPortfolioLoad();
+        });
+    });
   }
 
   function updateStickyCta() {
@@ -1625,11 +1660,32 @@
     };
   }
 
-  function buildStrategyItem(portfolio) {
-    var plan = portfolio.plan;
-    if (!plan) return null;
+  var STRATEGY_TYPE_LABELS = {
+    dca_ton: 'Buy TON',
+    dca_tston: 'Stake (tsTON)',
+    dca_lp: 'LP DCA',
+  };
+
+  function buildStrategyItem(portfolio, strategyRow) {
+    var plan = strategyRow ? null : portfolio.plan;
+    var row = strategyRow || (plan ? { plan: plan, type: 'legacy' } : null);
+    if (!row) return null;
     var lpUsd = portfolio.lpValue != null ? portfolio.lpValue : 0;
     var usdtBal = portfolio.usdtBalance || 0;
+    if (strategyRow) {
+      var freqLabel = FREQ_LABELS[strategyRow.frequency] || strategyRow.frequency;
+      return {
+        id: String(strategyRow.id),
+        name: STRATEGY_TYPE_LABELS[strategyRow.strategy_type] || strategyRow.strategy_type,
+        active: strategyRow.status === 'active',
+        lpPositionUsd: strategyRow.strategy_type === 'dca_lp' ? lpUsd : 0,
+        depositBalance: '$' + fmt(usdtBal),
+        amount: '$' + fmt(strategyRow.amount_usdt, 0),
+        frequency: freqLabel,
+        apy: strategyRow.strategy_type === 'dca_lp' ? '~5.4%' : '—',
+        strategy: strategyRow,
+      };
+    }
     var freqLabel = FREQ_LABELS[plan.frequency] || plan.frequency;
     return {
       id: 'primary',
@@ -1642,6 +1698,15 @@
       apy: '~5.4%',
       plan: plan,
     };
+  }
+
+  function buildStrategyList(portfolio) {
+    var apiStrategies = portfolio.strategies || [];
+    if (apiStrategies.length > 0) {
+      return apiStrategies.map(function (s) { return buildStrategyItem(portfolio, s); }).filter(Boolean);
+    }
+    var legacy = buildStrategyItem(portfolio, null);
+    return legacy ? [legacy] : [];
   }
 
   function hydrateGramityState(portfolio) {
@@ -1661,8 +1726,7 @@
       ton: portfolio.tonBalance || 0,
     };
     gs.cycles = (portfolio.executions || []).slice(0, 3);
-    var strat = buildStrategyItem(portfolio);
-    gs.strategies = strat ? [strat] : [];
+    gs.strategies = buildStrategyList(portfolio);
     gs.tonWallet = portfolio.depositAddress ? {
       name: 'Agent wallet',
       address: portfolio.depositAddress,
@@ -1750,7 +1814,7 @@
     if (!body) return;
     body.innerHTML = '';
 
-    if (!gs.plan) {
+    if (!gs.plan && (!gs.strategies || gs.strategies.length === 0)) {
       body.innerHTML = '<div class="loading"><div class="empty-icon">📊</div><div class="empty-title">No strategy yet</div><div class="empty-sub">Create your first DCA strategy to see the dashboard</div><button type="button" class="g-btn-add" id="home-create-strategy" style="margin-top:16px">+ New strategy</button></div>';
       var createBtn = document.getElementById('home-create-strategy');
       if (createBtn) {
@@ -1762,6 +1826,17 @@
     }
 
     var plan = gs.plan;
+    if (!plan && gs.strategies && gs.strategies.length > 0) {
+      var s0 = gs.strategies[0].strategy || gs.strategies[0];
+      plan = {
+        usdt_amount: s0.amount_usdt || parseFloat(String(s0.amount || '0').replace(/[$,]/g, '')),
+        frequency: s0.frequency,
+        strategy_mode: s0.strategy_type || 'full',
+        active: s0.status ? s0.status === 'active' : !!s0.active,
+        next_execution_at: s0.next_run_at,
+        ton_address: s0.withdrawal_wallet,
+      };
+    }
     var balance = gs.balance || {};
     var cycles = gs.cycles || [];
     var allExecs = portfolioData && portfolioData.executions ? portfolioData.executions : cycles;
@@ -2344,13 +2419,22 @@
 
   function renderAll() {
     var gs = window.gramityState;
-    updateHeaderStatus(gs.plan);
+    var displayPlan = gs.plan;
+    if (!displayPlan && gs.strategies && gs.strategies.length > 0) {
+      var s0 = gs.strategies[0].strategy || gs.strategies[0];
+      displayPlan = {
+        active: s0.status ? s0.status === 'active' : !!s0.active,
+        usdt_amount: s0.amount_usdt,
+        frequency: s0.frequency,
+      };
+    }
+    updateHeaderStatus(displayPlan);
     renderHome(gs);
     renderAssets(gs);
     renderDeposit(gs);
     renderMore(gs);
-    hasStickyActions = !!gs.plan;
-    bindStickyActions(gs.plan, portfolioData);
+    hasStickyActions = !!(gs.plan || (gs.strategies && gs.strategies.length > 0));
+    bindStickyActions(gs.plan || displayPlan, portfolioData);
     updateStickyCta();
   }
 
