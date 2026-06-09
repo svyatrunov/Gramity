@@ -5,6 +5,24 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
   <title>Deposit Funds — Gramity</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script>
+    try {
+      var tgEarly = window.Telegram && window.Telegram.WebApp;
+      if (tgEarly) {
+        tgEarly.ready();
+        tgEarly.expand();
+        if (tgEarly.disableClosingConfirmation) tgEarly.disableClosingConfirmation();
+        if (tgEarly.BackButton) tgEarly.BackButton.hide();
+        if (tgEarly.setHeaderColor) tgEarly.setHeaderColor('#18181c');
+        if (tgEarly.setBackgroundColor) tgEarly.setBackgroundColor('#0d0d0f');
+        if (tgEarly.themeParams && tgEarly.themeParams.bg_color) {
+          document.documentElement.style.setProperty('--tg-theme-bg', tgEarly.themeParams.bg_color);
+        }
+      }
+    } catch (e) {
+      console.error('[TG] WebApp init failed:', e);
+    }
+  </script>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
@@ -195,12 +213,11 @@
 (function () {
   var tg = window.Telegram && window.Telegram.WebApp;
   if (tg) {
-    tg.ready();
-    tg.expand();
-    if (tg.setHeaderColor) tg.setHeaderColor('#18181c');
-    if (tg.setBackgroundColor) tg.setBackgroundColor('#0d0d0f');
+    if (tg.disableClosingConfirmation) tg.disableClosingConfirmation();
+    if (tg.BackButton) tg.BackButton.hide();
   }
 
+  try {
   var initData = (tg && tg.initData) || '';
   var HAS_TG_AUTH = initData.indexOf('hash=') !== -1;
   var BOT_AUTH_URL = 'https://t.me/GramityBot';
@@ -308,6 +325,14 @@
         }
       })
       .catch(function () { /* non-critical */ });
+  }
+
+  } catch (err) {
+    console.error('[APP] Fatal init error:', err);
+    var loading = document.getElementById('loadingSection');
+    if (loading) {
+      loading.innerHTML = '<div style="color:#ef4444;font-size:14px;text-align:center">Ошибка загрузки. Закройте и откройте снова.</div>';
+    }
   }
 
 })();

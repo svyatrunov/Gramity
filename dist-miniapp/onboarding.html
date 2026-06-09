@@ -5,9 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Gramity — Onboarding</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-  <script src="https://unpkg.com/@tonconnect/ui@2/dist/tonconnect-ui.min.js"></script>
-  <script type="module" src="/app/assets/metamask-connect.js"></script>
+  <script>
+    try {
+      var tgEarly = window.Telegram && window.Telegram.WebApp;
+      if (tgEarly) {
+        tgEarly.ready();
+        tgEarly.expand();
+        if (tgEarly.disableClosingConfirmation) tgEarly.disableClosingConfirmation();
+        if (tgEarly.BackButton) tgEarly.BackButton.hide();
+        if (tgEarly.setHeaderColor) tgEarly.setHeaderColor('#07070e');
+        if (tgEarly.setBackgroundColor) tgEarly.setBackgroundColor('#07070e');
+        if (tgEarly.themeParams && tgEarly.themeParams.bg_color) {
+          document.documentElement.style.setProperty('--tg-theme-bg', tgEarly.themeParams.bg_color);
+        }
+      }
+    } catch (e) {
+      console.error('[TG] WebApp init failed:', e);
+    }
+  </script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script defer src="https://unpkg.com/@tonconnect/ui@2/dist/tonconnect-ui.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -2317,10 +2334,11 @@
         return getInitData().indexOf('hash=') !== -1;
       }
       if (tg) {
-        tg.ready();
-        tg.expand();
-        if (tg.setHeaderColor)     tg.setHeaderColor('#07070e');
-        if (tg.setBackgroundColor) tg.setBackgroundColor('#07070e');
+        if (tg.disableClosingConfirmation) tg.disableClosingConfirmation();
+        if (tg.BackButton) tg.BackButton.hide();
+        if (tg.themeParams && tg.themeParams.bg_color) {
+          document.documentElement.style.setProperty('--tg-theme-bg', tg.themeParams.bg_color);
+        }
       }
       var authOk = false;
       var authResolved = false;
@@ -2405,6 +2423,7 @@
         return true;
       }
 
+      try {
       var openBotBtnInit = document.getElementById('btnOpenBot');
       if (openBotBtnInit) openBotBtnInit.addEventListener('click', openBotForAuth);
       authenticate();
@@ -4280,7 +4299,14 @@
         if (index !== WIZARD_DEPOSIT) stopAgentPoll();
       };
 
+      } catch (err) {
+        console.error('[APP] Fatal init error:', err);
+        var appEl = document.getElementById('app');
+        if (appEl) appEl.style.display = 'flex';
+      }
+
     })();
   </script>
+  <script type="module" src="/app/assets/metamask-connect.js"></script>
 </body>
 </html>

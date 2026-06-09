@@ -5,7 +5,24 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
   <title>Gramity — Dashboard</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script type="module" src="/app/assets/metamask-connect.js"></script>
+  <script>
+    try {
+      var tgEarly = window.Telegram && window.Telegram.WebApp;
+      if (tgEarly) {
+        tgEarly.ready();
+        tgEarly.expand();
+        if (tgEarly.disableClosingConfirmation) tgEarly.disableClosingConfirmation();
+        if (tgEarly.BackButton) tgEarly.BackButton.hide();
+        if (tgEarly.setHeaderColor) tgEarly.setHeaderColor('#0B0B12');
+        if (tgEarly.setBackgroundColor) tgEarly.setBackgroundColor('#0B0B12');
+        if (tgEarly.themeParams && tgEarly.themeParams.bg_color) {
+          document.documentElement.style.setProperty('--tg-theme-bg', tgEarly.themeParams.bg_color);
+        }
+      }
+    } catch (e) {
+      console.error('[TG] WebApp init failed:', e);
+    }
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1248,10 +1265,11 @@
   }
 
   if (tg) {
-    tg.ready();
-    tg.expand();
-    if (tg.setHeaderColor) tg.setHeaderColor('#0B0B12');
-    if (tg.setBackgroundColor) tg.setBackgroundColor('#0B0B12');
+    if (tg.disableClosingConfirmation) tg.disableClosingConfirmation();
+    if (tg.BackButton) tg.BackButton.hide();
+    if (tg.themeParams && tg.themeParams.bg_color) {
+      document.documentElement.style.setProperty('--tg-theme-bg', tg.themeParams.bg_color);
+    }
   }
 
   var authOk = false;
@@ -2499,8 +2517,15 @@
     updateHeaderStatus(null);
   }
 
-  authenticate();
+  try {
+    authenticate();
+  } catch (err) {
+    console.error('[APP] Fatal init error:', err);
+    hideLoader();
+    renderError('Ошибка загрузки. Закройте и откройте снова.');
+  }
 })();
 </script>
+<script type="module" src="/app/assets/metamask-connect.js"></script>
 </body>
 </html>

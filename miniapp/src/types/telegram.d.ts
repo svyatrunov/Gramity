@@ -15,6 +15,12 @@ declare global {
         };
         ready: () => void;
         expand: () => void;
+        disableClosingConfirmation?: () => void;
+        BackButton?: {
+          show: () => void;
+          hide: () => void;
+          onClick: (callback: () => void) => void;
+        };
         setBackgroundColor?: (color: string) => void;
         setHeaderColor?: (color: string) => void;
         close: () => void;

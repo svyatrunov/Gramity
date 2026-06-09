@@ -5,6 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Gramity</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+      try {
+        var tgEarly = window.Telegram && window.Telegram.WebApp;
+        if (tgEarly) {
+          tgEarly.ready();
+          tgEarly.expand();
+          if (tgEarly.disableClosingConfirmation) tgEarly.disableClosingConfirmation();
+          if (tgEarly.BackButton) tgEarly.BackButton.hide();
+          if (tgEarly.themeParams && tgEarly.themeParams.bg_color) {
+            document.documentElement.style.setProperty('--tg-theme-bg', tgEarly.themeParams.bg_color);
+          }
+        }
+      } catch (e) {
+        console.error('[TG] WebApp init failed:', e);
+      }
+    </script>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body {

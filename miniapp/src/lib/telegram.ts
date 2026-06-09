@@ -5,10 +5,22 @@ export const tg =
 
 export function initTelegram(): void {
   if (!tg) return;
-  tg.ready();
-  tg.expand();
-  tg.setHeaderColor?.("#0B0B12");
-  tg.setBackgroundColor?.("#0B0B12");
+  try {
+    tg.ready();
+    tg.expand();
+    tg.disableClosingConfirmation?.();
+    tg.BackButton?.hide();
+    tg.setHeaderColor?.("#0B0B12");
+    tg.setBackgroundColor?.("#0B0B12");
+    if (tg.themeParams?.bg_color) {
+      document.documentElement.style.setProperty(
+        "--tg-theme-bg",
+        tg.themeParams.bg_color,
+      );
+    }
+  } catch (e) {
+    console.error("[TG] WebApp init failed:", e);
+  }
 }
 
 export function getTelegramUser() {
