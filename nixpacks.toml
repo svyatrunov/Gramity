@@ -1,2 +1,12 @@
 [variables]
 NIXPACKS_NODE_VERSION = "20.19"
+
+# TypeScript and Vite live in devDependencies — must install them for build.
+[phases.install]
+cmds = [
+  "npm ci --include=dev",
+  "npm ci --prefix miniapp --include=dev",
+]
+
+[phases.build]
+cmds = ["npm run build"]
