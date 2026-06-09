@@ -1,5 +1,6 @@
 import { createHmac } from "crypto";
 import type { Request, Response, NextFunction } from "express";
+import { diag } from "./diag.js";
 
 const MAX_AGE_SECONDS = 86400;
 
@@ -67,11 +68,24 @@ export function isInitDataExpired(initDataStr: string): boolean {
 export function tgAuth(req: Request, res: Response, next: NextFunction): void {
   const initData = (req.headers["x-telegram-init-data"] as string) ?? "";
   if (initData && isInitDataExpired(initData)) {
+    diag("auth", "init_data_expired", {
+      lvl: "warn",
+      reqId: req.reqId,
+      path: req.path,
+      status: 401,
+    });
     res.status(401).json({ error: "INIT_DATA_EXPIRED" });
     return;
   }
   const telegramId = validateInitData(initData);
   if (!telegramId) {
+    diag("auth", "unauthorized", {
+      lvl: "warn",
+      reqId: req.reqId,
+      path: req.path,
+      status: 401,
+      meta: { has_init_header: initData.length > 0 },
+    });
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -85,6 +99,7 @@ declare global {
     interface Request {
       telegramId?: number;
       telegramUserId?: number;
+      reqId?: string;
     }
   }
 }

@@ -43,6 +43,7 @@ import type { ExecutionResult } from "../execution/index.js";
 import { notify } from "./notifications.js";
 import { InlineKeyboard } from "grammy";
 import { hasWithdrawalAddress } from "../utils/tonAddress.js";
+import { sanitizeLog } from "../utils/sanitizeLog.js";
 
 const dashboardUrl = `${RAILWAY_PUBLIC_URL}/app/dashboard.html`;
 const depositUrl   = `${RAILWAY_PUBLIC_URL}/app/dashboard.html?tab=deposit`;
@@ -190,7 +191,7 @@ bot.on("callback_query:data", async (ctx) => {
 bot.on("message:web_app_data", async (ctx) => {
   try {
     const raw = ctx.message.web_app_data.data;
-    console.log("[WebApp] Received data:", raw);
+    console.log("[WebApp] Received web_app_data", sanitizeLog({ type: "wallet_connected" }));
 
     const data = JSON.parse(raw) as {
       type?: string;

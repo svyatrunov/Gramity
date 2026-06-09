@@ -1340,10 +1340,13 @@
   }
 
   function startPortfolioLoad() {
+    var portfolioStarted = Date.now();
+    diagClient('portfolio_start');
     var portfolioResolved = false;
     var loadTimeout = setTimeout(function () {
       if (!portfolioResolved) {
         hideLoader();
+        diagClient('portfolio_timeout', { ms: Date.now() - portfolioStarted });
         renderError('Loading timed out. Check your connection and reopen from @GramityBot.');
       }
     }, 12000);
@@ -1351,11 +1354,16 @@
     loadGramityState()
       .then(function () {
         portfolioResolved = true;
+        diagClient('portfolio_ok', { ms: Date.now() - portfolioStarted });
         renderAll();
         void refreshEvmWalletInBackground();
       })
       .catch(function (err) {
         portfolioResolved = true;
+        diagClient('portfolio_fail', {
+          ms: Date.now() - portfolioStarted,
+          error: err && err.message ? err.message : String(err),
+        });
         renderError('Could not load dashboard: ' + err.message);
       })
       .finally(function () {
@@ -1365,10 +1373,13 @@
   }
 
   function authenticate() {
+    var authStarted = Date.now();
+    diagClient('auth_start');
     var authTimeout = setTimeout(function () {
       if (!authResolved) {
         console.warn('[AUTH] Timeout — showing UI anyway');
         hideLoader();
+        diagClient('auth_timeout', { ms: Date.now() - authStarted });
         showAuthError('Could not authorize. Restart from @GramityBot.');
       }
     }, 8000);
@@ -1377,11 +1388,13 @@
       if (!initData) {
         authResolved = true;
         clearTimeout(authTimeout);
+        diagClient('auth_no_init_data', { ms: Date.now() - authStarted });
         showAuthGate();
         showAuthRequiredPane();
         hideLoader();
         return;
       }
+      diagClient('auth_init_data_ready', { ms: Date.now() - authStarted });
 
       var controller = new AbortController();
       var fetchTimer = setTimeout(function () { controller.abort(); }, 8000);
@@ -1400,9 +1413,14 @@
           window.__userId = data.userId || (data.user && data.user.telegramId);
           authOk = true;
           hideAuthGate();
+          diagClient('auth_ok', { ms: Date.now() - authStarted });
         })
         .catch(function (err) {
           console.error('[AUTH] Error:', err);
+          diagClient('auth_fail', {
+            ms: Date.now() - authStarted,
+            error: err && err.message ? err.message : String(err),
+          });
           showAuthGate();
           showAuthError('Authorization failed. Open from @GramityBot.');
         })
@@ -1589,6 +1607,18 @@
     var d = getInitData();
     return d ? { 'X-Telegram-Init-Data': d } : {};
   }
+
+  function diagClient(stage, extra) {
+    try {
+      fetch('/api/diag/client', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, apiHeaders()),
+        body: JSON.stringify(Object.assign({ stage: stage }, extra || {})),
+      }).catch(function () {});
+    } catch (e) { /* ignore */ }
+  }
+
+  diagClient('dashboard_boot');
 
   function apiGet(path) {
     var controller = new AbortController();

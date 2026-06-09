@@ -52,6 +52,7 @@ import {
 import { normalizeTonAddress, hasWithdrawalAddress } from "./utils/tonAddress.js";
 import { tgAuth, validateInitData } from "./utils/telegramAuth.js";
 import { sanitizeLog } from "./utils/sanitizeLog.js";
+import { diag, getDiagSnapshot, isDiagAuthorized, newRequestId } from "./utils/diag.js";
 import { registerMiraRoutes } from "./mira/routes.js";
 
 // ─── Express app ──────────────────────────────────────────────────────────────
@@ -130,7 +131,29 @@ app.use("/api/run-now", mutationLimiter);
 app.use("/api/withdraw", mutationLimiter);
 app.use("/api/plans", mutationLimiter);
 app.use("/api/strategies", mutationLimiter);
+app.use("/api/diag/client", mutationLimiter);
 app.use("/mcp", mcpLimiter);
+
+// Structured API request logging (no bodies / initData)
+app.use("/api", (req, res, next) => {
+  const reqId = newRequestId();
+  req.reqId = reqId;
+  const started = Date.now();
+  res.on("finish", () => {
+    if (req.path === "/diag/client") return;
+    const ms = Date.now() - started;
+    const lvl = res.statusCode >= 500 ? "error" : res.statusCode >= 400 ? "warn" : "info";
+    diag("http", `${req.method} ${req.path}`, {
+      lvl,
+      reqId,
+      tg: req.telegramId,
+      status: res.statusCode,
+      ms,
+      path: req.path,
+    });
+  });
+  next();
+});
 
 // Serve Mini App static files at /app
 const miniappDist = path.resolve(__dirname, "../dist-miniapp");
@@ -148,8 +171,59 @@ app.use("/app", (_req, res, next) => {
 });
 
 // Health check (required by Railway)
-app.get(["/", "/health"], (_req, res) => {
-  res.json({ status: "ok", service: "gramity", ts: Date.now() });
+app.get(["/", "/health"], async (_req, res) => {
+  try {
+    const { getActivePlans, getActiveStrategiesWithTelegram } = await import("./db/index.js");
+    const [plans, strategies] = await Promise.all([
+      getActivePlans().catch(() => []),
+      getActiveStrategiesWithTelegram().catch(() => []),
+    ]);
+    res.json({
+      status: "ok",
+      service: "gramity",
+      ts: Date.now(),
+      uptime_s: Math.floor(process.uptime()),
+      active_plans: plans.length,
+      active_strategies: strategies.length,
+    });
+  } catch {
+    res.json({ status: "ok", service: "gramity", ts: Date.now() });
+  }
+});
+
+/** Protected diagnostic ring buffer — set DIAG_SECRET in Railway env. */
+app.get("/health/diag", (req, res) => {
+  if (!isDiagAuthorized(req.headers.authorization)) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  res.json(getDiagSnapshot());
+});
+
+/** Mini App client breadcrumbs (no initData in body). */
+app.post("/api/diag/client", async (req, res) => {
+  try {
+    const initHeader = String(req.headers["x-telegram-init-data"] ?? "");
+    let tg: number | null = null;
+    if (initHeader) {
+      tg = validateInitData(initHeader);
+    }
+    const { stage, ms, error: clientErr } = req.body ?? {};
+    if (!stage || typeof stage !== "string") {
+      res.status(400).json({ error: "stage required" });
+      return;
+    }
+    diag("client", stage, {
+      tg,
+      ms: typeof ms === "number" ? ms : undefined,
+      err: clientErr,
+      lvl: clientErr ? "warn" : "info",
+      meta: { source: "miniapp" },
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
 });
 
 // Latest mainnet swap tx for judges / README (redirects to tonviewer when available)
@@ -178,15 +252,18 @@ app.get("/api/example-tx", async (_req, res) => {
 // ─── Mini App REST API ─────────────────────────────────────────────────────────
 
 app.post("/api/auth/telegram", async (req, res) => {
+  const reqId = req.reqId;
   try {
     const initData = String(req.body?.initData ?? "");
     if (!initData) {
+      diag("auth", "no_init_data", { lvl: "warn", reqId, status: 400 });
       res.status(400).json({ error: "no_init_data" });
       return;
     }
 
     const telegramId = validateInitData(initData);
     if (!telegramId) {
+      diag("auth", "invalid_init_data", { lvl: "warn", reqId, status: 401 });
       res.status(401).json({ error: "invalid_init_data" });
       return;
     }
@@ -194,6 +271,7 @@ app.post("/api/auth/telegram", async (req, res) => {
     const params = new URLSearchParams(initData);
     const userJson = params.get("user");
     if (!userJson) {
+      diag("auth", "no_user_in_init_data", { lvl: "warn", reqId, tg: telegramId, status: 400 });
       res.status(400).json({ error: "no_user" });
       return;
     }
@@ -212,6 +290,8 @@ app.post("/api/auth/telegram", async (req, res) => {
       last_name: tgUser.last_name ?? null,
     });
 
+    diag("auth", "ok", { reqId, tg: telegramId, status: 200 });
+
     res.json({
       userId: user.telegram_id,
       user: {
@@ -223,6 +303,7 @@ app.post("/api/auth/telegram", async (req, res) => {
       },
     });
   } catch (err) {
+    diag("auth", "error", { lvl: "error", reqId, err, status: 500 });
     res.status(500).json({ error: (err as Error).message });
   }
 });
@@ -310,7 +391,25 @@ app.get("/api/portfolio", tgAuth, async (req, res) => {
         tx_swap: e.tx_swap ?? null,
       })),
     });
+    diag("portfolio", "ok", {
+      reqId: req.reqId,
+      tg: telegramId,
+      status: 200,
+      meta: {
+        has_plan: !!plan,
+        strategies: strategies.length,
+        has_wallet: !!depositAddress,
+        usdt: Math.round(usdtBalance * 100) / 100,
+      },
+    });
   } catch (err) {
+    diag("portfolio", "error", {
+      lvl: "error",
+      reqId: req.reqId,
+      tg: req.telegramId,
+      err,
+      status: 500,
+    });
     res.status(500).json({ error: (err as Error).message });
   }
 });
@@ -1414,10 +1513,14 @@ process.on("unhandledRejection", (reason) => {
 
 initDb()
   .then(async () => {
+    diag("startup", "db_ready");
     await startScheduler();
-    return startBot();
+    diag("startup", "scheduler_ready");
+    await startBot();
+    diag("startup", "bot_ready");
   })
   .catch((err) => {
+    diag("startup", "failed", { lvl: "error", err });
     console.error("[FATAL] Startup failed:", err);
     process.exit(1);
   });

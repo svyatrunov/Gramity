@@ -38,6 +38,7 @@ import {
 import { walletQueue } from "../wallet-queue.js";
 import { executeMultiStrategy } from "../strategy-executor.js";
 import { getUserDepositAddress } from "../services/userWallet.js";
+import { diag } from "../utils/diag.js";
 
 const AUTO_PAUSE_THRESHOLD = 3;
 
@@ -200,6 +201,9 @@ export async function restoreSchedules(): Promise<void> {
   console.log(
     `[SCHEDULER] Restored ${plans.length} active plan(s), ${strategies.length} active strategy(ies)`
   );
+  diag("scheduler", "restore_schedules", {
+    meta: { active_plans: plans.length, active_strategies: strategies.length },
+  });
 }
 
 // ── Failure handler helper ────────────────────────────────────────────────────
