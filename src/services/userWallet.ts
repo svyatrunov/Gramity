@@ -52,6 +52,15 @@ export async function createUserWallet(telegramId: number): Promise<string> {
   return address;
 }
 
+/** Deposit address from DB only — no mnemonic decrypt / TonClient (for read-only API). */
+export async function getUserDepositAddress(telegramId: number): Promise<string | null> {
+  const row = await pool.query(
+    "SELECT wallet_address FROM user_wallets WHERE telegram_id = $1 ORDER BY created_at ASC LIMIT 1",
+    [telegramId]
+  );
+  return (row.rows[0]?.wallet_address as string | undefined) ?? null;
+}
+
 /**
  * Reconstructs the full WalletContext for signing transactions.
  * Throws if no wallet exists — call createUserWallet first.

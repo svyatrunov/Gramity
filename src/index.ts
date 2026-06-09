@@ -23,7 +23,12 @@ import {
 } from "./config.js";
 import { POPULAR_TON_JETTONS, logoUrlFor } from "./shared/popular-ton-jettons.js";
 import { getAllVerifiedJettons, getTonBalance, getUsdtBalance } from "./services/tonapi.js";
-import { createUserWallet, createNamedWallet, getUserWalletContext } from "./services/userWallet.js";
+import {
+  createUserWallet,
+  createNamedWallet,
+  getUserDepositAddress,
+  getUserWalletContext,
+} from "./services/userWallet.js";
 import { executeFullExit } from "./execution/exit.js";
 import { sendJettonTransfer } from "./services/jetton.js";
 import {
@@ -150,19 +155,23 @@ app.get("/api/portfolio", tgAuth, async (req, res) => {
     const { StonApiClient } = await import("@ston-fi/api");
     const { POOL_ADDRESS, STON_API_URL: STON_URL } = await import("./config.js");
 
-    const walletCtx = await getUserWalletContext(telegramId).catch(() => null);
-    const plan = await getPlanByTelegramId(telegramId).catch(() => null);
-
-    const depositAddress = walletCtx?.address ?? "";
-    const usdtBalance = depositAddress ? await getUsdtBalance(depositAddress) : 0;
-    const tonNano = depositAddress ? await getTonBalance(depositAddress) : 0n;
+    const [depositAddress, plan] = await Promise.all([
+      getUserDepositAddress(telegramId).catch(() => null),
+      getPlanByTelegramId(telegramId).catch(() => null),
+    ]);
+    const addr = depositAddress ?? "";
+    const usdtBalance = addr ? await getUsdtBalance(addr) : 0;
+    const tonNano = addr ? await getTonBalance(addr) : 0n;
     const tonBalance = Number(tonNano) / 1e9;
 
     let lpValue: number | null = null;
-    if (depositAddress && plan) {
+    if (addr && plan) {
       try {
         const sc = new StonApiClient({ baseUrl: STON_URL });
-        const wp = await sc.getWalletPool({ walletAddress: depositAddress, poolAddress: POOL_ADDRESS });
+        const wp = await Promise.race([
+          sc.getWalletPool({ walletAddress: addr, poolAddress: POOL_ADDRESS }),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 8_000)),
+        ]);
         if (wp?.lpBalance && wp.lpTotalSupplyUsd && wp.lpTotalSupply) {
           const share = Number(wp.lpBalance) / Number(wp.lpTotalSupply);
           lpValue = share * Number(wp.lpTotalSupplyUsd);
@@ -178,7 +187,7 @@ app.get("/api/portfolio", tgAuth, async (req, res) => {
       executions.filter((e) => e.status === "success").length;
 
     res.json({
-      depositAddress,
+      depositAddress: addr,
       usdtBalance,
       tonBalance,
       lpValue,
@@ -1135,6 +1144,18 @@ console.log(`
 // Suppress unused import warnings — these are re-exported for side effects
 void (createUserWallet as unknown);
 void (getAllVerifiedJettons as unknown);
+
+process.on("unhandledRejection", (reason) => {
+  const code =
+    reason && typeof reason === "object" && "error_code" in reason
+      ? (reason as { error_code?: number }).error_code
+      : undefined;
+  if (code === 409) {
+    console.warn("[BOT] Unhandled polling conflict (409) — HTTP API stays up");
+    return;
+  }
+  console.error("[FATAL] Unhandled rejection:", reason);
+});
 
 initDb()
   .then(() => {

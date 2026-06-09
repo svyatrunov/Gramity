@@ -320,6 +320,7 @@ async function fetchViaAnkr(
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(12_000),
     body: JSON.stringify({
       jsonrpc: "2.0",
       method: "ankr_getAccountBalance",

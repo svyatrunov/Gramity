@@ -1,4 +1,4 @@
-import { Bot, session } from "grammy";
+import { Bot, session, GrammyError } from "grammy";
 import type { GramityContext, UserSession } from "./session.js";
 import { initialSession } from "./session.js";
 import {
@@ -401,6 +401,10 @@ setGasNotifier(async (telegramId, msg) => {
 
 // ─── Bot startup ──────────────────────────────────────────────────────────────
 
+function isPollingConflict(err: unknown): boolean {
+  return err instanceof GrammyError && err.error_code === 409;
+}
+
 export async function startBot() {
   await bot.api.setMyCommands([
     { command: "start",    description: "Open Mini App" },
@@ -412,9 +416,27 @@ export async function startBot() {
     { command: "help",     description: "Commands" },
   ]);
 
-  bot.start({
-    onStart: (info) => console.log(`[BOT] Started as @${info.username}`),
+  bot.catch((err) => {
+    if (isPollingConflict(err.error)) {
+      console.warn("[BOT] Polling conflict (409) — another instance may be running");
+      return;
+    }
+    console.error("[BOT] Handler error:", err);
   });
 
-  console.log("[BOT] Bot is running via long polling");
+  try {
+    await bot.start({
+      drop_pending_updates: true,
+      onStart: (info) => console.log(`[BOT] Started as @${info.username}`),
+    });
+    console.log("[BOT] Bot is running via long polling");
+  } catch (err) {
+    if (isPollingConflict(err)) {
+      console.warn(
+        "[BOT] Polling conflict (409) — HTTP API continues; stop duplicate deployments"
+      );
+      return;
+    }
+    throw err;
+  }
 }

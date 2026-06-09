@@ -1383,12 +1383,22 @@
   }
 
   function apiGet(path) {
-    return fetch('/api' + path, { headers: apiHeaders() }).then(function (r) {
-      return r.json().then(function (data) {
-        if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
-        return data;
-      });
-    });
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, 20000);
+    return fetch('/api' + path, { headers: apiHeaders(), signal: controller.signal })
+      .then(function (r) {
+        return r.json().then(function (data) {
+          if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+          return data;
+        });
+      })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') {
+          throw new Error('Request timed out — try again');
+        }
+        throw err;
+      })
+      .finally(function () { clearTimeout(timer); });
   }
 
   function apiPost(path, body) {
@@ -1530,15 +1540,20 @@
     return apiGet('/portfolio')
       .then(function (portfolio) {
         hydrateGramityState(portfolio);
-        return restoreEvmWalletFromStorage().then(function () {
-          return window.gramityState;
-        });
+        return window.gramityState;
       });
+  }
+
+  function refreshEvmWalletInBackground() {
+    return restoreEvmWalletFromStorage()
+      .then(function () { renderAll(); })
+      .catch(function () { /* cached or unavailable */ });
   }
 
   function reloadPortfolio() {
     return loadGramityState().then(function () {
       renderAll();
+      return refreshEvmWalletInBackground();
     });
   }
 
@@ -2356,6 +2371,7 @@
   loadGramityState()
     .then(function () {
       renderAll();
+      void refreshEvmWalletInBackground();
     })
     .catch(function (err) {
       renderError('Could not load dashboard: ' + err.message);
