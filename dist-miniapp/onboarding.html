@@ -2299,8 +2299,22 @@
       var tg = window.Telegram && window.Telegram.WebApp;
       var BOT_AUTH_URL = 'https://t.me/GramityBot';
       function getInitData() {
-        if (tg && tg.initData && tg.initData.indexOf('hash=') !== -1) return tg.initData;
+        var d = (tg && tg.initData) ? String(tg.initData).trim() : '';
+        if (d && d.indexOf('hash=') !== -1) return d;
+        var host = window.location.hostname;
+        var devMode = host === 'localhost' || host === '127.0.0.1' ||
+          new URLSearchParams(window.location.search).get('dev') === '1';
+        if (devMode) {
+          try { return localStorage.getItem('gramity_dev_init_data') || ''; } catch (e) { return ''; }
+        }
         return '';
+      }
+      function apiHeaders() {
+        var d = getInitData();
+        return d ? { 'X-Telegram-Init-Data': d } : {};
+      }
+      function hasTelegramAuth() {
+        return getInitData().indexOf('hash=') !== -1;
       }
       if (tg) {
         tg.ready();
@@ -2308,8 +2322,7 @@
         if (tg.setHeaderColor)     tg.setHeaderColor('#07070e');
         if (tg.setBackgroundColor) tg.setBackgroundColor('#07070e');
       }
-      var initData = getInitData();
-      var HAS_TG_AUTH = initData.indexOf('hash=') !== -1;
+      var HAS_TG_AUTH = hasTelegramAuth();
 
       function openBotForAuth() {
         try {
@@ -2329,7 +2342,6 @@
           gate.setAttribute('aria-hidden', 'false');
         }
         if (app) app.classList.add('auth-locked');
-        openBotForAuth();
       }
 
       if (!HAS_TG_AUTH) {
@@ -2339,7 +2351,7 @@
       }
 
       function assertAuth() {
-        if (!HAS_TG_AUTH) {
+        if (!hasTelegramAuth()) {
           enforceAuthGate();
           return false;
         }
@@ -3136,7 +3148,7 @@
 
       function fetchEvmBalancesFromServer(address) {
         return fetch('/api/evm-wallet/balances?address=' + encodeURIComponent(address), {
-          headers: { 'X-Telegram-Init-Data': initData },
+          headers: apiHeaders(),
         }).then(function (r) {
           if (!r.ok) return r.text().then(function (t) { throw new Error(t || String(r.status)); });
           return r.json();
@@ -3249,10 +3261,7 @@
 
         return fetch('/api/evm-wallet/session', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Telegram-Init-Data': initData,
-          },
+          headers: Object.assign({ 'Content-Type': 'application/json' }, apiHeaders()),
         })
           .then(function (r) {
             if (!r.ok) return r.text().then(function (t) { throw new Error(t || String(r.status)); });
@@ -3531,10 +3540,7 @@
         }
         fetch('/api/evm-deposit/session', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Telegram-Init-Data': initData,
-          },
+          headers: Object.assign({ 'Content-Type': 'application/json' }, apiHeaders()),
         })
           .then(function (r) {
             if (!r.ok) return r.text().then(function (t) { throw new Error(t || String(r.status)); });
@@ -3808,7 +3814,7 @@
       function fetchAgentWallet(seedGas) {
         var url = '/api/onboarding/wallet' + (seedGas ? '?seed_gas=1' : '');
         return fetch(url, {
-          headers: { 'X-Telegram-Init-Data': initData },
+          headers: apiHeaders(),
         }).then(function (r) {
           if (!r.ok) return r.text().then(function (t) { throw new Error(t || String(r.status)); });
           return r.json();
@@ -4122,10 +4128,7 @@
         try {
           var res = await fetch('/api/plans/withdrawal-address', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Telegram-Init-Data': initData,
-            },
+            headers: Object.assign({ 'Content-Type': 'application/json' }, apiHeaders()),
             body: JSON.stringify({ ton_address: addr }),
           });
           if (res.ok) {
@@ -4172,10 +4175,7 @@
         try {
           var res = await fetch('/api/strategy/create', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Telegram-Init-Data': initData,
-            },
+            headers: Object.assign({ 'Content-Type': 'application/json' }, apiHeaders()),
             body: JSON.stringify({
               telegramId: telegramId,
               frequency: window.gramityState.frequency,

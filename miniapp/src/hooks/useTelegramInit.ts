@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { getInitData } from "../api/client";
+import { getInitData, getTelegramUser, initTelegram } from "../lib/telegram";
 
 export interface TelegramUser {
   id?: number;
@@ -10,7 +10,7 @@ export interface TelegramUser {
 
 export function useTelegramInit() {
   const user = useMemo((): TelegramUser | null => {
-    const unsafe = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    const unsafe = getTelegramUser();
     if (unsafe) return unsafe;
 
     const initData = getInitData();
@@ -26,10 +26,7 @@ export function useTelegramInit() {
   }, []);
 
   useEffect(() => {
-    const tg = window.Telegram?.WebApp;
-    tg?.ready();
-    tg?.expand();
-    tg?.setBackgroundColor?.("#000000");
+    initTelegram();
   }, []);
 
   return { user, initData: getInitData() };

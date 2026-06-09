@@ -12,7 +12,7 @@ import rateLimit from "express-rate-limit";
 import path from "path";
 import { startBot } from "./bot/index.js";
 import { startScheduler } from "./scheduler/index.js";
-import { initDb, getUserWallets } from "./db/index.js";
+import { initDb, getUserWallets, upsertUser } from "./db/index.js";
 import {
   PORT,
   USDT_ADDRESS,
@@ -47,7 +47,7 @@ import {
   formatPlanFrequency,
 } from "./constants/dca.js";
 import { normalizeTonAddress, hasWithdrawalAddress } from "./utils/tonAddress.js";
-import { tgAuth } from "./utils/telegramAuth.js";
+import { tgAuth, validateInitData } from "./utils/telegramAuth.js";
 import { sanitizeLog } from "./utils/sanitizeLog.js";
 import { registerMiraRoutes } from "./mira/routes.js";
 
@@ -146,6 +146,47 @@ app.get("/api/example-tx", async (_req, res) => {
 });
 
 // ─── Mini App REST API ─────────────────────────────────────────────────────────
+
+app.post("/api/auth/telegram", async (req, res) => {
+  try {
+    const initData = String(req.body?.initData ?? "");
+    if (!initData) {
+      res.status(400).json({ error: "no_init_data" });
+      return;
+    }
+
+    const telegramId = validateInitData(initData);
+    if (!telegramId) {
+      res.status(401).json({ error: "invalid_init_data" });
+      return;
+    }
+
+    const params = new URLSearchParams(initData);
+    const userJson = params.get("user");
+    if (!userJson) {
+      res.status(400).json({ error: "no_user" });
+      return;
+    }
+
+    const tgUser = JSON.parse(userJson) as {
+      id?: number;
+      username?: string;
+      first_name?: string;
+      last_name?: string;
+    };
+
+    const user = await upsertUser({
+      telegram_id: telegramId,
+      username: tgUser.username ?? null,
+      first_name: tgUser.first_name ?? null,
+      last_name: tgUser.last_name ?? null,
+    });
+
+    res.json({ user });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
 
 // Portfolio
 app.get("/api/portfolio", tgAuth, async (req, res) => {

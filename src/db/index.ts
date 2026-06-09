@@ -24,6 +24,18 @@ export const pool = { query: (sql: string, params?: any[]) => getPool().query(sq
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS users (
+  id            SERIAL PRIMARY KEY,
+  telegram_id   BIGINT UNIQUE NOT NULL,
+  username      TEXT,
+  first_name    TEXT,
+  last_name     TEXT,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id);
+
 CREATE TABLE IF NOT EXISTS user_wallets (
   telegram_id        BIGINT      PRIMARY KEY,
   wallet_address     TEXT        NOT NULL,
@@ -176,6 +188,42 @@ CREATE TABLE IF NOT EXISTS cycles (
 export async function initDb(): Promise<void> {
   await getPool().query(SCHEMA_SQL);
   console.log("[DB] Schema ready");
+}
+
+export interface GramityUser {
+  id: number;
+  telegram_id: number;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function upsertUser(input: {
+  telegram_id: number;
+  username?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+}): Promise<GramityUser> {
+  const { rows } = await pool.query(
+    `INSERT INTO users (telegram_id, username, first_name, last_name, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, NOW(), NOW())
+     ON CONFLICT (telegram_id)
+     DO UPDATE SET
+       username = EXCLUDED.username,
+       first_name = EXCLUDED.first_name,
+       last_name = EXCLUDED.last_name,
+       updated_at = NOW()
+     RETURNING *`,
+    [
+      input.telegram_id,
+      input.username ?? null,
+      input.first_name ?? null,
+      input.last_name ?? null,
+    ]
+  );
+  return rows[0] as GramityUser;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────

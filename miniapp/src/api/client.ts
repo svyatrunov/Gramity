@@ -1,4 +1,5 @@
-import { API_BASE, DEV_INIT_DATA } from "../config";
+import { API_BASE } from "../config";
+import { getInitData } from "../lib/telegram";
 
 export class ApiError extends Error {
   constructor(
@@ -27,12 +28,7 @@ export function sanitizeUserError(code: string, raw?: string): string {
   return "Что-то пошло не так";
 }
 
-export function getInitData(): string {
-  const tgData = window.Telegram?.WebApp?.initData;
-  if (tgData && tgData.includes("hash=")) return tgData;
-  if (DEV_INIT_DATA) return DEV_INIT_DATA;
-  return "";
-}
+export { getInitData } from "../lib/telegram";
 
 export async function apiCall<T>(path: string, options: RequestInit = {}): Promise<T> {
   const initData = getInitData();

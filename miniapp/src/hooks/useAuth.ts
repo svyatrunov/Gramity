@@ -1,0 +1,67 @@
+import { useEffect, useState } from "react";
+import { API_BASE } from "../config";
+import { getInitData, initTelegram } from "../lib/telegram";
+
+export interface AuthUser {
+  telegram_id: number;
+  username?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+}
+
+const AUTH_TIMEOUT_MS = 5_000;
+
+export function useAuth() {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const timeout = setTimeout(() => {
+      if (!cancelled) {
+        setLoading(false);
+        setError((prev) => prev ?? "auth_timeout");
+      }
+    }, AUTH_TIMEOUT_MS);
+
+    async function authenticate() {
+      try {
+        initTelegram();
+
+        const initData = getInitData();
+        if (!initData) {
+          return;
+        }
+
+        const res = await fetch(`${API_BASE}/api/auth/telegram`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ initData }),
+        });
+
+        if (!res.ok) {
+          throw new Error(`auth failed: ${res.status}`);
+        }
+
+        const data = (await res.json()) as { user: AuthUser };
+        if (!cancelled) setUser(data.user);
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "unknown");
+        }
+      } finally {
+        clearTimeout(timeout);
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void authenticate();
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, []);
+
+  return { user, loading, error };
+}

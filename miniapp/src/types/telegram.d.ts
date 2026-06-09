@@ -16,6 +16,7 @@ declare global {
         ready: () => void;
         expand: () => void;
         setBackgroundColor?: (color: string) => void;
+        setHeaderColor?: (color: string) => void;
         close: () => void;
         sendData: (data: string) => void;
         openTelegramLink: (url: string) => void;

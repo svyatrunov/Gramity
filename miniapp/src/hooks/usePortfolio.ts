@@ -37,7 +37,12 @@ export function usePortfolio(enabled = true) {
       setLoading(false);
       return;
     }
-    void refresh();
+
+    const timeout = setTimeout(() => {
+      if (mounted.current) setLoading(false);
+    }, 5_000);
+
+    void refresh().finally(() => clearTimeout(timeout));
     const id = setInterval(() => void refresh(), POLL_MS);
 
     const onFocus = () => void refresh();
@@ -48,6 +53,7 @@ export function usePortfolio(enabled = true) {
 
     return () => {
       mounted.current = false;
+      clearTimeout(timeout);
       clearInterval(id);
       window.removeEventListener("focus", onFocus);
     };

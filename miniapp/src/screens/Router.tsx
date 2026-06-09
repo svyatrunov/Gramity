@@ -11,18 +11,29 @@ export function Router() {
   const [target, setTarget] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    const timeout = setTimeout(() => {
+      if (!cancelled) setTarget("/onboarding");
+    }, 5_000);
+
     getPortfolio()
       .then((p) => {
-        setTarget(p.plan == null ? "/onboarding" : "/dashboard");
+        if (!cancelled) setTarget(p.plan == null ? "/onboarding" : "/dashboard");
       })
       .catch((e) => {
-        if (e instanceof ApiError && e.code !== "SERVER_ERROR") {
-          showToast(e.userMessage, "error");
-        } else if (e instanceof ApiError) {
+        if (e instanceof ApiError) {
           showToast(e.userMessage, "error");
         }
-        setTarget("/onboarding");
+        if (!cancelled) setTarget("/onboarding");
+      })
+      .finally(() => {
+        clearTimeout(timeout);
       });
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
   }, [showToast]);
 
   if (!target) {
