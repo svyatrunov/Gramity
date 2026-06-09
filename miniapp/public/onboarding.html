@@ -2377,9 +2377,11 @@
       btnNext.addEventListener('click', next);
       btnPrev.addEventListener('click', prev);
 
-      document.getElementById('btnGetStarted').addEventListener('click', next);
+      function goToConnectWallet() { goTo(WIZARD_CONNECT); }
+
+      document.getElementById('btnGetStarted').addEventListener('click', goToConnectWallet);
       document.querySelectorAll('.btn-slide-next').forEach(function (btn) {
-        btn.addEventListener('click', next);
+        btn.addEventListener('click', goToConnectWallet);
       });
 
       function normalizeTelegramUrl(url) {
