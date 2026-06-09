@@ -9,7 +9,7 @@ const MASTER_KEY = Buffer.from(process.env.MASTER_ENCRYPTION_KEY!, "hex"); // 32
 
 export function encrypt(text: string): string {
   const iv = randomBytes(16);
-  const cipher = createCipheriv("aes-256-gcm", MASTER_KEY, iv);
+  const cipher = createCipheriv("aes-256-gcm", MASTER_KEY, iv, { authTagLength: 16 });
   const encrypted = Buffer.concat([cipher.update(text, "utf8"), cipher.final()]);
   const authTag = cipher.getAuthTag();
   return [iv.toString("hex"), authTag.toString("hex"), encrypted.toString("hex")].join(":");
@@ -20,7 +20,7 @@ function decrypt(data: string): string {
   const iv = Buffer.from(ivHex, "hex");
   const authTag = Buffer.from(authTagHex, "hex");
   const encrypted = Buffer.from(encryptedHex, "hex");
-  const decipher = createDecipheriv("aes-256-gcm", MASTER_KEY, iv);
+  const decipher = createDecipheriv("aes-256-gcm", MASTER_KEY, iv, { authTagLength: 16 });
   decipher.setAuthTag(authTag);
   return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
 }
