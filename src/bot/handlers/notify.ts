@@ -1,5 +1,5 @@
 import type { Bot } from "grammy";
-import type { GramityContext } from "../session.js";
+import type { GramityContext } from "../context.js";
 
 export interface ExecutionSummary {
   telegramId: number;

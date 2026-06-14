@@ -1,4 +1,4 @@
-import type { GramityContext } from "../session.js";
+import type { GramityContext } from "../context.js";
 import type { Plan } from "../../db/index.js";
 import { getPlanByTelegramId } from "../../db/index.js";
 import {

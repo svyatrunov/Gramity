@@ -3,7 +3,8 @@
  */
 
 import { InlineKeyboard } from "grammy";
-import type { GramityContext } from "../session.js";
+import type { GramityContext } from "../context.js";
+import { botTgId, writeState } from "../state.js";
 import {
   getPlanByTelegramId,
   updatePlan,
@@ -117,7 +118,8 @@ export async function handleSettingsCallback(ctx: GramityContext, action: string
   }
 
   if (action === "amount") {
-    ctx.session.step = "waiting_settings_amount";
+    const tid = botTgId(ctx);
+    if (tid) await writeState(tid, { step: "waiting_settings_amount" });
     await ctx.reply(
       `Enter new amount per cycle in USDT (min $${MIN_DCA_USDT}, e.g. \`50\`)`,
       { parse_mode: "Markdown" }
@@ -166,12 +168,13 @@ export async function handleSettingsCallback(ctx: GramityContext, action: string
 }
 
 export async function handleSettingsAmountInput(ctx: GramityContext, text: string) {
-  const telegramId = ctx.from?.id;
-  if (!telegramId) return;
+  const tid = botTgId(ctx);
+  if (!tid) return;
+  const telegramId = Number(tid);
 
   const plan = await getPlanByTelegramId(telegramId).catch(() => null);
   if (!plan) {
-    ctx.session.step = "idle";
+    await writeState(tid, { step: "idle" });
     await ctx.reply("Strategy not found.");
     return;
   }
@@ -185,7 +188,7 @@ export async function handleSettingsAmountInput(ctx: GramityContext, text: strin
   }
 
   await updatePlan(telegramId, { usdt_amount: amount });
-  ctx.session.step = "idle";
+  await writeState(tid, { step: "idle" });
 
   await ctx.reply(
     `✅ Amount updated to *$${amount}* per cycle.\n\n` +

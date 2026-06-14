@@ -3,7 +3,7 @@
  */
 
 import { InlineKeyboard } from "grammy";
-import type { GramityContext } from "../session.js";
+import type { GramityContext } from "../context.js";
 import { getPlanByTelegramId } from "../../db/index.js";
 import { getUsdtBalance, getLastTxHash } from "../../services/tonapi.js";
 import { getUserWalletContext } from "../../services/userWallet.js";

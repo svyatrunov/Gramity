@@ -187,10 +187,12 @@ CREATE TABLE IF NOT EXISTS cycles (
 CREATE TABLE IF NOT EXISTS strategies (
   id                SERIAL PRIMARY KEY,
   user_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  strategy_type     TEXT NOT NULL CHECK (strategy_type IN ('dca_ton', 'dca_tston', 'dca_lp')),
+  strategy_type     TEXT NOT NULL CHECK (strategy_type IN ('dca_ton', 'dca_tston', 'dca_lp', 'dca_jetton')),
   amount_usdt       NUMERIC(18,6) NOT NULL,
   frequency         TEXT NOT NULL DEFAULT 'hourly',
   withdrawal_wallet TEXT,
+  target_token_address TEXT,
+  target_token_symbol  TEXT,
   output_mode       TEXT DEFAULT 'withdraw' CHECK (output_mode IN ('reinvest', 'withdraw')),
   status            TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'stopped')),
   total_cycles      INTEGER DEFAULT 0,
@@ -205,10 +207,45 @@ CREATE TABLE IF NOT EXISTS strategies (
 CREATE INDEX IF NOT EXISTS idx_strategies_user_id ON strategies(user_id);
 CREATE INDEX IF NOT EXISTS idx_strategies_status ON strategies(status);
 CREATE INDEX IF NOT EXISTS idx_strategies_next_run ON strategies(status, next_run_at);
+
+CREATE TABLE IF NOT EXISTS bot_state (
+  telegram_id  TEXT PRIMARY KEY,
+  step         TEXT,
+  ton_address  TEXT,
+  amount       NUMERIC,
+  frequency    TEXT,
+  extra        JSONB DEFAULT '{}',
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
 `;
 
 export async function initDb(): Promise<void> {
   await getPool().query(SCHEMA_SQL);
+  await getPool().query(`
+    ALTER TABLE strategies ADD COLUMN IF NOT EXISTS target_token_address TEXT;
+    ALTER TABLE strategies ADD COLUMN IF NOT EXISTS target_token_symbol TEXT;
+  `);
+  await getPool().query(`
+    DO $$ BEGIN
+      ALTER TABLE strategies DROP CONSTRAINT IF EXISTS strategies_strategy_type_check;
+    EXCEPTION WHEN undefined_object THEN NULL;
+    END $$;
+  `);
+  await getPool().query(`
+    ALTER TABLE strategies ADD CONSTRAINT strategies_strategy_type_check
+      CHECK (strategy_type IN ('dca_ton', 'dca_tston', 'dca_lp', 'dca_jetton'));
+  `).catch(() => {
+    /* constraint may already include dca_jetton */
+  });
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS ton_proof_payloads (
+      telegram_id BIGINT PRIMARY KEY,
+      payload     TEXT NOT NULL,
+      expires_at  TIMESTAMPTZ NOT NULL
+    );
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS verified_ton_address TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS ton_address_verified_at TIMESTAMPTZ;
+  `);
   console.log("[DB] Schema ready");
 }
 
@@ -218,6 +255,8 @@ export interface GramityUser {
   username: string | null;
   first_name: string | null;
   last_name: string | null;
+  verified_ton_address: string | null;
+  ton_address_verified_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -246,6 +285,60 @@ export async function upsertUser(input: {
     ]
   );
   return rows[0] as GramityUser;
+}
+
+export async function getUserByTelegramId(
+  telegramId: number
+): Promise<GramityUser | null> {
+  const { rows } = await pool.query(
+    `SELECT * FROM users WHERE telegram_id = $1`,
+    [telegramId]
+  );
+  return (rows[0] as GramityUser | undefined) ?? null;
+}
+
+export async function upsertTonProofPayload(
+  telegramId: number,
+  payload: string
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO ton_proof_payloads (telegram_id, payload, expires_at)
+     VALUES ($1, $2, NOW() + interval '10 minutes')
+     ON CONFLICT (telegram_id) DO UPDATE
+       SET payload = EXCLUDED.payload, expires_at = EXCLUDED.expires_at`,
+    [telegramId, payload]
+  );
+}
+
+export async function getTonProofPayload(
+  telegramId: number
+): Promise<string | null> {
+  const { rows } = await pool.query(
+    `SELECT payload FROM ton_proof_payloads
+     WHERE telegram_id = $1 AND expires_at > NOW()`,
+    [telegramId]
+  );
+  return (rows[0]?.payload as string | undefined) ?? null;
+}
+
+export async function deleteTonProofPayload(telegramId: number): Promise<void> {
+  await pool.query(`DELETE FROM ton_proof_payloads WHERE telegram_id = $1`, [
+    telegramId,
+  ]);
+}
+
+export async function setVerifiedTonAddress(
+  telegramId: number,
+  address: string
+): Promise<void> {
+  await pool.query(
+    `UPDATE users SET
+       verified_ton_address = $2,
+       ton_address_verified_at = NOW(),
+       updated_at = NOW()
+     WHERE telegram_id = $1`,
+    [telegramId, address]
+  );
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -655,7 +748,7 @@ export async function logNotification(
 
 // ─── Strategies (multi-strategy engine) ───────────────────────────────────────
 
-export type StrategyType = "dca_ton" | "dca_tston" | "dca_lp";
+export type StrategyType = "dca_ton" | "dca_tston" | "dca_lp" | "dca_jetton";
 export type StrategyStatus = "active" | "paused" | "stopped";
 export type StrategyOutputMode = "reinvest" | "withdraw";
 
@@ -666,6 +759,8 @@ export interface Strategy {
   amount_usdt: number;
   frequency: string;
   withdrawal_wallet: string | null;
+  target_token_address: string | null;
+  target_token_symbol: string | null;
   output_mode: StrategyOutputMode;
   status: StrategyStatus;
   total_cycles: number;
@@ -776,14 +871,17 @@ export async function createStrategy(input: {
   amount_usdt: number;
   frequency: string;
   withdrawal_wallet?: string | null;
+  target_token_address?: string | null;
+  target_token_symbol?: string | null;
   output_mode?: StrategyOutputMode;
   next_run_at: Date;
 }): Promise<Strategy> {
   const user = await upsertUser({ telegram_id: input.telegram_id });
   const { rows } = await getPool().query<Strategy>(
     `INSERT INTO strategies
-       (user_id, strategy_type, amount_usdt, frequency, withdrawal_wallet, output_mode, status, next_run_at)
-     VALUES ($1, $2, $3, $4, $5, $6, 'active', $7)
+       (user_id, strategy_type, amount_usdt, frequency, withdrawal_wallet,
+        target_token_address, target_token_symbol, output_mode, status, next_run_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', $9)
      RETURNING *`,
     [
       user.id,
@@ -791,6 +889,8 @@ export async function createStrategy(input: {
       input.amount_usdt,
       input.frequency,
       input.withdrawal_wallet ?? null,
+      input.target_token_address ?? null,
+      input.target_token_symbol ?? null,
       input.output_mode ?? "withdraw",
       input.next_run_at.toISOString(),
     ]
@@ -861,4 +961,82 @@ export async function stopStrategy(
 ): Promise<boolean> {
   const updated = await updateStrategyStatus(strategyId, telegramId, "stopped");
   return updated != null;
+}
+
+// ─── Bot conversation state (replaces grammY in-memory session) ───────────────
+
+export interface BotStateRow {
+  telegram_id: string;
+  step: string | null;
+  ton_address: string | null;
+  amount: string | null;
+  frequency: string | null;
+  extra: Record<string, unknown>;
+  updated_at: string;
+}
+
+export async function getBotState(telegramId: string): Promise<BotStateRow | null> {
+  const { rows } = await getPool().query<BotStateRow>(
+    "SELECT * FROM bot_state WHERE telegram_id = $1",
+    [telegramId]
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    ...row,
+    extra:
+      typeof row.extra === "string"
+        ? (JSON.parse(row.extra) as Record<string, unknown>)
+        : (row.extra ?? {}),
+  };
+}
+
+export async function setBotState(
+  telegramId: string,
+  patch: Partial<{
+    step: string | null;
+    ton_address: string | null;
+    amount: number | null;
+    frequency: string | null;
+    extra: Record<string, unknown>;
+  }>
+): Promise<void> {
+  const fields = Object.keys(patch).filter(
+    (k) => patch[k as keyof typeof patch] !== undefined
+  );
+  if (fields.length === 0) return;
+
+  const values: unknown[] = [telegramId];
+  const insertCols: string[] = [];
+  const insertPh: string[] = [];
+  const updates: string[] = [];
+
+  for (const field of fields) {
+    const val = (patch as Record<string, unknown>)[field];
+    values.push(field === "extra" ? JSON.stringify(val) : val);
+    const idx = values.length;
+    insertCols.push(field);
+    insertPh.push(field === "extra" ? `$${idx}::jsonb` : `$${idx}`);
+    if (field === "extra") {
+      updates.push(
+        `extra = COALESCE(bot_state.extra, '{}'::jsonb) || $${idx}::jsonb`
+      );
+    } else {
+      updates.push(`${field} = EXCLUDED.${field}`);
+    }
+  }
+  updates.push("updated_at = NOW()");
+
+  await getPool().query(
+    `INSERT INTO bot_state (telegram_id, ${insertCols.join(", ")}, updated_at)
+     VALUES ($1, ${insertPh.join(", ")}, NOW())
+     ON CONFLICT (telegram_id) DO UPDATE SET ${updates.join(", ")}`,
+    values
+  );
+}
+
+export async function clearBotState(telegramId: string): Promise<void> {
+  await getPool().query("DELETE FROM bot_state WHERE telegram_id = $1", [
+    telegramId,
+  ]);
 }

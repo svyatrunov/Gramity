@@ -9,6 +9,9 @@
 
 import { getUsdtBalance } from "../services/tonapi.js";
 import { InlineKeyboard } from "grammy";
+import { RAILWAY_PUBLIC_URL } from "../config.js";
+
+const dashboardUrl = `${RAILWAY_PUBLIC_URL}/app/dashboard.html`;
 
 type Sender = (chatId: number, text: string, extra?: object) => Promise<void>;
 
@@ -62,19 +65,37 @@ async function tick(telegramId: number): Promise<void> {
     const balance        = depositAddress ? await getUsdtBalance(depositAddress) : 0;
 
     if (balance >= 1) {
+      const resolvedAddress = depositAddress;
       stopDepositPoller(telegramId);
       console.log(`[POLLER] Deposit detected for ${telegramId}: $${balance.toFixed(2)}`);
 
-      const depositAddress = depositAddresses.get(telegramId) ?? "";
-      if (depositAddress) {
+      if (resolvedAddress) {
         const { seedGasIfNeeded } = await import("../services/gasSeed.js");
-        seedGasIfNeeded(depositAddress).catch((err) =>
+        seedGasIfNeeded(resolvedAddress).catch((err) =>
           console.warn("[POLLER] gas seed:", (err as Error).message)
         );
       }
 
       const prevBalance   = initialBalances.get(telegramId) ?? 0;
       const depositAmount = (balance - prevBalance).toFixed(2);
+
+      const { getPlanByTelegramId } = await import("../db/index.js");
+      const plan = await getPlanByTelegramId(telegramId).catch(() => null);
+
+      if (plan?.active) {
+        const kb = new InlineKeyboard()
+          .text("Run now", "run_now")
+          .webApp("Status", dashboardUrl);
+        await _send(
+          telegramId,
+          `Deposit received\n\n` +
+            `$${depositAmount} USDT on agent wallet.\n` +
+            `Starting next scheduled cycle.`,
+          { parse_mode: "Markdown", reply_markup: kb }
+        );
+        return;
+      }
+
       await _send(
         telegramId,
         `Deposit received\n\n` +

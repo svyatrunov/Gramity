@@ -1,6 +1,6 @@
-import { Bot, session, GrammyError } from "grammy";
-import type { GramityContext, UserSession } from "./session.js";
-import { initialSession } from "./session.js";
+import { Bot, GrammyError } from "grammy";
+import type { GramityContext } from "./context.js";
+import { botTgId, readState, writeState, resetState } from "./state.js";
 import {
   handleStart,
   handleText,
@@ -64,14 +64,6 @@ if (!BOT_TOKEN) throw new Error("BOT_TOKEN is not set in environment");
 
 export const bot = new Bot<GramityContext>(BOT_TOKEN);
 
-// ─── Session middleware ────────────────────────────────────────────────────────
-
-bot.use(
-  session<UserSession, GramityContext>({
-    initial: initialSession,
-  })
-);
-
 // ─── Commands ─────────────────────────────────────────────────────────────────
 
 bot.command("start", handleStart);
@@ -82,6 +74,13 @@ bot.command("withdraw", handleWithdrawMenu);
 bot.command("settings", handleSettings);
 bot.command("strategies", handleStrategies);
 bot.command("add", handleAddStrategy);
+
+bot.command("cancel", async (ctx) => {
+  const tid = botTgId(ctx);
+  if (!tid) return;
+  await resetState(tid);
+  await ctx.reply("Cancelled. /start to begin again.");
+});
 
 bot.command("help", async (ctx) => {
   await ctx.reply(
@@ -182,6 +181,19 @@ bot.on("callback_query:data", async (ctx) => {
     await handleStatus(ctx);
     return;
   }
+  if (data === "run_now") {
+    await ctx.answerCallbackQuery();
+    const telegramId = ctx.from?.id;
+    if (telegramId) {
+      const { handleRunNow } = await import("./handlers/runNow.js");
+      await handleRunNow(
+        telegramId,
+        async (text, extra) => { await ctx.reply(text, extra as object); },
+        1
+      );
+    }
+    return;
+  }
   // /start onboarding flow callbacks
   await handleCallbackQuery(ctx);
 });
@@ -200,10 +212,12 @@ bot.on("message:web_app_data", async (ctx) => {
     };
 
     if (data.type === "wallet_connected" && data.address) {
-      const telegramId = ctx.from?.id;
-      if (!telegramId) return;
+      const tid = botTgId(ctx);
+      if (!tid) return;
+      const telegramId = Number(tid);
+      const botState = await readState(tid);
 
-      console.log(`[WebApp] Wallet connected for user ${telegramId}, step=${ctx.session.step}`);
+      console.log(`[WebApp] Wallet connected for user ${telegramId}, step=${botState.step}`);
 
       const { Address } = await import("@ton/ton");
       let friendlyAddress = data.address;
@@ -238,11 +252,11 @@ bot.on("message:web_app_data", async (ctx) => {
         return;
       }
 
-      // If in onboarding OR session was reset after deploy (step is idle/empty) → go to deposit step
+      // If in onboarding OR state was reset after deploy (step is idle/empty) → go to deposit step
       const isOnboarding =
-        !ctx.session.step ||
-        ctx.session.step === "idle" ||
-        ctx.session.step === "waiting_wallet";
+        !botState.step ||
+        botState.step === "idle" ||
+        botState.step === "waiting_wallet";
 
       if (isOnboarding) {
         await continueToDepositStep(ctx, friendlyAddress);
@@ -251,7 +265,7 @@ bot.on("message:web_app_data", async (ctx) => {
         if (updated) {
           const { awaitingWalletData } = await import("./handlers/withdrawalWallet.js");
           awaitingWalletData.delete(String(telegramId));
-          ctx.session.tonAddress = friendlyAddress;
+          await writeState(tid, { tonAddress: friendlyAddress });
           await ctx.reply(
             `✅ Withdrawal address set\n\n` +
               `\`${friendlyAddress.slice(0, 6)}...${friendlyAddress.slice(-4)}\`\n\n` +

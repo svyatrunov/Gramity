@@ -3,7 +3,8 @@
  */
 
 import { InlineKeyboard } from "grammy";
-import type { GramityContext } from "../session.js";
+import type { GramityContext } from "../context.js";
+import { botTgId, clearStrategyWizard, readState, writeState } from "../state.js";
 import {
   createStrategy,
   getStrategiesByTelegramId,
@@ -30,12 +31,16 @@ import {
 
 const TYPE_LABELS: Record<StrategyType, string> = {
   dca_ton: "Buy TON",
+  dca_jetton: "Buy token",
   dca_tston: "Stake (tsTON)",
   dca_lp: "LP DCA",
 };
 
 function formatStrategyLine(s: Strategy): string {
-  const label = TYPE_LABELS[s.strategy_type];
+  const label =
+    s.strategy_type === "dca_jetton" && s.target_token_symbol
+      ? `Buy ${s.target_token_symbol}`
+      : TYPE_LABELS[s.strategy_type];
   const freq = formatPlanFrequency(s.frequency);
   const mode =
     s.strategy_type === "dca_lp" ? ` (${s.output_mode})` : "";
@@ -74,7 +79,10 @@ export async function handleStrategies(ctx: GramityContext): Promise<void> {
 }
 
 export async function handleAddStrategy(ctx: GramityContext): Promise<void> {
-  ctx.session.strategyWizard = { step: "type" };
+  const tid = botTgId(ctx);
+  if (!tid) return;
+
+  await writeState(tid, { strategyWizard: { step: "type" } });
   const kb = new InlineKeyboard()
     .text("Buy TON", "strat_type:dca_ton")
     .text("Stake (tsTON)", "strat_type:dca_tston")
@@ -90,13 +98,14 @@ export async function handleStrategyCallback(
   ctx: GramityContext,
   data: string
 ): Promise<boolean> {
-  const telegramId = ctx.from?.id;
-  if (!telegramId) return false;
+  const tid = botTgId(ctx);
+  if (!tid) return false;
+  const telegramId = Number(tid);
 
   if (data.startsWith("strat_type:")) {
     await ctx.answerCallbackQuery();
     const type = data.split(":")[1] as StrategyType;
-    ctx.session.strategyWizard = { step: "amount", strategy_type: type };
+    await writeState(tid, { strategyWizard: { step: "amount", strategy_type: type } });
     const kb = new InlineKeyboard()
       .text("$5", "strat_amt:5")
       .text("$10", "strat_amt:10")
@@ -114,19 +123,24 @@ export async function handleStrategyCallback(
   if (data.startsWith("strat_amt:")) {
     await ctx.answerCallbackQuery();
     const raw = data.split(":")[1];
+    const state = await readState(tid);
     if (raw === "custom") {
-      ctx.session.strategyWizard = {
-        ...ctx.session.strategyWizard,
-        step: "custom_amount",
-      };
+      await writeState(tid, {
+        strategyWizard: {
+          ...state.strategyWizard,
+          step: "custom_amount",
+        },
+      });
       await ctx.editMessageText(`Введите сумму (мин. $${MIN_DCA_USDT} USDT):`);
       return true;
     }
-    ctx.session.strategyWizard = {
-      ...ctx.session.strategyWizard,
-      step: "frequency",
-      amount_usdt: Number(raw),
-    };
+    await writeState(tid, {
+      strategyWizard: {
+        ...state.strategyWizard,
+        step: "frequency",
+        amount_usdt: Number(raw),
+      },
+    });
     await showFrequencyStep(ctx);
     return true;
   }
@@ -134,13 +148,15 @@ export async function handleStrategyCallback(
   if (data.startsWith("strat_freq:")) {
     await ctx.answerCallbackQuery();
     const frequency = data.split(":")[1];
-    ctx.session.strategyWizard = {
-      ...ctx.session.strategyWizard,
-      step: "output_or_wallet",
+    const state = await readState(tid);
+    const w = {
+      ...state.strategyWizard,
+      step: "output_or_wallet" as const,
       frequency,
     };
-    const w = ctx.session.strategyWizard;
-    if (w?.strategy_type === "dca_lp") {
+    await writeState(tid, { strategyWizard: w });
+
+    if (w.strategy_type === "dca_lp") {
       const kb = new InlineKeyboard()
         .text("Reinvest", "strat_out:reinvest")
         .text("Withdraw LP", "strat_out:withdraw");
@@ -149,7 +165,9 @@ export async function handleStrategyCallback(
         reply_markup: kb,
       });
     } else {
-      ctx.session.strategyWizard = { ...w, step: "wallet" };
+      await writeState(tid, {
+        strategyWizard: { ...w, step: "wallet" },
+      });
       await ctx.editMessageText(
         "Шаг 4: *Куда выводить?*\n\nОтправьте TON-адрес кошелька сообщением."
       );
@@ -160,11 +178,14 @@ export async function handleStrategyCallback(
   if (data.startsWith("strat_out:")) {
     await ctx.answerCallbackQuery();
     const output_mode = data.split(":")[1] as "reinvest" | "withdraw";
-    ctx.session.strategyWizard = {
-      ...ctx.session.strategyWizard,
+    const state = await readState(tid);
+    const w = {
+      ...state.strategyWizard,
       output_mode,
-      step: output_mode === "withdraw" ? "wallet" : "confirm",
+      step: output_mode === "withdraw" ? ("wallet" as const) : ("confirm" as const),
     };
+    await writeState(tid, { strategyWizard: w });
+
     if (output_mode === "withdraw") {
       await ctx.editMessageText(
         "Шаг 4: *Куда выводить LP?*\n\nОтправьте TON-адрес кошелька сообщением."
@@ -194,7 +215,10 @@ export async function handleStrategyWalletInput(
   ctx: GramityContext,
   address: string
 ): Promise<boolean> {
-  const w = ctx.session.strategyWizard;
+  const tid = botTgId(ctx);
+  if (!tid) return false;
+  const state = await readState(tid);
+  const w = state.strategyWizard;
   if (!w || w.step !== "wallet") return false;
 
   const normalized = normalizeTonAddress(address.trim());
@@ -203,11 +227,13 @@ export async function handleStrategyWalletInput(
     return true;
   }
 
-  ctx.session.strategyWizard = {
-    ...w,
-    withdrawal_wallet: normalized,
-    step: "confirm",
-  };
+  await writeState(tid, {
+    strategyWizard: {
+      ...w,
+      withdrawal_wallet: normalized,
+      step: "confirm",
+    },
+  });
   await finalizeStrategy(ctx, ctx.from!.id!);
   return true;
 }
@@ -216,7 +242,10 @@ export async function handleStrategyCustomAmount(
   ctx: GramityContext,
   text: string
 ): Promise<boolean> {
-  const w = ctx.session.strategyWizard;
+  const tid = botTgId(ctx);
+  if (!tid) return false;
+  const state = await readState(tid);
+  const w = state.strategyWizard;
   if (!w || w.step !== "custom_amount") return false;
 
   const amount = Number(text.replace(/[^0-9.]/g, ""));
@@ -225,11 +254,13 @@ export async function handleStrategyCustomAmount(
     return true;
   }
 
-  ctx.session.strategyWizard = {
-    ...w,
-    step: "frequency",
-    amount_usdt: amount,
-  };
+  await writeState(tid, {
+    strategyWizard: {
+      ...w,
+      step: "frequency",
+      amount_usdt: amount,
+    },
+  });
   await showFrequencyStep(ctx, true);
   return true;
 }
@@ -238,7 +269,9 @@ async function finalizeStrategy(
   ctx: GramityContext,
   telegramId: number
 ): Promise<void> {
-  const w = ctx.session.strategyWizard;
+  const tid = botTgId(ctx);
+  if (!tid) return;
+  const w = (await readState(tid)).strategyWizard;
   if (!w?.strategy_type || !w.amount_usdt || !w.frequency) {
     await ctx.reply("❌ Не хватает данных. Начните с /add");
     return;
@@ -264,7 +297,7 @@ async function finalizeStrategy(
 
   await createUserWallet(telegramId);
   registerStrategyCron({ ...strategy, telegram_id: telegramId });
-  ctx.session.strategyWizard = undefined;
+  await clearStrategyWizard(tid);
 
   await ctx.reply(
     `✅ *Стратегия #${strategy.id} создана*\n\n` +

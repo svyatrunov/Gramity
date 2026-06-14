@@ -1,5 +1,5 @@
 import { StonApiClient } from "@ston-fi/api";
-import type { GramityContext } from "../session.js";
+import type { GramityContext } from "../context.js";
 import { getPlanByTelegramId } from "../../db/index.js";
 import { getUsdtBalance } from "../../services/tonapi.js";
 import { createUserWallet } from "../../services/userWallet.js";

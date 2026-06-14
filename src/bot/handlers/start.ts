@@ -5,13 +5,16 @@
 
 import { InlineKeyboard } from "grammy";
 import { Address } from "@ton/ton";
-import type { GramityContext } from "../session.js";
+import type { GramityContext } from "../context.js";
+import { botTgId, readState, writeState } from "../state.js";
 import { RAILWAY_PUBLIC_URL } from "../../config.js";
 import { MIN_DCA_USDT } from "../../constants/dca.js";
 import { getInitialPlanExecutionDate } from "../../constants/dca.js";
 import {
   getPlanByTelegramId,
+  getStrategiesByTelegramId,
   upsertPlan,
+  type Plan,
 } from "../../db/index.js";
 import { getUsdtBalance } from "../../services/tonapi.js";
 import { createUserWallet } from "../../services/userWallet.js";
@@ -69,11 +72,17 @@ function estimateYearlyUsd(weeklyAmount: number): number {
 // ─── /start command ───────────────────────────────────────────────────────────
 
 export async function handleStart(ctx: GramityContext) {
-  const telegramId = ctx.from?.id;
-  if (!telegramId) return;
+  const tid = botTgId(ctx);
+  if (!tid) return;
+  const telegramId = Number(tid);
 
-  const existingPlan = await getPlanByTelegramId(telegramId).catch(() => null);
-  const appUrl = existingPlan
+  const [existingPlan, strategies] = await Promise.all([
+    getPlanByTelegramId(telegramId).catch(() => null),
+    getStrategiesByTelegramId(telegramId).catch(() => []),
+  ]);
+
+  const hasAnyStrategy = existingPlan || strategies.length > 0;
+  const appUrl = hasAnyStrategy
     ? `${RAILWAY_PUBLIC_URL}/app/dashboard.html`
     : `${RAILWAY_PUBLIC_URL}/app/onboarding.html`;
 
@@ -93,12 +102,12 @@ export async function handleStart(ctx: GramityContext) {
         `Next       ${nextDate}`,
       { parse_mode: "Markdown", reply_markup: kb }
     );
-    ctx.session.step = "idle";
+    await writeState(tid, { step: "idle" });
     return;
   }
 
   // ── New user — Open App button ─────────────────────────────────────────────
-  ctx.session.step = "idle";
+  await writeState(tid, { step: "idle" });
 
   const kb = new InlineKeyboard()
     .webApp("Start setup", appUrl);
@@ -113,8 +122,9 @@ export async function handleStart(ctx: GramityContext) {
 // ─── Text message router ──────────────────────────────────────────────────────
 
 export async function handleText(ctx: GramityContext) {
-  const telegramId = ctx.from?.id;
+  const tid = botTgId(ctx);
   const text = ctx.message?.text?.trim() ?? "";
+  if (!tid) return;
 
   if (text.startsWith("/")) {
     const { parseStrategyCommand, handlePauseStrategy, handleResumeStrategy, handleStopStrategy } =
@@ -128,20 +138,16 @@ export async function handleText(ctx: GramityContext) {
     }
   }
 
-  if (telegramId) {
-    const { handleStrategyWalletInput, handleStrategyCustomAmount } =
-      await import("./strategies.js");
-    if (await handleStrategyWalletInput(ctx, text)) return;
-    if (await handleStrategyCustomAmount(ctx, text)) return;
-  }
+  const telegramId = Number(tid);
+  const { handleStrategyWalletInput, handleStrategyCustomAmount } =
+    await import("./strategies.js");
+  if (await handleStrategyWalletInput(ctx, text)) return;
+  if (await handleStrategyCustomAmount(ctx, text)) return;
 
-  if (telegramId) {
-    const { handleAddressInput } = await import("./withdrawalWallet.js");
-    const handled = await handleAddressInput(ctx, text);
-    if (handled) return;
-  }
+  const { handleAddressInput } = await import("./withdrawalWallet.js");
+  if (await handleAddressInput(ctx, text)) return;
 
-  const step = ctx.session.step;
+  const { step } = await readState(tid);
 
   if (step === "waiting_wallet") {
     await handleWalletInput(ctx, text);
@@ -175,21 +181,24 @@ async function handleWalletInput(ctx: GramityContext, text: string) {
 
 /**
  * Shared logic executed right after a TON address is confirmed — whether via
- * manual text input or the TonConnect mini-app.  Sets the session to
- * `waiting_deposit_confirm`, allocates the deposit wallet, starts the poller,
- * and prompts the user to fund it.
+ * manual text input or the TonConnect mini-app.  Persists bot state to DB,
+ * allocates the deposit wallet, starts the poller, and prompts the user to fund it.
  */
 export async function continueToDepositStep(
   ctx: GramityContext,
   normalizedAddress: string
 ): Promise<void> {
-  const telegramId = ctx.from!.id;
-
-  ctx.session.tonAddress = normalizedAddress;
-  ctx.session.step = "waiting_deposit_confirm";
+  const tid = botTgId(ctx);
+  if (!tid) return;
+  const telegramId = Number(tid);
 
   const depositAddress = await createUserWallet(telegramId).catch(() => "unavailable");
-  ctx.session.depositAddress = depositAddress;
+
+  await writeState(tid, {
+    tonAddress: normalizedAddress,
+    step: "waiting_deposit_confirm",
+    depositAddress,
+  });
 
   startDepositPoller(telegramId, depositAddress);
 
@@ -211,9 +220,13 @@ export async function continueToDepositStep(
 // ─── Step: deposit confirmed ──────────────────────────────────────────────────
 
 async function handleDepositConfirm(ctx: GramityContext) {
-  const telegramId = ctx.from!.id;
+  const tid = botTgId(ctx);
+  if (!tid) return;
+  const telegramId = Number(tid);
+  const state = await readState(tid);
+
   const depositAddress =
-    ctx.session.depositAddress ??
+    state.depositAddress ??
     (await createUserWallet(telegramId).catch(() => ""));
   const balance = depositAddress ? await getUsdtBalance(depositAddress) : 0;
 
@@ -226,8 +239,10 @@ async function handleDepositConfirm(ctx: GramityContext) {
   }
 
   stopDepositPoller(telegramId);
-  ctx.session.usdtBalance = balance;
-  ctx.session.step = "waiting_amount";
+  await writeState(tid, {
+    usdtBalance: balance,
+    step: "waiting_amount",
+  });
   await showAmountKeyboard(ctx, balance);
 }
 
@@ -255,6 +270,9 @@ async function showAmountKeyboard(ctx: GramityContext, balance: number) {
 }
 
 async function handleCustomAmount(ctx: GramityContext, text: string) {
+  const tid = botTgId(ctx);
+  if (!tid) return;
+
   const amount = parseFloat(text.replace(",", ".").replace(/[^0-9.]/g, ""));
 
   if (isNaN(amount) || amount < MIN_DCA_USDT) {
@@ -264,8 +282,7 @@ async function handleCustomAmount(ctx: GramityContext, text: string) {
     return;
   }
 
-  ctx.session.amount = amount;
-  ctx.session.step = "waiting_frequency";
+  await writeState(tid, { amount, step: "waiting_frequency" });
   await showFrequencyKeyboard(ctx);
 }
 
@@ -273,10 +290,10 @@ async function handleCustomAmount(ctx: GramityContext, text: string) {
 
 export async function handleCallbackQuery(ctx: GramityContext) {
   const data = ctx.callbackQuery?.data ?? "";
+  const tid = botTgId(ctx);
   await ctx.answerCallbackQuery();
 
   if (data === "onboard_start") {
-    // Legacy: redirect to Mini App instead of bot-based onboarding
     const appUrl = `${RAILWAY_PUBLIC_URL}/app/onboarding.html`;
     const kb = new InlineKeyboard().webApp("🚀 Open App", appUrl);
     await ctx.reply(
@@ -287,23 +304,42 @@ export async function handleCallbackQuery(ctx: GramityContext) {
   }
 
   if (data === "deposit_done") {
-    if (!ctx.session.tonAddress) {
+    if (!tid) return;
+    const telegramId = Number(tid);
+
+    const plan = await getPlanByTelegramId(telegramId).catch(() => null);
+    if (plan?.active) {
+      const { handleRunNow } = await import("./runNow.js");
+      await handleRunNow(
+        telegramId,
+        async (text, extra) => { await ctx.reply(text, extra as object); },
+        1
+      );
+      return;
+    }
+
+    const state = await readState(tid);
+    if (!state.tonAddress) {
       await ctx.reply("⚠️ Session expired.\n\nTap /start to begin again.");
       return;
     }
-    ctx.session.step = "waiting_deposit_confirm";
+    await writeState(tid, { step: "waiting_deposit_confirm" });
     await handleDepositConfirm(ctx);
     return;
   }
 
+  if (!tid) return;
+
   if (data.startsWith("amount_")) {
     const raw = data.slice(7);
     if (raw === "custom") {
-      ctx.session.step = "waiting_custom_amount";
+      await writeState(tid, { step: "waiting_custom_amount" });
       await ctx.reply(`Enter amount in USDT (minimum $${MIN_DCA_USDT}):`);
     } else {
-      ctx.session.amount = Number(raw);
-      ctx.session.step = "waiting_frequency";
+      await writeState(tid, {
+        amount: Number(raw),
+        step: "waiting_frequency",
+      });
       await showFrequencyKeyboard(ctx);
     }
     return;
@@ -318,16 +354,16 @@ export async function handleCallbackQuery(ctx: GramityContext) {
       | "minutely"
       | "hourly";
 
-    if (!ctx.session.amount || !ctx.session.tonAddress) {
+    const state = await readState(tid);
+    if (!state.amount || !state.tonAddress) {
       await ctx.reply(
         "⚠️ Session expired (bot restarted).\n\nTap /start — takes 30 seconds."
       );
-      ctx.session.step = "idle";
+      await writeState(tid, { step: "idle" });
       return;
     }
 
-    ctx.session.frequency = freq;
-    ctx.session.step = "confirming";
+    await writeState(tid, { frequency: freq, step: "confirming" });
     await showConfirmation(ctx);
     return;
   }
@@ -338,9 +374,9 @@ export async function handleCallbackQuery(ctx: GramityContext) {
   }
 
   if (data === "edit_plan") {
-    ctx.session.step = "waiting_amount";
-    const balance = ctx.session.usdtBalance ?? 0;
-    await showAmountKeyboard(ctx, balance);
+    const state = await readState(tid);
+    await writeState(tid, { step: "waiting_amount" });
+    await showAmountKeyboard(ctx, state.usdtBalance ?? 0);
     return;
   }
 }
@@ -366,7 +402,9 @@ async function showFrequencyKeyboard(ctx: GramityContext) {
 }
 
 async function showConfirmation(ctx: GramityContext) {
-  const { amount, frequency, tonAddress } = ctx.session;
+  const tid = botTgId(ctx);
+  if (!tid) return;
+  const { amount, frequency, tonAddress } = await readState(tid);
   if (!amount || !frequency || !tonAddress) return;
 
   const isTest    = TEST_FREQS.includes(frequency);
@@ -400,10 +438,12 @@ async function showConfirmation(ctx: GramityContext) {
 }
 
 async function handleActivate(ctx: GramityContext) {
-  const telegramId = ctx.from?.id;
-  const { amount, frequency, tonAddress } = ctx.session;
+  const tid = botTgId(ctx);
+  if (!tid) return;
+  const telegramId = Number(tid);
+  const { amount, frequency, tonAddress } = await readState(tid);
 
-  if (!telegramId || !amount || !frequency || !tonAddress) {
+  if (!amount || !frequency || !tonAddress) {
     await ctx.reply("❌ Something went wrong. Start over: /start");
     return;
   }
@@ -424,7 +464,7 @@ async function handleActivate(ctx: GramityContext) {
       ton_address: tonAddress,
       agent_wallet: null,
       usdt_amount: amount,
-      frequency,
+      frequency: frequency as Plan["frequency"],
       strategy_mode: "full",
       active: true,
       next_execution_at: firstDate.toISOString(),
@@ -434,7 +474,7 @@ async function handleActivate(ctx: GramityContext) {
     });
 
     await createUserWallet(telegramId);
-    ctx.session.step = "idle";
+    await writeState(tid, { step: "idle" });
 
     await ctx.reply(
       `🚀 *Gramity activated!*\n\n` +
