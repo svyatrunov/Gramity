@@ -365,9 +365,9 @@
       display: flex;
       align-items: flex-start;
       gap: 12px;
-      padding: 13px 14px;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(74, 138, 255, 0.15);
+      padding: 13px 4px;
+      background: transparent;
+      border: 1px solid transparent;
       border-radius: var(--radius);
     }
 
@@ -4735,9 +4735,6 @@
               tgApp.HapticFeedback.notificationOccurred('success');
             }
             goTo(WIZARD_FINAL);
-            setTimeout(function () {
-              window.location.replace(window.location.origin + '/app/dashboard.html');
-            }, 1500);
           } else {
             var errData = await res.json().catch(function () { return {}; });
             if (errData.error === 'plan_exists') {
