@@ -1,5 +1,5 @@
 import { BOT_USERNAME } from "../../config";
-import { ActionButton, S } from "../../styles";
+import { ActionButton } from "../../styles";
 
 export function SettingsInfo() {
   const openBot = () => {
@@ -7,13 +7,13 @@ export function SettingsInfo() {
   };
 
   return (
-    <div style={S.card}>
-      <p style={{ fontSize: 14, marginBottom: 12, lineHeight: 1.4 }}>
-        Чтобы изменить сумму, частоту или стратегию — отправьте /settings боту
+    <section className="g-card g-section g-card--flat">
+      <p className="g-hint" style={{ marginBottom: 12 }}>
+        Чтобы изменить сумму, частоту или стратегию, отправьте /settings боту.
       </p>
       <ActionButton variant="secondary" onClick={openBot}>
         Открыть бота
       </ActionButton>
-    </div>
+    </section>
   );
 }

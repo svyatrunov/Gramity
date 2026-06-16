@@ -24,7 +24,8 @@
     }
   </script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-  <script defer src="https://unpkg.com/@tonconnect/ui@2/dist/tonconnect-ui.min.js"></script>
+  <script defer src="/app/assets/tonconnect-ui.min.js"></script>
+  <script defer src="/app/assets/gramity-ton-proof.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1431,8 +1432,191 @@
       text-align: center; font-size: 13px; color: var(--text-secondary);
       cursor: pointer; padding: 8px; margin-top: 4px;
       transition: color 0.2s;
+      background: none; border: none; font-family: inherit; width: 100%;
     }
     .skip-link:hover { color: var(--text-primary); }
+
+    .skip-intro-btn {
+      position: fixed;
+      top: max(12px, env(safe-area-inset-top));
+      right: 14px;
+      z-index: 50;
+      background: rgba(255,255,255,0.06);
+      border: 0.5px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.65);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 7px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .skip-intro-btn:active { opacity: 0.85; }
+    body.setup-mode .skip-intro-btn { display: none; }
+
+    /* ── Setup mode (app shell, not intro slides) ── */
+    body.setup-mode {
+      background: #0B0B12;
+    }
+    body.setup-mode .app {
+      max-width: 430px;
+      background: #0B0B12;
+    }
+    body.setup-mode .nav-arrow,
+    body.setup-mode .dots,
+    body.setup-mode .dots-clone,
+    body.setup-mode .wizard-header,
+    body.setup-mode .wizard-step-bar-2 { display: none !important; }
+    body.setup-mode .track {
+      width: 100% !important;
+      transform: none !important;
+      display: block;
+      height: auto;
+      min-height: 100dvh;
+    }
+    body.setup-mode .slide {
+      width: 100% !important;
+      display: none;
+      min-height: 100dvh;
+      padding-top: calc(max(12px, env(safe-area-inset-top)) + 88px);
+      padding-bottom: max(24px, env(safe-area-inset-bottom));
+      background: #0B0B12;
+    }
+    body.setup-mode .slide.setup-visible {
+      display: flex;
+    }
+    body.setup-mode .slide-wizard .slide-content {
+      justify-content: flex-start;
+    }
+    body.setup-mode .slide-wizard .slide-footer {
+      background: #0B0B12;
+      border-top: 0.5px solid rgba(255,255,255,0.07);
+    }
+
+    .setup-header {
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 430px;
+      z-index: 60;
+      padding: max(12px, env(safe-area-inset-top)) 14px 10px;
+      background: #0B0B12;
+      border-bottom: 0.5px solid rgba(255,255,255,0.07);
+    }
+    .setup-header-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .setup-header-back,
+    .setup-header-close {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.55);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 8px;
+      line-height: 1;
+    }
+    .setup-header-main { flex: 1; min-width: 0; }
+    .setup-header-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .setup-header-sub {
+      font-size: 12px;
+      color: rgba(255,255,255,0.45);
+      margin-top: 2px;
+    }
+    .setup-step-nav {
+      position: fixed;
+      top: calc(max(12px, env(safe-area-inset-top)) + 52px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 430px;
+      z-index: 59;
+      display: flex;
+      gap: 6px;
+      padding: 0 14px 8px;
+      background: #0B0B12;
+    }
+    .setup-step-pill {
+      flex: 1;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      padding: 6px 4px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.03);
+      border: 0.5px solid transparent;
+    }
+    .setup-step-pill.active {
+      color: #4F87F7;
+      background: rgba(79,135,247,0.12);
+      border-color: rgba(79,135,247,0.25);
+    }
+    .setup-step-pill.done {
+      color: rgba(255,255,255,0.55);
+    }
+    .setup-section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.45);
+      margin-bottom: 10px;
+    }
+    .goal-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .goal-card {
+      background: #14141E;
+      border: 0.5px solid rgba(255,255,255,0.07);
+      border-radius: 14px;
+      padding: 14px 12px;
+    }
+    .goal-card-primary {
+      border-color: rgba(79,135,247,0.35);
+      background: rgba(79,135,247,0.08);
+    }
+    .goal-period {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: rgba(255,255,255,0.45);
+      margin-bottom: 8px;
+    }
+    .goal-ton {
+      display: block;
+      font-size: 20px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.2;
+      margin-bottom: 4px;
+    }
+    .goal-usd {
+      display: block;
+      font-size: 12px;
+      color: rgba(255,255,255,0.45);
+    }
+    .goal-footnote {
+      font-size: 11px;
+      color: rgba(255,255,255,0.35);
+      line-height: 1.45;
+      margin-top: 6px;
+    }
 
     /* ── Telegram auth gate (no initData) ── */
     .auth-gate {
@@ -1737,6 +1921,25 @@
   </svg>
 
   <div class="app" id="app">
+    <button type="button" class="skip-intro-btn" id="btnSkipIntro">Skip intro</button>
+
+    <header class="setup-header" id="setup-header" hidden>
+      <div class="setup-header-row">
+        <button type="button" class="setup-header-back" id="setupBackBtn" aria-label="Back">←</button>
+        <div class="setup-header-main">
+          <div class="setup-header-title">New DCA strategy</div>
+          <div class="setup-header-sub" id="setupStepLabel">Connect wallet</div>
+        </div>
+        <button type="button" class="setup-header-close" id="setupCloseBtn" aria-label="Close">×</button>
+      </div>
+    </header>
+    <nav class="setup-step-nav" id="setup-step-nav" hidden aria-label="Setup progress">
+      <div class="setup-step-pill" data-setup-step="0">Connect</div>
+      <div class="setup-step-pill" data-setup-step="1">Fund</div>
+      <div class="setup-step-pill" data-setup-step="2">Strategy</div>
+      <div class="setup-step-pill" data-setup-step="3">Confirm</div>
+    </nav>
+
     <button class="nav-arrow prev hidden" id="btnPrev" aria-label="Previous">←</button>
     <button class="nav-arrow next" id="btnNext" aria-label="Next">→</button>
 
@@ -1770,6 +1973,7 @@
         <div class="slide-footer">
           <div class="dots" id="dots"></div>
           <button class="btn btn-link anim-item" id="btnGetStarted">Get started →</button>
+          <button type="button" class="skip-link anim-item btn-skip-intro">Skip intro →</button>
         </div>
       </section>
 
@@ -1818,7 +2022,8 @@
         </div>
         <div class="slide-footer">
           <div class="dots dots-clone"></div>
-          <button class="btn btn-link anim-item btn-slide-next" type="button">Get started →</button>
+          <button class="btn btn-link anim-item btn-slide-advance" type="button">Next →</button>
+          <button type="button" class="skip-link anim-item btn-skip-intro">Skip intro →</button>
         </div>
       </section>
 
@@ -1878,7 +2083,8 @@
         </div>
         <div class="slide-footer">
           <div class="dots dots-clone"></div>
-          <button class="btn btn-link anim-item btn-slide-next" type="button">Get started →</button>
+          <button class="btn btn-link anim-item btn-slide-advance" type="button">Next →</button>
+          <button type="button" class="skip-link anim-item btn-skip-intro">Skip intro →</button>
         </div>
       </section>
 
@@ -1963,7 +2169,8 @@
         </div>
         <div class="slide-footer">
           <div class="dots dots-clone"></div>
-          <button class="btn btn-link anim-item btn-slide-next" type="button">Get started →</button>
+          <button class="btn btn-link anim-item btn-slide-advance" type="button">Next →</button>
+          <button type="button" class="skip-link anim-item btn-skip-intro">Skip intro →</button>
         </div>
       </section>
 
@@ -2006,7 +2213,8 @@
         </div>
         <div class="slide-footer">
           <div class="dots dots-clone"></div>
-          <button class="btn btn-link anim-item btn-slide-next" type="button">Get started →</button>
+          <button class="btn btn-link anim-item btn-slide-start" type="button">Start setup →</button>
+          <button type="button" class="skip-link anim-item btn-skip-intro">Skip intro →</button>
         </div>
       </section>
 
@@ -2049,7 +2257,7 @@
             </button>
 
             <button id="btnSkipWallet" class="connect-option-ghost" type="button">
-              Fund agent wallet manually →
+              Already funded DCA wallet →
             </button>
           </div>
 
@@ -2150,7 +2358,10 @@
           <div class="wizard-seg"></div>
         </div>
         <div class="slide-content">
-          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:6px">Plan your DCA</h2>
+          <h2 class="slide-heading anim-item" style="text-align:left;margin-bottom:6px">DCA strategy goal</h2>
+          <p class="anim-item" style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;line-height:1.5">
+            Set amount and schedule. Projections include ~5.4% LP yield — price held constant.
+          </p>
 
           <div class="avail-bal-banner anim-item" id="availBalBanner">
             Funded on DCA wallet: <strong id="availUsdtText">—</strong>
@@ -2190,9 +2401,21 @@
           </div>
 
           <div class="proj-big-card anim-item" id="projBigCard">
-            <div style="font-size:26px;font-weight:800;color:var(--text-primary);line-height:1.3;margin-bottom:4px" id="projBigTon">After 1 year: ≈ — TON</div>
+            <p class="setup-section-label" style="margin-bottom:10px">Goal · total invested + yield</p>
+            <div class="goal-grid">
+              <div class="goal-card">
+                <span class="goal-period">6 months</span>
+                <span class="goal-ton" id="proj6mTon">≈ — TON</span>
+                <span class="goal-usd" id="proj6mUsd">$— total</span>
+              </div>
+              <div class="goal-card goal-card-primary">
+                <span class="goal-period">1 year</span>
+                <span class="goal-ton" id="proj1yTon">≈ — TON</span>
+                <span class="goal-usd" id="proj1yUsd">$— total</span>
+              </div>
+            </div>
             <div class="proj-breakdown" id="projBreakdown">+0% APY</div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.35);line-height:1.4;margin-top:4px" id="projTonDisclaimer">Fetching rate…</div>
+            <div class="goal-footnote" id="projTonDisclaimer">Fetching rate…</div>
           </div>
 
           <div class="withdraw-block anim-item">
@@ -2261,6 +2484,14 @@
               <span class="summary-label">Funded</span>
               <span class="summary-value hi" id="summaryFunded">—</span>
             </div>
+            <div class="summary-row">
+              <span class="summary-label">Goal · 6 months</span>
+              <span class="summary-value" id="summaryGoal6m">—</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Goal · 1 year</span>
+              <span class="summary-value hi" id="summaryGoal1y">—</span>
+            </div>
           </div>
 
         </div>
@@ -2298,7 +2529,7 @@
         </div>
         <div class="slide-footer">
           <div class="deposit-actions">
-            <button class="btn btn-primary anim-item" id="btnOpenDashboard">View Dashboard →</button>
+            <button class="btn btn-primary anim-item" id="btnOpenDashboard">Open Dashboard →</button>
             <button class="btn btn-ghost anim-item" id="btnTrackInBot">Track in Bot →</button>
             <button class="btn btn-ghost anim-item" id="btnOpenEvmDeposit">Deposit from EVM chains →</button>
           </div>
@@ -2429,6 +2660,14 @@
             window.__userId = data.userId || (data.user && (data.user.telegramId || data.user.id));
             authOk = true;
             hideAuthGate();
+            fetch('/api/portfolio', { headers: apiHeaders() })
+              .then(function (r) { return r.ok ? r.json() : null; })
+              .then(function (portfolio) {
+                if (portfolio && portfolio.plan && portfolio.plan.active) {
+                  window.location.replace('/app/dashboard.html');
+                }
+              })
+              .catch(function () {});
           })
           .catch(function (err) {
             console.error('[AUTH] Error:', err);
@@ -2463,6 +2702,20 @@
       var animating      = false;
       var countUpDone    = false;
       var flowAnimStarted = false;
+      var setupMode      = false;
+      var INTRO_LAST     = 4;
+      var WIZARD_CONNECT = 5;
+      var WIZARD_DEPOSIT = 6;
+      var WIZARD_SETUP   = 7;
+      var WIZARD_CONFIRM = 8;
+      var WIZARD_FINAL   = 9;
+      var SETUP_STEP_MAP = {
+        5: { idx: 0, label: 'Connect wallet' },
+        6: { idx: 1, label: 'Fund DCA wallet' },
+        7: { idx: 2, label: 'DCA strategy goal' },
+        8: { idx: 3, label: 'Confirm strategy' },
+        9: { idx: 4, label: 'Strategy created' },
+      };
 
       /* ── DOM refs ── */
       var track        = document.getElementById('track');
@@ -2471,7 +2724,7 @@
       var dotsContainer = document.getElementById('dots');
       var slides       = document.querySelectorAll('.slide');
       var TOTAL        = slides.length;
-      var DOT_COUNT    = 6;
+      var DOT_COUNT    = INTRO_LAST + 1;
       document.documentElement.style.setProperty('--slide-count', String(TOTAL));
 
       /* ── Build dots ── */
@@ -2504,28 +2757,80 @@
         });
       }
 
-      var WIZARD_CONNECT = 5;
-      var WIZARD_DEPOSIT = 6;
-      var WIZARD_SETUP = 7;
-      var WIZARD_CONFIRM = 8;
-      var WIZARD_FINAL = 9;
+      function updateSkipIntroBtn() {
+        var btn = document.getElementById('btnSkipIntro');
+        if (!btn) return;
+        btn.hidden = setupMode || current > INTRO_LAST;
+      }
+
+      function updateSetupChrome(index) {
+        var setupHeader = document.getElementById('setup-header');
+        var setupNav = document.getElementById('setup-step-nav');
+        var labelEl = document.getElementById('setupStepLabel');
+        var meta = SETUP_STEP_MAP[index];
+        if (setupHeader) setupHeader.hidden = !setupMode;
+        if (setupNav) setupNav.hidden = !setupMode;
+        if (!setupMode || !meta) return;
+        if (labelEl) labelEl.textContent = meta.label;
+        document.querySelectorAll('.setup-step-pill').forEach(function (pill) {
+          var stepIdx = parseInt(pill.getAttribute('data-setup-step'), 10);
+          pill.classList.toggle('active', stepIdx === meta.idx);
+          pill.classList.toggle('done', stepIdx < meta.idx);
+        });
+      }
+
+      function enterSetupMode() {
+        if (!assertAuth()) return;
+        setupMode = true;
+        document.body.classList.add('setup-mode');
+        updateSkipIntroBtn();
+        goTo(WIZARD_CONNECT);
+      }
+
+      function exitSetupToDashboard() {
+        window.location.href = '/app/dashboard.html';
+      }
+
+      function skipIntro() {
+        if (!assertAuth()) return;
+        if (window.gramityState && window.gramityState.plan) {
+          exitSetupToDashboard();
+        } else {
+          enterSetupMode();
+        }
+      }
 
       function updateArrows() {
         var inWizard = current >= WIZARD_CONNECT;
-        btnPrev.classList.toggle('hidden', current === 0 || inWizard);
-        btnNext.classList.toggle('hidden', current >= TOTAL - 1 || inWizard);
+        btnPrev.classList.toggle('hidden', current === 0 || inWizard || setupMode);
+        btnNext.classList.toggle('hidden', current >= INTRO_LAST || inWizard || setupMode);
       }
 
       function getOffset() { return -(current * (100 / TOTAL)); }
 
+      function applySetupVisible(index) {
+        slides.forEach(function (slide, i) {
+          slide.classList.toggle('setup-visible', i === index);
+        });
+        if (track) {
+          track.style.transform = 'none';
+          track.style.transition = 'none';
+        }
+        updateSetupChrome(index);
+      }
+
       function goTo(index) {
         if (!assertAuth()) return;
         if (animating || index === current || index < 0 || index >= TOTAL) return;
+        if (!setupMode && index > INTRO_LAST) return;
         animating = true;
         var prev = current;
         current = index;
 
-        if (typeof gsap !== 'undefined') {
+        if (setupMode) {
+          applySetupVisible(index);
+          animating = false;
+        } else if (typeof gsap !== 'undefined') {
           gsap.to(track, {
             xPercent: getOffset(), duration: 0.4, ease: 'power2.out',
             onComplete: function () { animating = false; }
@@ -2538,22 +2843,68 @@
 
         updateDots();
         updateArrows();
+        updateSkipIntroBtn();
         animateSlide(current);
         resetSlide(prev);
       }
 
-      function next() { goTo(current + 1); }
-      function prev() { goTo(current - 1); }
+      function next() {
+        if (setupMode) return;
+        if (current >= INTRO_LAST) return;
+        goTo(current + 1);
+      }
+      function prev() { if (!setupMode) goTo(current - 1); }
 
       btnNext.addEventListener('click', next);
       btnPrev.addEventListener('click', prev);
 
-      function goToConnectWallet() { goTo(WIZARD_CONNECT); }
+      function goToConnectWallet() { enterSetupMode(); }
 
       document.getElementById('btnGetStarted').addEventListener('click', goToConnectWallet);
-      document.querySelectorAll('.btn-slide-next').forEach(function (btn) {
+      document.querySelectorAll('.btn-slide-advance').forEach(function (btn) {
+        btn.addEventListener('click', next);
+      });
+      document.querySelectorAll('.btn-slide-start').forEach(function (btn) {
         btn.addEventListener('click', goToConnectWallet);
       });
+      document.querySelectorAll('.btn-skip-intro').forEach(function (btn) {
+        btn.addEventListener('click', skipIntro);
+      });
+      document.getElementById('btnSkipIntro').addEventListener('click', skipIntro);
+      document.getElementById('setupCloseBtn').addEventListener('click', exitSetupToDashboard);
+      document.getElementById('setupBackBtn').addEventListener('click', function () {
+        if (current === WIZARD_FINAL) {
+          exitSetupToDashboard();
+          return;
+        }
+        if (current === WIZARD_CONNECT) {
+          setupMode = false;
+          document.body.classList.remove('setup-mode');
+          slides.forEach(function (slide) { slide.classList.remove('setup-visible'); });
+          document.getElementById('setup-header').hidden = true;
+          document.getElementById('setup-step-nav').hidden = true;
+          current = INTRO_LAST;
+          if (typeof gsap !== 'undefined') {
+            gsap.set(track, { xPercent: getOffset() });
+          } else {
+            track.style.transform = 'translateX(' + getOffset() + '%)';
+          }
+          updateDots();
+          updateArrows();
+          updateSkipIntroBtn();
+          animateSlide(current);
+          return;
+        }
+        if (current === WIZARD_DEPOSIT) goTo(WIZARD_CONNECT);
+        else if (current === WIZARD_SETUP) goTo(WIZARD_DEPOSIT);
+        else if (current === WIZARD_CONFIRM) goTo(WIZARD_SETUP);
+      });
+
+      if (new URLSearchParams(window.location.search).get('setup') === '1') {
+        setTimeout(enterSetupMode, 0);
+      } else {
+        updateSkipIntroBtn();
+      }
 
       function normalizeTelegramUrl(url) {
         if (!url || url.indexOf('tg://resolve?domain=') !== 0) return url;
@@ -2584,6 +2935,7 @@
 
       /* ── Keyboard ── */
       document.addEventListener('keydown', function (e) {
+        if (setupMode) return;
         if (e.key === 'ArrowRight') next();
         else if (e.key === 'ArrowLeft') prev();
       });
@@ -2598,6 +2950,7 @@
       }, { passive: true });
 
       track.addEventListener('touchend', function (e) {
+        if (setupMode) return;
         var dx = e.changedTouches[0].clientX - touchStartX;
         var dy = e.changedTouches[0].clientY - touchStartY;
         var dt = Date.now() - touchTime;
@@ -2821,33 +3174,93 @@
         polygon: 'Polygon',
       };
 
-      /* ── TonConnect UI ── */
+      /* ── TonConnect UI + ton_proof ── */
       var tonConnectUI = null;
-      try {
-        if (window.TON_CONNECT_UI && window.TON_CONNECT_UI.TonConnectUI) {
-          tonConnectUI = new window.TON_CONNECT_UI.TonConnectUI({
-            manifestUrl: 'https://gramity-production.up.railway.app/app/tonconnect-manifest.json',
-          });
+      var gramityTonProof = null;
+      var tonProofVerified = false;
 
+      function setWithdrawalAddress(addr) {
+        if (/^0x[0-9a-fA-F]{40}$/.test(addr)) {
+          console.warn('EVM address blocked from withdrawal field');
+          return;
+        }
+        window.gramityState = window.gramityState || {};
+        window.gramityState.withdrawalAddress = addr;
+        wiz.withdrawAddress = addr;
+      }
+
+      function apiPost(path, body) {
+        return fetch('/api' + path, {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, apiHeaders()),
+          body: body ? JSON.stringify(body) : '{}',
+        }).then(function (r) {
+          return r.json().then(function (data) {
+            if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+            return data;
+          });
+        });
+      }
+
+      function applyVerifiedTonWallet(rawAddr) {
+        tonProofVerified = true;
+        wiz.tonAddress = rawAddr;
+        wiz.tonConnected = true;
+        setWithdrawalAddress(rawAddr);
+        var inp = document.getElementById('withdrawAddrInput');
+        if (inp) inp.value = rawAddr;
+        var laterInp = document.getElementById('withdrawLaterInput');
+        if (laterInp) laterInp.value = rawAddr;
+        updateTonConnectBtn(rawAddr);
+        updateSetupContinueBtn();
+        updateWithdrawLaterBtn();
+        fetchTonBal(rawAddr).then(function (items) {
+          var balItems = items || [];
+          var result = applyBalanceFilters(balItems);
+          wiz.usdtBalance = result.usdtBalance;
+          syncAvailableUsdt();
+          updateStep2WalletInfo(rawAddr, balItems);
+          showStripPreview(rawAddr, balItems);
+          updateConnectContinueBtn();
+        });
+      }
+
+      function openTonConnectWithProof() {
+        if (!gramityTonProof) return;
+        gramityTonProof.openWithProof().catch(function (err) {
+          var tgApp = window.Telegram && window.Telegram.WebApp;
+          var msg = (err && err.message) || 'Could not start wallet connect';
+          if (tgApp && tgApp.showAlert) tgApp.showAlert('❌ ' + msg);
+          else console.warn('[TonConnect]', msg);
+        });
+      }
+
+      try {
+        if (window.TON_CONNECT_UI && window.TON_CONNECT_UI.TonConnectUI && window.GramityTonProof) {
+          tonConnectUI = new window.TON_CONNECT_UI.TonConnectUI({
+            manifestUrl: window.location.origin + '/app/tonconnect-manifest.json',
+          });
+          gramityTonProof = new window.GramityTonProof(tonConnectUI, apiPost);
+          gramityTonProof.onVerified(function (addr) {
+            applyVerifiedTonWallet(addr);
+          });
+          gramityTonProof.onFailed(function (err) {
+            tonProofVerified = false;
+            wiz.tonAddress = '';
+            wiz.tonConnected = false;
+            updateTonConnectBtn(null);
+            updateStep2WalletInfo(null, []);
+            updateConnectContinueBtn();
+            var tgApp = window.Telegram && window.Telegram.WebApp;
+            var msg = (err && err.message) || 'Wallet verification failed';
+            if (tgApp && tgApp.showAlert) tgApp.showAlert('❌ ' + msg);
+          });
           tonConnectUI.onStatusChange(function (wallet) {
-            if (wallet && wallet.account && wallet.account.address) {
-              var rawAddr = wallet.account.address;
-              wiz.tonAddress   = rawAddr;
-              wiz.tonConnected = true;
-              updateTonConnectBtn(rawAddr);
-              fetchTonBal(rawAddr).then(function (items) {
-                var balItems = items || [];
-                var result = applyBalanceFilters(balItems);
-                wiz.usdtBalance = result.usdtBalance;
-                syncAvailableUsdt();
-                updateStep2WalletInfo(rawAddr, balItems);
-                showStripPreview(rawAddr, balItems);
-                updateConnectContinueBtn();
-              });
-            } else {
-              wiz.tonAddress   = '';
+            if (!wallet || !wallet.account || !wallet.account.address) {
+              tonProofVerified = false;
+              wiz.tonAddress = '';
               wiz.tonConnected = false;
-              wiz.usdtBalance  = 0;
+              wiz.usdtBalance = 0;
               syncAvailableUsdt();
               updateTonConnectBtn(null);
               updateStep2WalletInfo(null, []);
@@ -3500,8 +3913,6 @@
         wiz.evmConnected = true;
         window.gramityState = window.gramityState || {};
         window.gramityState.walletType = 'evm';
-        window.gramityState.withdrawalAddress = accounts[0];
-        wiz.withdrawAddress = accounts[0];
         wiz.withdrawalChain = wiz.withdrawalChain || 'base';
 
         var short = accounts[0].slice(0, 6) + '…' + accounts[0].slice(-4);
@@ -3736,8 +4147,9 @@
         return Math.max(AMOUNT_MIN, Math.min(max, n));
       }
 
-      function calcSetupProjection(amount, freq, tonPrice) {
-        var cycles = cyclesPerYear(freq);
+      function calcSetupProjection(amount, freq, tonPrice, years) {
+        var periodYears = years != null ? years : 1;
+        var cycles = Math.round(cyclesPerYear(freq) * periodYears);
         var totalInvested = amount * cycles;
         var yieldUSD = totalInvested * APY;
         var tonAmount = null;
@@ -3745,7 +4157,7 @@
           tonAmount = (totalInvested + yieldUSD) / tonPrice;
         }
         var yieldPct = totalInvested > 0 ? ((yieldUSD / totalInvested) * 100).toFixed(1) : '0';
-        return { totalInvested: totalInvested, yieldUSD: yieldUSD, tonAmount: tonAmount, yieldPct: yieldPct };
+        return { totalInvested: totalInvested, yieldUSD: yieldUSD, tonAmount: tonAmount, yieldPct: yieldPct, cycles: cycles };
       }
 
       function refreshSetupSliderTrack() {
@@ -3762,20 +4174,35 @@
 
       function refreshSetupProjection() {
         var tonPrice = window.gramityState.tonPrice || TON_USD_PRICE;
-        var p = calcSetupProjection(wiz.amountPerCycle, wiz.frequency, tonPrice);
-        var bigTonEl = document.getElementById('projBigTon');
+        var p6 = calcSetupProjection(wiz.amountPerCycle, wiz.frequency, tonPrice, 0.5);
+        var p1 = calcSetupProjection(wiz.amountPerCycle, wiz.frequency, tonPrice, 1);
+        var ton6 = document.getElementById('proj6mTon');
+        var usd6 = document.getElementById('proj6mUsd');
+        var ton1 = document.getElementById('proj1yTon');
+        var usd1 = document.getElementById('proj1yUsd');
         var brkEl = document.getElementById('projBreakdown');
         var priceEl = document.getElementById('projTonDisclaimer');
 
-        if (bigTonEl) {
-          bigTonEl.textContent = p.tonAmount != null
-            ? 'After 1 year: ≈ ' + Math.round(p.tonAmount).toLocaleString() + ' TON'
-            : 'After 1 year: ≈ — TON';
+        if (ton6) {
+          ton6.textContent = p6.tonAmount != null
+            ? '≈ ' + Math.round(p6.tonAmount).toLocaleString() + ' TON'
+            : '≈ — TON';
         }
-        if (brkEl) brkEl.textContent = '+' + p.yieldPct + '% APY';
+        if (usd6) {
+          usd6.textContent = '$' + Math.round(p6.totalInvested + p6.yieldUSD).toLocaleString() + ' total · ' + p6.cycles + ' cycles';
+        }
+        if (ton1) {
+          ton1.textContent = p1.tonAmount != null
+            ? '≈ ' + Math.round(p1.tonAmount).toLocaleString() + ' TON'
+            : '≈ — TON';
+        }
+        if (usd1) {
+          usd1.textContent = '$' + Math.round(p1.totalInvested + p1.yieldUSD).toLocaleString() + ' total · ' + p1.cycles + ' cycles';
+        }
+        if (brkEl) brkEl.textContent = '+' + p1.yieldPct + '% LP yield on invested amount';
         if (priceEl) {
           priceEl.textContent = tonPrice && tonPrice > 0
-            ? 'Live TON/USD: $' + tonPrice.toFixed(2) + ' · price held constant'
+            ? 'TON/USD $' + tonPrice.toFixed(2) + ' · price held constant · not financial advice'
             : 'Fetching rate…';
         }
       }
@@ -3793,7 +4220,7 @@
         var btn = document.getElementById('btnWizardNext1');
         if (!btn) return;
         var addrProvided = wiz.withdrawAddress.trim().length > 0;
-        var addrOk = !addrProvided || isValidWithdrawAddr(wiz.withdrawAddress);
+        var addrOk = !addrProvided || (isValidWithdrawAddr(wiz.withdrawAddress) && tonProofVerified);
         var amountOk = wiz.amountPerCycle >= AMOUNT_MIN;
         var can = addrOk && amountOk;
         btn.disabled = !can;
@@ -3879,10 +4306,8 @@
         var addrLabel = document.getElementById('withdrawAddrLabel');
         if (walletType === 'evm' && wiz.evmAddress) {
           if (chainSection) chainSection.style.display = 'block';
-          if (addrLabel) addrLabel.textContent = 'Withdrawal wallet (EVM)';
-          document.getElementById('withdrawAddrInput').value = wiz.evmAddress;
-          wiz.withdrawAddress = wiz.evmAddress;
-          window.gramityState.withdrawalAddress = wiz.evmAddress;
+          if (addrLabel) addrLabel.textContent = 'Withdrawal wallet (TON address)';
+          document.getElementById('withdrawAddrInput').value = '';
           updateWithdrawChainTabs(wiz.withdrawalChain || 'base');
         } else if (walletType === 'none') {
           if (chainSection) chainSection.style.display = 'none';
@@ -3894,8 +4319,11 @@
           refreshSetupProjection();
         });
         if (window.gramityState.withdrawalAddress) {
-          document.getElementById('withdrawAddrInput').value = window.gramityState.withdrawalAddress;
-          wiz.withdrawAddress = window.gramityState.withdrawalAddress;
+          var tonWithdraw = window.gramityState.withdrawalAddress;
+          if (!/^0x[0-9a-fA-F]{40}$/.test(tonWithdraw)) {
+            document.getElementById('withdrawAddrInput').value = tonWithdraw;
+            wiz.withdrawAddress = tonWithdraw;
+          }
         }
         if (window.gramityState.frequency) setSetupFrequency(window.gramityState.frequency);
         var budget = wiz.agentUsdtBalance || 0;
@@ -4015,6 +4443,21 @@
             ? 'Demo'
             : '$' + wiz.agentUsdtBalance.toFixed(2) + ' USDT on DCA wallet';
         }
+        var tonPrice = window.gramityState.tonPrice || TON_USD_PRICE;
+        var g6 = calcSetupProjection(wiz.amountPerCycle, wiz.frequency, tonPrice, 0.5);
+        var g1 = calcSetupProjection(wiz.amountPerCycle, wiz.frequency, tonPrice, 1);
+        var goal6 = document.getElementById('summaryGoal6m');
+        var goal1 = document.getElementById('summaryGoal1y');
+        if (goal6) {
+          goal6.textContent = g6.tonAmount != null
+            ? '≈ ' + Math.round(g6.tonAmount).toLocaleString() + ' TON'
+            : '—';
+        }
+        if (goal1) {
+          goal1.textContent = g1.tonAmount != null
+            ? '≈ ' + Math.round(g1.tonAmount).toLocaleString() + ' TON'
+            : '—';
+        }
       }
 
       function initConfirmStep() {
@@ -4133,11 +4576,11 @@
       document.getElementById('btnConnectTON').addEventListener('click', function () {
         window.gramityState = window.gramityState || {};
         window.gramityState.walletType = 'ton';
-        if (tonConnectUI) {
+        if (gramityTonProof) {
           if (wiz.tonConnected) {
             tonConnectUI.disconnect().catch(function () {});
           } else {
-            tonConnectUI.openModal();
+            openTonConnectWithProof();
           }
         }
       });
@@ -4204,7 +4647,8 @@
         var checkEl = document.getElementById('withdrawLaterCheck');
         if (!btn || !inp) return;
         var val = inp.value.trim();
-        var ok = isValidWithdrawAddr(val);
+        var ok = isValidWithdrawAddr(val) && tonProofVerified &&
+          gramityTonProof && gramityTonProof.isVerified(val);
         btn.disabled = !ok;
         btn.style.opacity = ok ? '1' : '0.4';
         if (checkEl) checkEl.classList.toggle('visible', ok);
@@ -4228,8 +4672,7 @@
             body: JSON.stringify({ ton_address: addr }),
           });
           if (res.ok) {
-            wiz.withdrawAddress = addr;
-            window.gramityState.withdrawalAddress = addr;
+            setWithdrawalAddress(addr);
             var card = document.getElementById('withdrawLaterCard');
             if (card) card.style.display = 'none';
             var tgApp = window.Telegram && window.Telegram.WebApp;
@@ -4292,11 +4735,12 @@
               tgApp.HapticFeedback.notificationOccurred('success');
             }
             goTo(WIZARD_FINAL);
-            setTimeout(function () {
-              window.location.replace(window.location.origin + '/app/dashboard.html');
-            }, 1500);
           } else {
             var errData = await res.json().catch(function () { return {}; });
+            if (errData.error === 'plan_exists') {
+              window.location.replace('/app/dashboard.html');
+              return;
+            }
             var errMsg = errData.error || 'Failed to create strategy. Please try again.';
             if (tgApp && tgApp.showAlert) tgApp.showAlert('❌ ' + errMsg);
             else alert('Error: ' + errMsg);

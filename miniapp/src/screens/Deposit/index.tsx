@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { fetchOnboardingWallet } from "../../api/onboarding";
 import { Step3Deposit } from "../Onboarding/Step3Deposit";
 import { CardSkeleton } from "../../components/Skeleton";
-import { S } from "../../styles";
+import { Page, PageHeader } from "../../styles";
 
 export function DepositScreenRoute() {
   const navigate = useNavigate();
@@ -25,15 +25,15 @@ export function DepositScreenRoute() {
 
   if (loading) {
     return (
-      <div style={S.root}>
+      <Page>
         <CardSkeleton />
-      </div>
+      </Page>
     );
   }
 
   return (
-    <div style={S.root}>
-      <h1 style={{ fontSize: 20, marginBottom: 16 }}>Пополнение</h1>
+    <Page>
+      <PageHeader title="Пополнение" subtitle="USDT на TON" />
       <Step3Deposit
         depositAddress={depositAddress ?? ""}
         amountUsdt={amountUsdt}
@@ -41,6 +41,6 @@ export function DepositScreenRoute() {
         onBack={() => navigate("/dashboard")}
         onGoDashboard={() => navigate("/dashboard", { replace: true })}
       />
-    </div>
+    </Page>
   );
 }

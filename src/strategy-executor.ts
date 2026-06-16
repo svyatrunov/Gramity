@@ -82,9 +82,24 @@ export async function swapUsdtToTon(
   amountUsdt: number
 ): Promise<{ tonNano: bigint; txHash: string | null }> {
   const walletCtx = await getUserWalletContext(telegramId);
-  const tonNano = await step1Swap(walletCtx, amountUsdt);
+  const result = await step1Swap(walletCtx, amountUsdt);
+  const tonNano = result.kind === "native" ? result.amountNano : 0n;
   const txHash = await getLastTxHash(walletCtx.address, 3_000);
   return { tonNano, txHash };
+}
+
+export async function swapUsdtToJetton(
+  telegramId: number,
+  amountUsdt: number,
+  jettonMaster: string
+): Promise<{ amountRaw: bigint; txHash: string | null }> {
+  const walletCtx = await getUserWalletContext(telegramId);
+  const result = await step1Swap(walletCtx, amountUsdt, {
+    targetJettonAddress: jettonMaster,
+  });
+  const amountRaw = result.kind === "jetton" ? result.amountRaw : 0n;
+  const txHash = await getLastTxHash(walletCtx.address, 3_000);
+  return { amountRaw, txHash };
 }
 
 export async function swapUsdtToTston(
@@ -92,7 +107,8 @@ export async function swapUsdtToTston(
   amountUsdt: number
 ): Promise<{ tstonNano: bigint; txHash: string | null }> {
   const walletCtx = await getUserWalletContext(telegramId);
-  const tonNano = await step1Swap(walletCtx, amountUsdt);
+  const swapResult = await step1Swap(walletCtx, amountUsdt);
+  const tonNano = swapResult.kind === "native" ? swapResult.amountNano : 0n;
   const splitInfo = await step2CalculateSplit(tonNano);
   const { tsTonReceived } = await step3Stake(walletCtx, splitInfo.stakeAmount);
   const txHash = await getLastTxHash(walletCtx.address, 3_000);
@@ -104,7 +120,8 @@ export async function addLiquidityFromUsdt(
   amountUsdt: number
 ): Promise<{ lpTokensNano: bigint; txHash: string | null }> {
   const walletCtx = await getUserWalletContext(telegramId);
-  const tonNano = await step1Swap(walletCtx, amountUsdt);
+  const swapResult = await step1Swap(walletCtx, amountUsdt);
+  const tonNano = swapResult.kind === "native" ? swapResult.amountNano : 0n;
   const splitInfo = await step2CalculateSplit(tonNano);
   const { tsTonReceived, tsTonAddress } = await step3Stake(walletCtx, splitInfo.stakeAmount);
   const resolvedTston = tsTonAddress || TSTON_ADDRESS;
@@ -163,6 +180,23 @@ export async function executeMultiStrategy(
           txHash = await sendJetton(walletCtx, POOL_ADDRESS, lpTokensNano, withdrawal);
         } else {
           txHash = "lp_reinvest";
+        }
+        break;
+      }
+
+      case "dca_jetton": {
+        if (!withdrawal) throw new Error("withdrawal_wallet required for dca_jetton");
+        const jettonMaster = strategy.target_token_address?.trim();
+        if (!jettonMaster) throw new Error("target_token_address required for dca_jetton");
+        const { amountRaw } = await swapUsdtToJetton(
+          telegramId,
+          strategy.amount_usdt,
+          jettonMaster
+        );
+        if (amountRaw > 0n) {
+          txHash = await sendJetton(walletCtx, jettonMaster, amountRaw, withdrawal);
+        } else {
+          throw new Error("Swap returned zero jetton amount");
         }
         break;
       }

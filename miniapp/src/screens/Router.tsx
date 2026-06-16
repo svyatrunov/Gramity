@@ -4,7 +4,7 @@ import { getPortfolio } from "../api/portfolio";
 import { ApiError } from "../api/client";
 import { useToast } from "../components/Toast";
 import { CardSkeleton } from "../components/Skeleton";
-import { S } from "../styles";
+import { Page } from "../styles";
 
 export function Router() {
   const { showToast } = useToast();
@@ -42,9 +42,9 @@ export function Router() {
 
   if (!target) {
     return (
-      <div style={S.root}>
+      <Page>
         <CardSkeleton />
-      </div>
+      </Page>
     );
   }
 

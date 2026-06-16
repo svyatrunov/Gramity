@@ -4,7 +4,7 @@ import { Step1Strategy, type StrategyFormState } from "./Step1Strategy";
 import { Step2Withdrawal } from "./Step2Withdrawal";
 import { Step3Deposit } from "./Step3Deposit";
 import type { EconomicsHint } from "../../api/plans";
-import { S } from "../../styles";
+import { Page, PageHeader } from "../../styles";
 
 export interface OnboardingPlanResult {
   plan_id?: string;
@@ -38,13 +38,12 @@ export function OnboardingScreen() {
   }, [step]);
 
   return (
-    <div style={S.root}>
-      <h1 style={{ fontSize: 20, marginBottom: 4 }}>Настройка стратегии</h1>
-      <p style={{ ...S.hint, marginBottom: 16 }}>Шаг {step} из 3</p>
+    <Page>
+      <PageHeader title="Настройка стратегии" subtitle={`Шаг ${step} из 3`} />
 
-      <div style={S.stepBar}>
+      <div className="g-step-bar" aria-hidden>
         {[1, 2, 3].map((n) => (
-          <div key={n} style={S.stepDot(step >= n)} />
+          <div key={n} className={`g-step-dot${step >= n ? " g-step-dot--active" : ""}`} />
         ))}
       </div>
 
@@ -76,6 +75,6 @@ export function OnboardingScreen() {
           onGoDashboard={() => navigate("/dashboard", { replace: true })}
         />
       )}
-    </div>
+    </Page>
   );
 }

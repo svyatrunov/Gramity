@@ -5,7 +5,7 @@ import { createPlan } from "../../api/plans";
 import { ApiError } from "../../api/client";
 import { MANIFEST_URL, validateAmountUsdt, validateFrequency } from "../../config";
 import { TonAddressInput, validateTonAddressValue } from "../../components/TonAddressInput";
-import { ActionButton, S } from "../../styles";
+import { ActionButton } from "../../styles";
 import type { OnboardingPlanResult } from "./index";
 import type { StrategyFormState } from "./Step1Strategy";
 
@@ -91,41 +91,36 @@ function Step2Inner({
   };
 
   return (
-    <div style={S.card}>
-      <div style={S.warn}>
-        ⚠️ Этот адрес постоянный и не может быть изменён позже
+    <section className="g-card">
+      <div className="g-alert g-alert--warn">
+        Этот адрес постоянный и не может быть изменён позже.
       </div>
 
-      <div style={{ marginBottom: 12 }}>
-        <div style={S.label}>Подключить TonConnect</div>
-        <ActionButton
-          variant="secondary"
-          onClick={() => tonConnectUI.openModal()}
-        >
+      <div style={{ marginBottom: 16 }}>
+        <div className="g-label">Подключить TonConnect</div>
+        <ActionButton variant="secondary" onClick={() => tonConnectUI.openModal()}>
           Connect TON Wallet
         </ActionButton>
         {walletConnected && valid && (
-          <p style={{ ...S.hint, marginTop: 8, color: "#1e7e34" }}>
-            ✓ Кошелёк подключён
+          <p className="g-hint" style={{ marginTop: 8, color: "var(--g-success-text)" }}>
+            Кошелёк подключён
           </p>
         )}
       </div>
 
-      <div style={S.label}>или введите адрес вручную</div>
+      <div className="g-label">или введите адрес вручную</div>
       <TonAddressInput value={tonAddress} onChange={onAddressChange} />
 
       {inlineError && (
-        <div style={{ fontSize: 12, color: "#c0392b", marginTop: 8 }}>{inlineError}</div>
+        <div className="g-alert g-alert--error" style={{ marginTop: 8 }}>
+          {inlineError}
+        </div>
       )}
 
-      <ActionButton
-        loading={loading}
-        disabled={!valid}
-        onClick={() => void handleConfirm()}
-      >
+      <ActionButton loading={loading} disabled={!valid} onClick={() => void handleConfirm()}>
         Подтвердить
       </ActionButton>
-    </div>
+    </section>
   );
 }
 

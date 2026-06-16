@@ -9,7 +9,7 @@ import { StrategyCard } from "./StrategyCard";
 import { ActionsBar } from "./ActionsBar";
 import { ExecutionsList } from "./ExecutionsList";
 import { SettingsInfo } from "./SettingsInfo";
-import { S } from "../../styles";
+import { Page, PageHeader, Spinner } from "../../styles";
 import type { PortfolioResponse } from "../../api/portfolio";
 
 export function DashboardScreen() {
@@ -57,27 +57,16 @@ export function DashboardScreen() {
   };
 
   return (
-    <div style={S.root}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 12,
-        }}
-      >
-        <h1 style={{ fontSize: 20 }}>Dashboard</h1>
-        <Link
-          to="/deposit"
-          style={{
-            fontSize: 14,
-            color: "var(--tg-theme-link-color, #2481cc)",
-            textDecoration: "none",
-          }}
-        >
-          Пополнить →
-        </Link>
-      </div>
+    <Page>
+      <PageHeader
+        title="Портфель"
+        subtitle="DCA-стратегия на TON"
+        action={
+          <Link to="/deposit" className="g-link">
+            Пополнить
+          </Link>
+        }
+      />
 
       <PortfolioBlock data={displayData} loading={loading} />
       <StrategyCard data={displayData} loading={loading} />
@@ -91,26 +80,12 @@ export function DashboardScreen() {
 
       <button
         type="button"
+        className="g-fab"
         onClick={() => void openMira()}
         disabled={miraLoading}
-        style={{
-          position: "fixed",
-          bottom: 20,
-          right: 16,
-          border: "none",
-          borderRadius: 999,
-          padding: "12px 16px",
-          background: "var(--tg-theme-button-color, #2481cc)",
-          color: "var(--tg-theme-button-text-color, #fff)",
-          fontSize: 14,
-          fontWeight: 600,
-          boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-          cursor: "pointer",
-          zIndex: 50,
-        }}
       >
-        {miraLoading ? "…" : "🤖 Ask Mira"}
+        {miraLoading ? <Spinner size={14} /> : "Спросить Mira"}
       </button>
-    </div>
+    </Page>
   );
 }

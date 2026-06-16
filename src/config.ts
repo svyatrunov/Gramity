@@ -76,6 +76,64 @@ export const INTEGRATOR_FEE_PIPS = 1000;
 export const INPUT_USDT = Number(process.env.INPUT_USDT ?? "5");
 export const USDT_DECIMALS = 6;
 
+/** Packaged DCA products (wallet strategies). */
+export const STRATEGY_PRODUCTS = [
+  {
+    id: "buy_ton",
+    strategy_type: "dca_ton" as const,
+    label: "Buy TON",
+    description: "USDT → TON every cycle",
+    needs_token_picker: false,
+  },
+  {
+    id: "other_tokens",
+    strategy_type: "dca_jetton" as const,
+    label: "Other tokens",
+    description: "USDT → any jetton via Omniston",
+    needs_token_picker: true,
+    jetton_only: true,
+  },
+  {
+    id: "stake_tston",
+    strategy_type: "dca_tston" as const,
+    label: "Stake tsTON",
+    description: "USDT → tsTON liquid staking",
+    needs_token_picker: false,
+  },
+  {
+    id: "lp_dca",
+    strategy_type: "dca_lp" as const,
+    label: "LP position",
+    description: "tsTON → STON.fi LP (~5.4% APY)",
+    needs_token_picker: false,
+  },
+] as const;
+
+/** Popular swap targets for the token picker (jetton master addresses). */
+export const POPULAR_SWAP_TOKENS = [
+  { symbol: "TON", address: null as string | null, native: true },
+  {
+    symbol: "NOT",
+    address: "EQAvlWFDxGF2lXm67y4yzC17wYKD9A0guwPkMs1gOsM__NOT",
+    native: false,
+  },
+  {
+    symbol: "STON",
+    address: "EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmn32ehfw",
+    native: false,
+  },
+  {
+    symbol: "DOGS",
+    address: "EQCvxJy4eG8hyHBFsZ7eePxrRgKuFRwi2wqiaoyJtDwLUJP",
+    native: false,
+  },
+  {
+    symbol: "USDC",
+    address: "EQBynBO23ywHy_CgarY9NK9FTz0yDsGAsQjeqGTwGMyWi7u",
+    native: false,
+  },
+] as const;
+
 // ─── Bot ──────────────────────────────────────────────────────────────────────
 export const BOT_TOKEN = process.env.BOT_TOKEN ?? "";
 

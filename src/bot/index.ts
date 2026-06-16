@@ -249,6 +249,13 @@ bot.on("message:web_app_data", async (ctx) => {
           "[web_app_data] Attempt to change locked withdrawal address",
           sanitizeLog({ telegramId, ton_address: friendlyAddress })
         );
+        const locked = String(existingPlan.ton_address || "");
+        await ctx.reply(
+          "Withdrawal address locked\n\n" +
+            `\`${locked.slice(0, 6)}...${locked.slice(-4)}\`\n\n` +
+            "Cannot be changed after first set.",
+          { parse_mode: "Markdown" }
+        );
         return;
       }
 

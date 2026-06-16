@@ -1,16 +1,5 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { isValidTonAddress } from "../config";
-
-const INPUT: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: 8,
-  border: "1px solid var(--tg-theme-hint-color, #ccc)",
-  background: "var(--tg-theme-bg-color, #fff)",
-  color: "var(--tg-theme-text-color, #000)",
-  fontSize: 14,
-  fontFamily: "ui-monospace, monospace",
-};
 
 export function TonAddressInput({
   value,
@@ -27,11 +16,14 @@ export function TonAddressInput({
   const invalid = touched && value.length > 0 && !isValidTonAddress(value);
 
   return (
-    <div>
+    <div style={{ marginBottom: 12 }}>
       <input
+        className="g-input"
         style={{
-          ...INPUT,
-          borderColor: invalid || error ? "#c0392b" : undefined,
+          marginBottom: 0,
+          fontFamily: "ui-monospace, Menlo, monospace",
+          fontSize: 14,
+          borderColor: invalid || error ? "var(--g-error-text)" : undefined,
         }}
         placeholder="UQ… или EQ… (48 символов)"
         value={value}
@@ -42,7 +34,7 @@ export function TonAddressInput({
         autoComplete="off"
       />
       {(invalid || error) && (
-        <div style={{ fontSize: 12, color: "#c0392b", marginTop: 4 }}>
+        <div style={{ fontSize: 12, color: "var(--g-error-text)", marginTop: 4 }}>
           {error ?? "Неверный формат TON-адреса (UQ… или EQ…, 48 символов)"}
         </div>
       )}

@@ -1,16 +1,3 @@
-import React from "react";
-
-const INPUT: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: 8,
-  border: "1px solid var(--tg-theme-hint-color, #ccc)",
-  background: "var(--tg-theme-bg-color, #fff)",
-  color: "var(--tg-theme-text-color, #000)",
-  fontSize: 15,
-  marginBottom: 4,
-};
-
 export function AmountInput({
   value,
   onChange,
@@ -29,18 +16,8 @@ export function AmountInput({
   disabled?: boolean;
 }) {
   return (
-    <div>
-      {label && (
-        <div
-          style={{
-            fontSize: 12,
-            color: "var(--tg-theme-hint-color, #888)",
-            marginBottom: 6,
-          }}
-        >
-          {label}
-        </div>
-      )}
+    <div style={{ marginBottom: 12 }}>
+      {label && <div className="g-label">{label}</div>}
       <div style={{ position: "relative" }}>
         {prefix && (
           <span
@@ -49,14 +26,20 @@ export function AmountInput({
               left: 12,
               top: "50%",
               transform: "translateY(-50%)",
-              color: "var(--tg-theme-hint-color, #888)",
+              color: "var(--g-text-muted)",
+              fontWeight: 600,
             }}
           >
             {prefix}
           </span>
         )}
         <input
-          style={{ ...INPUT, paddingLeft: prefix ? 28 : 12 }}
+          className="g-input"
+          style={{
+            marginBottom: 0,
+            paddingLeft: prefix ? 28 : undefined,
+            fontVariantNumeric: "tabular-nums",
+          }}
           type="number"
           min={min}
           max={max}

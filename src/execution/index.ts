@@ -140,7 +140,14 @@ export async function executeStrategy(plan: Plan): Promise<ExecutionResult> {
   try {
     // ── Step 1: USDT → TON (90 s, retry 2×, 10 s delay) ──────────────────
     tonReceived = await withRetry(
-      () => executeWithTimeout(() => step1Swap(walletCtx, plan.usdt_amount), 90_000, "step1_swap"),
+      () =>
+        executeWithTimeout(async () => {
+          const swapResult = await step1Swap(walletCtx, plan.usdt_amount);
+          if (swapResult.kind !== "native") {
+            throw new Error("Legacy plan pipeline requires native TON swap output");
+          }
+          return swapResult.amountNano;
+        }, 90_000, "step1_swap"),
       2,
       10_000,
       "step1_swap"

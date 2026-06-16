@@ -33,9 +33,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       <div
         style={{
           position: "fixed",
-          bottom: 16,
-          left: 16,
-          right: 16,
+          bottom: "max(16px, env(safe-area-inset-bottom, 0px))",
+          left: "max(16px, env(safe-area-inset-left, 0px))",
+          right: "max(16px, env(safe-area-inset-right, 0px))",
           display: "flex",
           flexDirection: "column",
           gap: 8,
@@ -58,28 +58,19 @@ export function useToast(): ToastContextValue {
 }
 
 function Toast({ item }: { item: ToastItem }) {
-  const bg =
+  const className =
     item.type === "success"
-      ? "#e8f8ef"
+      ? "g-alert g-alert--success"
       : item.type === "error"
-        ? "#fde8e8"
-        : "var(--tg-theme-secondary-bg-color, #f0f0f0)";
-  const color =
-    item.type === "success"
-      ? "#1e7e34"
-      : item.type === "error"
-        ? "#c0392b"
-        : "var(--tg-theme-text-color, #000)";
+        ? "g-alert g-alert--error"
+        : "g-alert";
 
   return (
     <div
+      className={className}
       style={{
-        background: bg,
-        color,
-        padding: "12px 16px",
-        borderRadius: 10,
-        fontSize: 14,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+        boxShadow: "var(--g-shadow)",
+        pointerEvents: "auto",
         animation: item.type === "error" ? "shake 0.4s ease" : undefined,
       }}
     >

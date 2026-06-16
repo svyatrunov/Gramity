@@ -9,7 +9,7 @@ import {
 } from "../../config";
 import { fetchDcaLimits } from "../../api/plans";
 import { AmountInput } from "../../components/AmountInput";
-import { ActionButton, S } from "../../styles";
+import { ActionButton } from "../../styles";
 
 export interface StrategyFormState {
   amount_usdt: string;
@@ -55,7 +55,7 @@ export function Step1Strategy({
   };
 
   return (
-    <div style={S.card}>
+    <section className="g-card">
       <AmountInput
         label={`Сумма за цикл (мин. $${min}, макс. $10 000)`}
         value={value.amount_usdt}
@@ -67,8 +67,8 @@ export function Step1Strategy({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 8,
-          marginBottom: 12,
+          gap: 10,
+          marginBottom: 16,
           fontSize: 14,
           cursor: "pointer",
         }}
@@ -88,18 +88,9 @@ export function Step1Strategy({
         Quick Start (демо, 2 цикла)
       </label>
 
-      <div style={S.label}>Частота</div>
+      <div className="g-label">Частота</div>
       <select
-        style={{
-          width: "100%",
-          padding: "10px 12px",
-          borderRadius: 8,
-          border: "1px solid var(--tg-theme-hint-color, #ccc)",
-          background: "var(--tg-theme-bg-color, #fff)",
-          color: "var(--tg-theme-text-color, #000)",
-          fontSize: 15,
-          marginBottom: 12,
-        }}
+        className="g-select"
         value={value.frequency}
         onChange={(e) => onChange({ ...value, frequency: e.target.value })}
       >
@@ -110,13 +101,13 @@ export function Step1Strategy({
         ))}
       </select>
 
-      <div style={S.label}>Режим стратегии</div>
-      <div style={S.segmented}>
+      <div className="g-label">Режим стратегии</div>
+      <div className="g-segmented">
         {STRATEGY_MODE_OPTIONS.map((o) => (
           <button
             key={o.value}
             type="button"
-            style={S.segment(value.strategy_mode === o.value)}
+            className={`g-segment${value.strategy_mode === o.value ? " g-segment--active" : ""}`}
             onClick={() => onChange({ ...value, strategy_mode: o.value })}
           >
             {o.label}
@@ -125,8 +116,8 @@ export function Step1Strategy({
       </div>
 
       <ActionButton disabled={!amountOk || !freqOk} onClick={handleNext}>
-        Далее →
+        Далее
       </ActionButton>
-    </div>
+    </section>
   );
 }

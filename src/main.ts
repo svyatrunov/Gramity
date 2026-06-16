@@ -72,7 +72,8 @@ async function main() {
       `\n── STEP 1: SKIPPED (checkpoint) — TON received: ${fromNano(tonReceived)} TON`
     );
   } else {
-    tonReceived = await step1Swap(walletCtx);
+    const swapResult = await step1Swap(walletCtx);
+    tonReceived = swapResult.kind === "native" ? swapResult.amountNano : 0n;
     state = { ...state, completedStep: 1, tonReceived: tonReceived.toString() };
     saveState(state);
   }

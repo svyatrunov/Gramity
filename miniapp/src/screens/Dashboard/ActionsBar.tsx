@@ -3,7 +3,7 @@ import { pausePlan, resumePlan, runNow, withdrawUsdt } from "../../api/actions";
 import { ApiError } from "../../api/client";
 import { useToast } from "../../components/Toast";
 import type { PortfolioResponse } from "../../api/portfolio";
-import { ActionButton, S } from "../../styles";
+import { ActionButton } from "../../styles";
 import { AmountInput } from "../../components/AmountInput";
 
 export function ActionsBar({
@@ -71,7 +71,7 @@ export function ActionsBar({
     setRunCooldown(true);
     try {
       await runNow(1);
-      showToast("Цикл запущен — проверьте Telegram", "success");
+      showToast("Цикл запущен. Проверьте Telegram.", "success");
     } catch (e) {
       setRunCooldown(false);
       handleApiError(e);
@@ -105,9 +105,9 @@ export function ActionsBar({
   };
 
   return (
-    <div style={S.card}>
+    <section className="g-card g-section">
       <ActionButton loading={pauseLoading} onClick={() => void togglePause()}>
-        {isActive ? "⏸ Пауза" : "▶️ Возобновить"}
+        {isActive ? "Поставить на паузу" : "Возобновить"}
       </ActionButton>
 
       {isActive && (plan?.withdrawal_address_set ?? false) && !plan?.is_running && (
@@ -117,51 +117,30 @@ export function ActionsBar({
           variant="secondary"
           onClick={() => void handleRunNow()}
         >
-          ▶ Run Now
+          Запустить сейчас
         </ActionButton>
       )}
 
       <ActionButton variant="secondary" onClick={() => setWithdrawOpen(true)}>
-        💸 Вывести USDT
+        Вывести USDT
       </ActionButton>
 
       {withdrawOpen && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "flex-end",
-            zIndex: 100,
-          }}
-          onClick={() => setWithdrawOpen(false)}
-        >
-          <div
-            style={{
-              background: "var(--tg-theme-bg-color, #fff)",
-              borderRadius: "16px 16px 0 0",
-              padding: 20,
-              width: "100%",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 style={{ marginBottom: 12 }}>Вывод USDT</h3>
+        <div className="g-sheet-backdrop" onClick={() => setWithdrawOpen(false)}>
+          <div className="g-sheet" onClick={(e) => e.stopPropagation()}>
+            <h3 className="g-sheet-title">Вывод USDT</h3>
             <AmountInput
               label={`Сумма (макс. $${usdtBalance.toFixed(2)})`}
               value={withdrawAmount}
               onChange={setWithdrawAmount}
               max={usdtBalance}
             />
-            <ActionButton
-              loading={withdrawLoading}
-              onClick={() => void handleWithdrawUsdt()}
-            >
+            <ActionButton loading={withdrawLoading} onClick={() => void handleWithdrawUsdt()}>
               Подтвердить
             </ActionButton>
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

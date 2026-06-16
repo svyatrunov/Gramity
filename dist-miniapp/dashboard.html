@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
   <title>Gramity — Dashboard</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script defer src="/app/assets/tonconnect-ui.min.js"></script>
+  <script defer src="/app/assets/gramity-ton-proof.js"></script>
   <script>
     try {
       var tgEarly = window.Telegram && window.Telegram.WebApp;
@@ -582,6 +584,269 @@
       margin-bottom: 10px;
     }
     .withdraw-addr-input:focus { outline: none; border-color: rgba(79,135,247,0.4); }
+    .withdraw-addr-hint {
+      font-size: 13px;
+      color: var(--g-muted);
+      line-height: 1.45;
+      margin-bottom: 14px;
+    }
+    .withdraw-connect-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--g-card2);
+      border: 0.5px solid var(--g-border);
+      border-radius: var(--g-r-md);
+      padding: 14px 16px;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+      color: inherit;
+      font-family: var(--g-font);
+      margin-bottom: 10px;
+      transition: border-color 0.15s;
+    }
+    .withdraw-connect-btn:active { border-color: rgba(79,135,247,0.4); }
+    .withdraw-connect-btn.connected { border-color: rgba(34,197,94,0.4); }
+    .withdraw-co-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+      background: rgba(79,135,247,0.15);
+      color: #4F87F7;
+    }
+    .withdraw-co-info { flex: 1; min-width: 0; }
+    .withdraw-co-name { font-size: 15px; color: var(--g-text); font-weight: 500; }
+    .withdraw-co-sub {
+      font-size: 12px;
+      color: var(--g-muted);
+      font-family: var(--g-mono);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .withdraw-addr-locked {
+      font-size: 12px;
+      color: var(--g-yellow);
+      text-align: center;
+      margin-top: 8px;
+    }
+    .withdraw-confirm-box {
+      display: none;
+      margin-top: 14px;
+      padding: 14px;
+      background: rgba(79,135,247,0.08);
+      border: 0.5px solid rgba(79,135,247,0.25);
+      border-radius: 14px;
+    }
+    .withdraw-confirm-box.visible { display: block; }
+    .withdraw-confirm-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--g-muted);
+      margin-bottom: 8px;
+    }
+    .withdraw-confirm-addr {
+      font-family: var(--g-mono);
+      font-size: 12px;
+      line-height: 1.45;
+      word-break: break-all;
+      color: var(--g-text);
+      margin-bottom: 10px;
+    }
+    .withdraw-confirm-warn {
+      font-size: 12px;
+      color: var(--g-yellow);
+      line-height: 1.45;
+      margin-bottom: 12px;
+    }
+    #withdraw-addr-save-btn { width: 100%; height: 42px; }
+    #strategy-edit-sheet {
+      display: none;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--g-card);
+      border-radius: 20px 20px 0 0;
+      border-top: 0.5px solid var(--g-border);
+      padding: 20px 16px max(24px, env(safe-area-inset-bottom));
+      z-index: 110;
+    }
+    #strategy-edit-sheet.open { display: block; }
+    .edit-section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--g-muted);
+      margin: 12px 0 8px;
+    }
+    .edit-amount-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .edit-chip {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 0.5px solid var(--g-border);
+      background: var(--g-card2);
+      color: var(--g-text);
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .edit-chip.selected {
+      border-color: rgba(79,135,247,0.5);
+      background: rgba(79,135,247,0.12);
+      color: #4F87F7;
+    }
+    .edit-freq-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+
+    .wallet-hero-usdt {
+      font-size: 36px;
+      font-weight: 800;
+      color: var(--g-text);
+      line-height: 1.1;
+      margin: 4px 0 2px;
+    }
+    .wallet-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .wallet-actions .g-btn-secondary,
+    .wallet-actions .g-btn-primary { flex: 1; height: 40px; }
+    .asset-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .asset-chip {
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: var(--g-card2);
+      border: 0.5px solid var(--g-border);
+      font-size: 13px;
+    }
+    .asset-chip strong { color: var(--g-text); }
+    .asset-chip span { color: var(--g-muted); margin-left: 4px; }
+    .strategy-list-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 0.5px solid var(--g-border);
+      gap: 10px;
+    }
+    .strategy-list-row:last-child { border-bottom: none; }
+    .strategy-list-main { flex: 1; min-width: 0; }
+    .strategy-list-title { font-size: 14px; font-weight: 600; color: var(--g-text); }
+    .strategy-list-sub { font-size: 12px; color: var(--g-muted); margin-top: 2px; }
+    .strategy-status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--g-green); flex-shrink: 0;
+    }
+    .strategy-status-dot.paused { background: var(--g-yellow); }
+    #strategy-wizard-sheet {
+      display: none;
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: var(--g-card);
+      border-radius: 20px 20px 0 0;
+      border-top: 0.5px solid var(--g-border);
+      padding: 20px 16px max(24px, env(safe-area-inset-bottom));
+      z-index: 120;
+      max-height: 92dvh;
+      overflow-y: auto;
+    }
+    #strategy-wizard-sheet.open { display: block; }
+    .wiz-step-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--g-muted);
+      margin-bottom: 10px;
+    }
+    .wiz-product-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .wiz-product-card {
+      text-align: left;
+      padding: 14px 12px;
+      border-radius: 14px;
+      border: 0.5px solid var(--g-border);
+      background: var(--g-card2);
+      cursor: pointer;
+      color: inherit;
+      font-family: inherit;
+    }
+    .wiz-product-card.wide { grid-column: span 2; }
+    .wiz-product-card.selected {
+      border-color: rgba(79,135,247,0.45);
+      background: rgba(79,135,247,0.1);
+    }
+    .wiz-product-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .wiz-product-desc { font-size: 12px; color: var(--g-muted); line-height: 1.4; }
+    .wiz-token-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .wiz-token-chip {
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: 0.5px solid var(--g-border);
+      background: var(--g-card2);
+      color: var(--g-text);
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .wiz-token-chip.selected {
+      border-color: rgba(79,135,247,0.5);
+      background: rgba(79,135,247,0.12);
+      color: #4F87F7;
+    }
+    .wiz-custom-token {
+      width: 100%;
+      background: var(--g-card2);
+      border: 0.5px solid var(--g-border);
+      border-radius: var(--g-r-md);
+      color: var(--g-text);
+      font-family: var(--g-mono);
+      font-size: 12px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+    }
+    .wiz-token-preview {
+      font-size: 12px;
+      color: var(--g-green);
+      margin-bottom: 12px;
+      min-height: 18px;
+    }
+    .wiz-token-preview.err { color: var(--g-red, #f87171); }
+    .wiz-summary {
+      background: var(--g-card2);
+      border: 0.5px solid var(--g-border);
+      border-radius: 14px;
+      padding: 14px;
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--g-muted);
+      margin-bottom: 14px;
+    }
+    .wiz-summary strong { color: var(--g-text); }
+    .wiz-nav-row { display: flex; gap: 8px; margin-top: 8px; }
+    .wiz-nav-row button { flex: 1; height: 42px; }
 
     /* ── App shell (4-tab layout) ── */
     #app {
@@ -605,19 +870,24 @@
       border-bottom: 0.5px solid var(--g-border);
       flex-shrink: 0;
     }
-    .header-gem {
-      width: 28px;
-      height: 28px;
-      background: var(--g-blue);
-      border-radius: 8px;
+    .header-logo {
       display: flex;
       align-items: center;
-      justify-content: center;
-      color: white;
-      font-size: 15px;
-      margin-right: 8px;
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      color: inherit;
+      font-family: inherit;
     }
-    .header-logo { display: flex; align-items: center; }
+    .header-logo:active { opacity: 0.85; }
+    .header-logo-img {
+      width: 32px;
+      height: 32px;
+      margin-right: 8px;
+      flex-shrink: 0;
+      overflow: visible;
+    }
     .header-title { font-size: 16px; font-weight: 500; color: var(--g-text); }
 
     #scroll-area {
@@ -1138,10 +1408,10 @@
 <div id="app">
 
   <header id="app-header">
-    <div class="header-logo">
-      <div class="header-gem">✦</div>
+    <button type="button" class="header-logo" id="header-logo-btn" aria-label="Open setup">
+      <img src="/app/logos/gram-gravity-animated.svg" class="header-logo-img" alt="" width="32" height="32"/>
       <span class="header-title">Gramity</span>
-    </div>
+    </button>
     <div id="header-status" class="g-badge g-badge-active">
       <div class="g-badge-dot"></div>
       Active
@@ -1204,8 +1474,70 @@
       <div class="withdraw-drawer-title">Withdrawal address</div>
       <button type="button" class="withdraw-drawer-close" id="withdraw-addr-close" aria-label="Close">×</button>
     </div>
-    <input type="text" class="withdraw-addr-input" id="withdraw-addr-input" placeholder="TON wallet address (UQ… or EQ…)" autocomplete="off" spellcheck="false"/>
-    <button type="button" class="g-btn-secondary" id="withdraw-addr-save" style="width:100%;height:42px">Save address</button>
+    <p class="withdraw-addr-hint" id="withdraw-addr-hint">Connect your TON wallet — LP tokens and withdrawals will go here.</p>
+    <div id="withdraw-addr-current" class="withdraw-co-sub" style="margin-bottom:12px;display:none"></div>
+    <button type="button" class="withdraw-connect-btn" id="btnConnectWithdrawTON">
+      <div class="withdraw-co-icon">◈</div>
+      <div class="withdraw-co-info">
+        <div class="withdraw-co-name">Connect TON wallet</div>
+        <div class="withdraw-co-sub" id="withdraw-connect-sub">Tonkeeper · TON Space · MyTonWallet</div>
+      </div>
+    </button>
+    <div class="withdraw-confirm-box" id="withdraw-addr-confirm">
+      <div class="withdraw-confirm-label">Confirm withdrawal address</div>
+      <div class="withdraw-confirm-addr" id="withdraw-confirm-addr-text">—</div>
+      <p class="withdraw-confirm-warn">LP tokens and cycle payouts will go here. This address is locked after save — double-check before confirming.</p>
+      <button type="button" class="g-btn-primary" id="withdraw-addr-save-btn">Save as withdrawal address</button>
+    </div>
+    <p class="withdraw-addr-locked" id="withdraw-addr-locked" style="display:none">Address is locked after first save</p>
+  </div>
+
+  <div id="strategy-edit-sheet">
+    <div class="withdraw-drawer-head">
+      <div class="withdraw-drawer-title">Edit strategy</div>
+      <button type="button" class="withdraw-drawer-close" id="strategy-edit-close" aria-label="Close">×</button>
+    </div>
+    <div class="edit-section-label">Amount per cycle</div>
+    <div class="edit-amount-row" id="edit-amount-chips"></div>
+    <div class="edit-section-label">Frequency</div>
+    <div class="edit-freq-row" id="edit-freq-chips"></div>
+    <button type="button" class="g-btn-primary" id="strategy-edit-save" style="width:100%;height:42px">Save changes</button>
+  </div>
+
+  <div id="strategy-wizard-sheet">
+    <div class="withdraw-drawer-head">
+      <div class="withdraw-drawer-title" id="wiz-title">Add strategy</div>
+      <button type="button" class="withdraw-drawer-close" id="strategy-wizard-close" aria-label="Close">×</button>
+    </div>
+    <div id="wiz-body"></div>
+    <div class="wiz-nav-row">
+      <button type="button" class="g-btn-secondary" id="wiz-back" style="display:none">Back</button>
+      <button type="button" class="g-btn-primary" id="wiz-next">Next</button>
+    </div>
+  </div>
+
+  <div id="sessionExpiredOverlay" style="
+    position:absolute;inset:0;z-index:999;
+    background:rgba(11,11,18,0.95);
+    display:none;
+    flex-direction:column;
+    align-items:center;justify-content:center;
+    padding:32px;text-align:center;
+  ">
+    <div style="font-size:28px;margin-bottom:16px">⏱</div>
+    <div style="font-size:17px;font-weight:500;
+                color:#fff;margin-bottom:8px">
+      Session expired
+    </div>
+    <div style="font-size:14px;color:rgba(255,255,255,0.5);
+                margin-bottom:24px;line-height:1.5">
+      Reopen Gramity from the bot<br>to continue
+    </div>
+    <a href="https://t.me/GramityBot" style="
+      display:block;background:#4F87F7;color:#fff;
+      border-radius:12px;padding:12px 24px;
+      font-size:15px;text-decoration:none;font-weight:500;
+    ">Open @GramityBot</a>
   </div>
 
 </div>
@@ -1565,6 +1897,7 @@
   }
 
   function showToast(msg, kind) {
+    if (msg && String(msg).indexOf('SESSION_EXPIRED') !== -1) return;
     var toast = document.getElementById('toast');
     if (!toast) return;
     toast.textContent = msg;
@@ -1620,11 +1953,22 @@
 
   diagClient('dashboard_boot');
 
+  function showSessionExpired() {
+    var overlay = document.getElementById('sessionExpiredOverlay');
+    if (overlay) {
+      overlay.style.display = 'flex';
+    }
+  }
+
   function apiGet(path) {
     var controller = new AbortController();
     var timer = setTimeout(function () { controller.abort(); }, 20000);
     return fetch('/api' + path, { headers: apiHeaders(), signal: controller.signal })
       .then(function (r) {
+        if (r.status === 401) {
+          showSessionExpired();
+          throw new Error('SESSION_EXPIRED');
+        }
         return r.json().then(function (data) {
           if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
           return data;
@@ -1645,6 +1989,10 @@
       headers: Object.assign({ 'Content-Type': 'application/json' }, apiHeaders()),
       body: body ? JSON.stringify(body) : '{}',
     }).then(function (r) {
+      if (r.status === 401) {
+        showSessionExpired();
+        throw new Error('SESSION_EXPIRED');
+      }
       return r.json().then(function (data) {
         if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
         return data;
@@ -1750,10 +2098,16 @@
       depositAddress: portfolio.depositAddress || '',
       totalValue: portfolio.totalValue || 0,
     };
-    gs.agentWallet = {
+    gs.wallet = portfolio.wallet || {
       address: portfolio.depositAddress || '',
       usdt: portfolio.usdtBalance || 0,
       ton: portfolio.tonBalance || 0,
+      jettons: [],
+    };
+    gs.agentWallet = {
+      address: gs.wallet.address,
+      usdt: gs.wallet.usdt,
+      ton: gs.wallet.ton,
     };
     gs.cycles = (portfolio.executions || []).slice(0, 3);
     gs.strategies = buildStrategyList(portfolio);
@@ -1823,20 +2177,483 @@
     });
   }
 
-  function updateHeaderStatus(plan) {
-    var status = document.getElementById('header-status');
-    if (!status) return;
-    if (!plan) {
-      status.className = 'g-badge g-badge-paused';
-      status.innerHTML = '';
-      status.appendChild(el('div', { class: 'g-badge-dot' }));
-      status.appendChild(document.createTextNode('No plan'));
+  var STRATEGY_TYPE_LABELS = {
+    dca_ton: 'Buy TON',
+    dca_jetton: 'Buy token',
+    dca_tston: 'Stake tsTON',
+    dca_lp: 'LP DCA',
+  };
+
+  function strategyDisplayName(s) {
+    if (!s) return 'Strategy';
+    if (s.strategy_type === 'dca_jetton' && s.target_token_symbol) {
+      return 'Buy ' + s.target_token_symbol;
+    }
+    return STRATEGY_TYPE_LABELS[s.strategy_type] || s.strategy_type || 'Strategy';
+  }
+
+  var wizardDraft = {
+    step: 1,
+    productId: null,
+    strategy_type: null,
+    needs_token: false,
+    jetton_only: false,
+    target_token_address: null,
+    target_token_symbol: null,
+    amount_usdt: 10,
+    frequency: 'daily',
+    withdrawal_wallet: null,
+    withdrawal_confirmed: false,
+    products: [],
+    popular_tokens: [],
+  };
+
+  function openAddStrategyWizard() {
+    wizardDraft.step = 1;
+    wizardDraft.productId = null;
+    wizardDraft.strategy_type = null;
+    wizardDraft.needs_token = false;
+    wizardDraft.jetton_only = false;
+    wizardDraft.target_token_address = null;
+    wizardDraft.target_token_symbol = null;
+    wizardDraft.amount_usdt = 10;
+    wizardDraft.frequency = 'daily';
+    wizardDraft.withdrawal_wallet = null;
+    wizardDraft.withdrawal_confirmed = false;
+    apiGet('/strategy-products').then(function (data) {
+      wizardDraft.products = data.products || [];
+      wizardDraft.popular_tokens = data.popular_tokens || [];
+      renderWizardStep();
+      document.getElementById('strategy-wizard-sheet').classList.add('open');
+      document.getElementById('withdraw-drawer-backdrop').classList.add('open');
+    }).catch(function () {
+      wizardDraft.products = [
+        { id: 'buy_ton', strategy_type: 'dca_ton', label: 'Buy TON', description: 'USDT → TON', needs_token_picker: false },
+        { id: 'other_tokens', strategy_type: 'dca_jetton', label: 'Other tokens', description: 'USDT → any jetton via Omniston', needs_token_picker: true, jetton_only: true },
+        { id: 'stake_tston', strategy_type: 'dca_tston', label: 'Stake tsTON', description: 'USDT → tsTON', needs_token_picker: false },
+        { id: 'lp_dca', strategy_type: 'dca_lp', label: 'LP position', description: 'STON.fi LP', needs_token_picker: false },
+      ];
+      renderWizardStep();
+      document.getElementById('strategy-wizard-sheet').classList.add('open');
+      document.getElementById('withdraw-drawer-backdrop').classList.add('open');
+    });
+  }
+
+  function closeStrategyWizard() {
+    document.getElementById('strategy-wizard-sheet').classList.remove('open');
+    if (!document.getElementById('withdraw-drawer').classList.contains('open') &&
+        !document.getElementById('withdraw-addr-sheet').classList.contains('open') &&
+        !document.getElementById('strategy-edit-sheet').classList.contains('open')) {
+      document.getElementById('withdraw-drawer-backdrop').classList.remove('open');
+    }
+  }
+
+  function wizardMaxStep() {
+    if (wizardDraft.needs_token) return 6;
+    if (wizardDraft.strategy_type === 'dca_lp') return 4;
+    return 5;
+  }
+
+  function wizardNeedsWithdraw() {
+    return wizardDraft.strategy_type !== 'dca_lp';
+  }
+
+  function renderWizardStep() {
+    var body = document.getElementById('wiz-body');
+    var title = document.getElementById('wiz-title');
+    var backBtn = document.getElementById('wiz-back');
+    var nextBtn = document.getElementById('wiz-next');
+    if (!body) return;
+    body.innerHTML = '';
+    backBtn.style.display = wizardDraft.step > 1 ? 'block' : 'none';
+    nextBtn.textContent = wizardDraft.step >= wizardMaxStep() ? 'Create strategy' : 'Next';
+
+    if (wizardDraft.step === 1) {
+      title.textContent = 'Add strategy · Action';
+      body.appendChild(el('div', { class: 'wiz-step-label', text: 'What should USDT do?' }));
+      var grid = el('div', { class: 'wiz-product-grid' });
+      var products = wizardDraft.products.length ? wizardDraft.products : [
+        { id: 'buy_ton', label: 'Buy TON', description: 'USDT → TON every cycle', strategy_type: 'dca_ton', needs_token_picker: false },
+        { id: 'other_tokens', label: 'Other tokens', description: 'USDT → any jetton via Omniston', strategy_type: 'dca_jetton', needs_token_picker: true, jetton_only: true },
+        { id: 'stake_tston', label: 'Stake tsTON', description: 'USDT → tsTON liquid staking', strategy_type: 'dca_tston', needs_token_picker: false },
+        { id: 'lp_dca', label: 'LP position', description: 'tsTON → STON.fi pool (~5.4%)', strategy_type: 'dca_lp', needs_token_picker: false, wide: true },
+      ];
+      products.forEach(function (p) {
+        var wide = p.id === 'lp_dca';
+        var card = el('button', {
+          type: 'button',
+          class: 'wiz-product-card' + (wide ? ' wide' : '') + (wizardDraft.productId === p.id ? ' selected' : ''),
+        });
+        card.appendChild(el('div', { class: 'wiz-product-title', text: p.label || p.title || p.id }));
+        card.appendChild(el('div', { class: 'wiz-product-desc', text: p.description || p.desc || '' }));
+        card.addEventListener('click', function () {
+          wizardDraft.productId = p.id;
+          wizardDraft.strategy_type = p.strategy_type || p.type;
+          wizardDraft.needs_token = !!(p.needs_token_picker || p.token);
+          wizardDraft.jetton_only = !!(p.jetton_only || p.id === 'other_tokens');
+          if (!wizardDraft.needs_token) {
+            wizardDraft.target_token_address = null;
+            wizardDraft.target_token_symbol = null;
+          }
+          renderWizardStep();
+        });
+        grid.appendChild(card);
+      });
+      body.appendChild(grid);
       return;
     }
-    status.className = 'g-badge ' + (plan.active ? 'g-badge-active' : 'g-badge-paused');
+
+    if (wizardDraft.step === 2 && wizardDraft.needs_token) {
+      title.textContent = wizardDraft.jetton_only ? 'Add strategy · Other token' : 'Add strategy · Token';
+      body.appendChild(el('div', {
+        class: 'wiz-step-label',
+        text: wizardDraft.jetton_only
+          ? 'Pick a jetton — swapped via Omniston'
+          : 'Buy which token?',
+      }));
+      var tokGrid = el('div', { class: 'wiz-token-grid' });
+      var tokenList = (wizardDraft.popular_tokens.length ? wizardDraft.popular_tokens : [
+        { symbol: 'NOT', address: 'EQAvlWFDxGF2lXm67y4yzC17wYKD9A0guwPkMs1gOsM__NOT', native: false },
+        { symbol: 'STON', address: 'EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmn32ehfw', native: false },
+      ]).filter(function (t) {
+        return wizardDraft.jetton_only ? !t.native : true;
+      });
+      tokenList.forEach(function (t) {
+        var chip = el('button', {
+          type: 'button',
+          class: 'wiz-token-chip' + (
+            (t.native && !wizardDraft.target_token_address && wizardDraft.target_token_symbol === 'TON') ||
+            (wizardDraft.target_token_address === t.address) ? ' selected' : ''
+          ),
+          text: t.symbol,
+        });
+        chip.addEventListener('click', function () {
+          if (t.native) {
+            wizardDraft.strategy_type = 'dca_ton';
+            wizardDraft.target_token_address = null;
+            wizardDraft.target_token_symbol = 'TON';
+          } else {
+            wizardDraft.strategy_type = 'dca_jetton';
+            wizardDraft.target_token_address = t.address;
+            wizardDraft.target_token_symbol = t.symbol;
+          }
+          renderWizardStep();
+        });
+        tokGrid.appendChild(chip);
+      });
+      body.appendChild(tokGrid);
+      body.appendChild(el('div', {
+        class: 'wiz-step-label',
+        text: 'Or paste any jetton contract',
+        style: 'margin-top:4px;font-size:11px',
+      }));
+      var customInp = el('input', {
+        class: 'wiz-custom-token',
+        id: 'wiz-custom-token',
+        placeholder: 'EQ… jetton master address',
+        value: wizardDraft.target_token_address && wizardDraft.strategy_type === 'dca_jetton'
+          ? wizardDraft.target_token_address : '',
+      });
+      var preview = el('div', { class: 'wiz-token-preview', id: 'wiz-token-preview' });
+      if (wizardDraft.target_token_symbol && wizardDraft.strategy_type === 'dca_jetton') {
+        preview.textContent = '✓ ' + wizardDraft.target_token_symbol +
+          (wizardDraft.target_token_address ? ' · ' + truncateAddr(wizardDraft.target_token_address) : '');
+      }
+      var lookupTimer = null;
+      customInp.addEventListener('input', function () {
+        var val = customInp.value.trim();
+        wizardDraft.target_token_address = null;
+        wizardDraft.target_token_symbol = null;
+        clearTimeout(lookupTimer);
+        if (!val || val.length < 10) {
+          preview.textContent = '';
+          preview.classList.remove('err');
+          return;
+        }
+        preview.textContent = 'Looking up…';
+        preview.classList.remove('err');
+        lookupTimer = setTimeout(function () {
+          apiGet('/jettons/' + encodeURIComponent(val))
+            .then(function (meta) {
+              wizardDraft.strategy_type = 'dca_jetton';
+              wizardDraft.target_token_address = meta.address || val;
+              wizardDraft.target_token_symbol = meta.symbol || 'TOKEN';
+              preview.textContent = '✓ ' + (meta.name || meta.symbol) + ' (' + meta.symbol + ')';
+              preview.classList.remove('err');
+              renderWizardStep();
+            })
+            .catch(function () {
+              preview.textContent = 'Jetton not found — check address';
+              preview.classList.add('err');
+            });
+        }, 400);
+      });
+      body.appendChild(customInp);
+      body.appendChild(preview);
+      return;
+    }
+
+    var amountStep = wizardDraft.needs_token ? 3 : 2;
+    if (wizardDraft.step === amountStep) {
+      title.textContent = 'Add strategy · Amount';
+      body.appendChild(el('div', { class: 'wiz-step-label', text: 'USDT per cycle' }));
+      var amountRow = el('div', { class: 'edit-amount-row' });
+      [5, 10, 25, 50, 100].forEach(function (a) {
+        var chip = el('button', {
+          type: 'button',
+          class: 'edit-chip' + (wizardDraft.amount_usdt === a ? ' selected' : ''),
+          text: '$' + a,
+        });
+        chip.addEventListener('click', function () {
+          wizardDraft.amount_usdt = a;
+          renderWizardStep();
+        });
+        amountRow.appendChild(chip);
+      });
+      body.appendChild(amountRow);
+      return;
+    }
+
+    var freqStep = wizardDraft.needs_token ? 4 : 3;
+    if (wizardDraft.step === freqStep) {
+      title.textContent = 'Add strategy · Frequency';
+      body.appendChild(el('div', { class: 'wiz-step-label', text: 'How often?' }));
+      var freqRow = el('div', { class: 'edit-freq-row' });
+      [
+        { id: 'hourly', label: 'Every hour' },
+        { id: 'daily', label: 'Daily' },
+        { id: 'weekly', label: 'Weekly' },
+        { id: 'monthly', label: 'Monthly' },
+      ].forEach(function (f) {
+        var chip = el('button', {
+          type: 'button',
+          class: 'edit-chip' + (wizardDraft.frequency === f.id ? ' selected' : ''),
+          text: f.label,
+        });
+        chip.addEventListener('click', function () {
+          wizardDraft.frequency = f.id;
+          renderWizardStep();
+        });
+        freqRow.appendChild(chip);
+      });
+      body.appendChild(freqRow);
+      return;
+    }
+
+    var withdrawStep = wizardDraft.needs_token ? 5 : 4;
+    if (wizardDraft.step === withdrawStep && wizardNeedsWithdraw()) {
+      title.textContent = 'Add strategy · Withdraw to';
+      body.appendChild(el('div', { class: 'wiz-step-label', text: 'Withdrawal wallet (TON address)' }));
+      body.appendChild(el('p', {
+        class: 'withdraw-addr-hint',
+        text: 'Purchased tokens will be sent here after each cycle.',
+      }));
+      var connectBtn = el('button', {
+        type: 'button',
+        class: 'withdraw-connect-btn' + (wizardDraft.withdrawal_wallet ? ' connected' : ''),
+        id: 'wiz-connect-ton',
+      });
+      connectBtn.innerHTML =
+        '<div class="withdraw-co-icon">◈</div>' +
+        '<div class="withdraw-co-info">' +
+          '<div class="withdraw-co-name">' + (wizardDraft.withdrawal_wallet ? 'Wallet connected' : 'Connect TON wallet') + '</div>' +
+          '<div class="withdraw-co-sub">' + (wizardDraft.withdrawal_wallet ? truncateAddr(wizardDraft.withdrawal_wallet) : 'Tonkeeper · TON Space') +
+        '</div></div>';
+      connectBtn.addEventListener('click', function () {
+        if (gramityTonProof) {
+          if (withdrawPendingAddr && !wizardDraft.withdrawal_confirmed) {
+            tonConnectUI.disconnect().catch(function () {});
+          } else {
+            openTonConnectWithProof();
+          }
+        }
+      });
+      body.appendChild(connectBtn);
+
+      if (withdrawPendingAddr && withdrawAddrVerified && !wizardDraft.withdrawal_confirmed) {
+        var wizConfirm = el('div', { class: 'withdraw-confirm-box visible' });
+        wizConfirm.appendChild(el('div', { class: 'withdraw-confirm-label', text: 'Connected wallet' }));
+        wizConfirm.appendChild(el('div', {
+          class: 'withdraw-confirm-addr',
+          text: withdrawPendingAddr,
+        }));
+        wizConfirm.appendChild(el('p', {
+          class: 'withdraw-confirm-warn',
+          text: 'Strategy payouts will be sent to this address. Confirm only if you control this wallet.',
+        }));
+        var useBtn = el('button', {
+          type: 'button',
+          class: 'g-btn-primary',
+          id: 'wiz-confirm-withdraw-btn',
+          text: 'Use this wallet for withdrawals',
+        });
+        useBtn.style.width = '100%';
+        useBtn.style.height = '42px';
+        useBtn.style.marginTop = '4px';
+        useBtn.addEventListener('click', function () {
+          wizardDraft.withdrawal_wallet = withdrawPendingAddr;
+          wizardDraft.withdrawal_confirmed = true;
+          renderWizardStep();
+          showToast('Withdrawal wallet confirmed', 'ok');
+        });
+        wizConfirm.appendChild(useBtn);
+        body.appendChild(wizConfirm);
+      } else if (wizardDraft.withdrawal_confirmed && wizardDraft.withdrawal_wallet) {
+        var okBox = el('div', { class: 'withdraw-confirm-box visible' });
+        okBox.appendChild(el('div', { class: 'withdraw-confirm-label', text: 'Withdrawal wallet confirmed' }));
+        okBox.appendChild(el('div', {
+          class: 'withdraw-confirm-addr',
+          text: wizardDraft.withdrawal_wallet,
+        }));
+        body.appendChild(okBox);
+      }
+      return;
+    }
+
+    var confirmStep = wizardMaxStep();
+    if (wizardDraft.step === confirmStep) {
+      title.textContent = 'Add strategy · Confirm';
+      var tokenLabel = wizardDraft.target_token_symbol || strategyDisplayName({ strategy_type: wizardDraft.strategy_type });
+      var freqLabel = FREQ_LABELS[wizardDraft.frequency] || wizardDraft.frequency;
+      var summary = el('div', { class: 'wiz-summary' });
+      summary.innerHTML =
+        '<strong>' + strategyDisplayName({
+          strategy_type: wizardDraft.strategy_type,
+          target_token_symbol: wizardDraft.target_token_symbol,
+        }) + '</strong><br>' +
+        '$' + wizardDraft.amount_usdt + ' USDT · ' + freqLabel + '<br>' +
+        (wizardDraft.needs_token ? 'Target: <strong>' + tokenLabel + '</strong><br>' : '') +
+        'Withdraw to: <strong>' + (wizardDraft.withdrawal_wallet || '—') + '</strong><br>' +
+        '<span style="font-size:11px;opacity:0.7">Payouts are irreversible once the strategy runs.</span>';
+      body.appendChild(summary);
+    }
+  }
+
+  function validateWizardTokenStep() {
+    if (wizardDraft.step !== 2 || !wizardDraft.needs_token) return Promise.resolve(true);
+    var custom = document.getElementById('wiz-custom-token');
+    if (custom && custom.value.trim() && !wizardDraft.target_token_address) {
+      var addr = custom.value.trim();
+      return apiGet('/jettons/' + encodeURIComponent(addr))
+        .then(function (meta) {
+          wizardDraft.strategy_type = 'dca_jetton';
+          wizardDraft.target_token_address = meta.address || addr;
+          wizardDraft.target_token_symbol = meta.symbol || 'TOKEN';
+          return true;
+        })
+        .catch(function () {
+          showToast('Invalid jetton contract address', 'err');
+          return false;
+        });
+    }
+    if (wizardDraft.strategy_type === 'dca_ton' && !wizardDraft.target_token_symbol) {
+      wizardDraft.target_token_symbol = 'TON';
+    }
+    if (wizardDraft.strategy_type === 'dca_jetton' && !wizardDraft.target_token_address) {
+      showToast('Select or enter a token', 'err');
+      return Promise.resolve(false);
+    }
+    return Promise.resolve(true);
+  }
+
+  function wizardNext() {
+    if (wizardDraft.step === 1 && !wizardDraft.productId) {
+      showToast('Choose an action', 'err');
+      return;
+    }
+    validateWizardTokenStep().then(function (tokenOk) {
+      if (!tokenOk) return;
+      advanceWizardStep();
+    });
+  }
+
+  function advanceWizardStep() {
+    var withdrawStep = wizardDraft.needs_token ? 5 : 4;
+    if (wizardDraft.step === withdrawStep && wizardNeedsWithdraw() && !wizardDraft.withdrawal_confirmed) {
+      showToast('Connect wallet and confirm the address', 'err');
+      return;
+    }
+    if (wizardDraft.step >= wizardMaxStep()) {
+      submitStrategyWizard();
+      return;
+    }
+    wizardDraft.step += 1;
+    if (wizardDraft.step === 2 && !wizardDraft.needs_token) {
+      wizardDraft.step = 3;
+    }
+    if (wizardDraft.strategy_type === 'dca_lp') {
+      var freqStepLp = 3;
+      if (wizardDraft.step === freqStepLp + 1 && wizardDraft.step < wizardMaxStep()) {
+        wizardDraft.step = wizardMaxStep();
+      }
+    }
+    renderWizardStep();
+  }
+
+  function wizardBack() {
+    wizardDraft.step -= 1;
+    if (wizardDraft.step === 2 && !wizardDraft.needs_token) {
+      wizardDraft.step = 1;
+    }
+    renderWizardStep();
+  }
+
+  function submitStrategyWizard() {
+    var nextBtn = document.getElementById('wiz-next');
+    nextBtn.disabled = true;
+    nextBtn.textContent = 'Creating…';
+    var payload = {
+      strategy_type: wizardDraft.strategy_type,
+      amount_usdt: wizardDraft.amount_usdt,
+      frequency: wizardDraft.frequency,
+      withdrawal_wallet: wizardDraft.withdrawal_wallet,
+      output_mode: wizardDraft.strategy_type === 'dca_lp' ? 'reinvest' : 'withdraw',
+    };
+    if (wizardDraft.target_token_address) {
+      payload.target_token_address = wizardDraft.target_token_address;
+      payload.target_token_symbol = wizardDraft.target_token_symbol;
+    }
+    apiPost('/strategies', payload)
+      .then(function () {
+        closeStrategyWizard();
+        showToast('Strategy created', 'ok');
+        return reloadPortfolio();
+      })
+      .catch(function (err) {
+        showToast(err.message || 'Create failed', 'err');
+      })
+      .finally(function () {
+        nextBtn.disabled = false;
+        nextBtn.textContent = 'Create strategy';
+      });
+  }
+
+  function updateHeaderStatus(plan, strategies) {
+    var status = document.getElementById('header-status');
+    if (!status) return;
+    var list = strategies || [];
+    var activeCount = list.filter(function (s) {
+      var st = s.strategy || s;
+      return st.status === 'active' || st.active;
+    }).length;
+    if (activeCount > 0) {
+      status.className = 'g-badge g-badge-active';
+      status.innerHTML = '';
+      status.appendChild(el('div', { class: 'g-badge-dot' }));
+      status.appendChild(document.createTextNode(activeCount + ' active'));
+      return;
+    }
+    if (plan && plan.active) {
+      status.className = 'g-badge g-badge-active';
+      status.innerHTML = '';
+      status.appendChild(el('div', { class: 'g-badge-dot' }));
+      status.appendChild(document.createTextNode('Active'));
+      return;
+    }
+    status.className = 'g-badge g-badge-paused';
     status.innerHTML = '';
     status.appendChild(el('div', { class: 'g-badge-dot' }));
-    status.appendChild(document.createTextNode(plan.active ? 'Active' : 'Paused'));
+    status.appendChild(document.createTextNode(list.length ? 'Paused' : 'Wallet'));
   }
 
   function renderHome(gs) {
@@ -1844,42 +2661,20 @@
     if (!body) return;
     body.innerHTML = '';
 
-    if (!gs.plan && (!gs.strategies || gs.strategies.length === 0)) {
-      body.innerHTML = '<div class="loading"><div class="empty-icon">📊</div><div class="empty-title">No strategy yet</div><div class="empty-sub">Create your first DCA strategy to see the dashboard</div><button type="button" class="g-btn-add" id="home-create-strategy" style="margin-top:16px">+ New strategy</button></div>';
-      var createBtn = document.getElementById('home-create-strategy');
-      if (createBtn) {
-        createBtn.addEventListener('click', function () {
-          window.location.href = '/app/onboarding.html';
-        });
-      }
-      return;
-    }
-
-    var plan = gs.plan;
-    if (!plan && gs.strategies && gs.strategies.length > 0) {
-      var s0 = gs.strategies[0].strategy || gs.strategies[0];
-      plan = {
-        usdt_amount: s0.amount_usdt || parseFloat(String(s0.amount || '0').replace(/[$,]/g, '')),
-        frequency: s0.frequency,
-        strategy_mode: s0.strategy_type || 'full',
-        active: s0.status ? s0.status === 'active' : !!s0.active,
-        next_execution_at: s0.next_run_at,
-        ton_address: s0.withdrawal_wallet,
-      };
-    }
     var balance = gs.balance || {};
-    var cycles = gs.cycles || [];
-    var allExecs = portfolioData && portfolioData.executions ? portfolioData.executions : cycles;
-    var invested = totalInvestedInLp(allExecs);
-    var cycleCount = successCycleCount(allExecs);
+    var wallet = gs.wallet || portfolioData && portfolioData.wallet || {};
+    var tonBal = wallet.ton != null ? wallet.ton : balance.ton || 0;
+    var usdtBal = wallet.usdt != null ? wallet.usdt : balance.usdt || 0;
     var lpUsd = balance.lpPositionUsd != null ? balance.lpPositionUsd : 0;
-    var tonBal = balance.ton || 0;
-    var usdtBal = balance.usdt || 0;
-    var addr = (gs.agentWallet && gs.agentWallet.address) || balance.depositAddress || '';
+    var addr = wallet.address || (gs.agentWallet && gs.agentWallet.address) || balance.depositAddress || '';
+    var jettons = wallet.jettons || [];
+    var strategies = portfolioData && portfolioData.strategies ? portfolioData.strategies : (gs.strategies || []).map(function (s) { return s.strategy || s; });
 
-    /* 1 — Agent wallet */
+    /* Wallet — primary entity */
     var walletCard = el('div', { class: 'g-card' });
-    walletCard.appendChild(el('span', { class: 'g-label', text: 'Agent wallet' }));
+    walletCard.appendChild(el('span', { class: 'g-label', text: 'DCA Wallet' }));
+    walletCard.appendChild(el('div', { class: 'wallet-hero-usdt', text: '$' + fmt(usdtBal) }));
+    walletCard.appendChild(el('div', { class: 'home-bal-line', text: 'USDT available for strategies' }));
     var addrRow = el('div', { class: 'home-addr-row' });
     addrRow.appendChild(el('span', { class: 'g-addr', text: truncateAddr(addr) }));
     var copyBtn = el('button', { class: 'g-btn-ghost', type: 'button', 'aria-label': 'Copy address' }, ['⎘']);
@@ -1889,82 +2684,87 @@
     });
     addrRow.appendChild(copyBtn);
     walletCard.appendChild(addrRow);
-    var balLine = el('div', { class: 'home-bal-line' + (tonBal < 0.5 ? ' warn' : '') });
-    var balText = '$' + fmt(usdtBal) + ' USDT · ' + fmt(tonBal, 2) + ' TON gas';
-    if (tonBal < 0.5) balText += ' · ⚠ top up for gas';
-    balLine.textContent = balText;
-    walletCard.appendChild(balLine);
+    var actions = el('div', { class: 'wallet-actions' });
+    var depBtn = el('button', { class: 'g-btn-primary', type: 'button' }, ['↑ Fund']);
+    depBtn.addEventListener('click', function () { switchTab('deposit'); });
+    var wdBtn = el('button', { class: 'g-btn-secondary', type: 'button' }, ['↓ Withdraw']);
+    wdBtn.addEventListener('click', function () { switchTab('more'); });
+    actions.appendChild(depBtn);
+    actions.appendChild(wdBtn);
+    walletCard.appendChild(actions);
     body.appendChild(walletCard);
 
-    /* 2 — Earnings */
-    var earnCard = el('div', { class: 'g-card-accent' });
-    earnCard.appendChild(el('span', { class: 'g-label', text: 'Your earnings' }));
-    earnCard.appendChild(el('div', { class: 'g-hero', text: balance.lpPositionUsd != null ? '$' + fmt(lpUsd) : '—' }));
-    var pnl = formatHomePnl(lpUsd, invested, cycleCount);
-    var pnlEl = el('div', { class: 'home-pnl', text: pnl.text });
-    pnlEl.style.color = pnl.color;
-    earnCard.appendChild(pnlEl);
-    earnCard.appendChild(el('div', { class: 'g-divider' }));
-    var y1 = el('div', { class: 'g-yield-row' });
-    y1.appendChild(el('span', { text: 'tsTON staking' }));
-    y1.appendChild(el('span', { class: 'g-metric-value-green', text: '~5.0%' }));
-    earnCard.appendChild(y1);
-    var y2 = el('div', { class: 'g-yield-row' });
-    y2.appendChild(el('span', { text: 'LP + farming' }));
-    y2.appendChild(el('span', { class: 'g-metric-value-green', text: '~0.4%' }));
-    earnCard.appendChild(y2);
-    var y3 = el('div', { class: 'g-yield-row g-yield-total' });
-    y3.appendChild(el('span', { text: 'Total APY' }));
-    y3.appendChild(el('span', { class: 'g-yield-val g-metric-value-green', text: '~5.4%' }));
-    earnCard.appendChild(y3);
-    body.appendChild(earnCard);
-
-    /* 3 — Strategy */
-    var freqLabel = FREQ_LABELS[plan.frequency] || plan.frequency;
-    var stratCard = el('div', { class: 'g-card' });
-    var line1 = el('div', { class: 'home-strat-line1' });
-    line1.appendChild(el('div', {
-      class: 'home-strat-main',
-      text: '$' + fmt(plan.usdt_amount, 0) + ' · ' + freqLabel + ' · ' + strategyLabel(plan.strategy_mode),
-    }));
-    var editBtn = el('button', { class: 'g-btn-ghost', type: 'button' }, ['Edit']);
-    editBtn.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      window.location.href = '/app/onboarding.html';
+    /* Assets on wallet */
+    var assetsCard = el('div', { class: 'g-card' });
+    assetsCard.appendChild(el('span', { class: 'g-label', text: 'Assets' }));
+    var chips = el('div', { class: 'asset-chips' });
+    var tonChip = el('div', { class: 'asset-chip' });
+    tonChip.appendChild(el('strong', { text: 'TON' }));
+    tonChip.appendChild(document.createTextNode(' '));
+    tonChip.appendChild(el('span', { text: fmt(tonBal, 2) }));
+    chips.appendChild(tonChip);
+    if (lpUsd > 0) {
+      var lpChip = el('div', { class: 'asset-chip' });
+      lpChip.appendChild(el('strong', { text: 'LP' }));
+      lpChip.appendChild(document.createTextNode(' '));
+      lpChip.appendChild(el('span', { text: '$' + fmt(lpUsd) }));
+      chips.appendChild(lpChip);
+    }
+    jettons.forEach(function (j) {
+      var jChip = el('div', { class: 'asset-chip' });
+      jChip.appendChild(el('strong', { text: j.symbol || '?' }));
+      jChip.appendChild(document.createTextNode(' '));
+      jChip.appendChild(el('span', { text: fmt(j.balance, j.balance < 1 ? 4 : 2) }));
+      chips.appendChild(jChip);
     });
-    line1.appendChild(editBtn);
-    stratCard.appendChild(line1);
-    stratCard.appendChild(el('div', {
-      class: 'home-strat-line2',
-      text: 'Next cycle: ' + fmtDate(plan.next_execution_at),
-    }));
-    body.appendChild(stratCard);
+    if (!jettons.length && lpUsd <= 0 && tonBal <= 0) {
+      chips.appendChild(el('div', { class: 'home-empty', text: 'Fund wallet to start DCA' }));
+    }
+    assetsCard.appendChild(chips);
+    body.appendChild(assetsCard);
 
-    /* 4 — Recent cycles */
-    var cyclesCard = el('div', { class: 'g-card' });
-    cyclesCard.appendChild(el('span', { class: 'g-label', text: 'Recent cycles' }));
-    if (!cycles.length) {
-      cyclesCard.appendChild(el('div', {
+    /* Strategies list */
+    var stratCard = el('div', { class: 'g-card' });
+    var stratHead = el('div', { class: 'home-strat-line1' });
+    stratHead.appendChild(el('span', { class: 'g-label', text: 'My strategies' }));
+    var addBtn = el('button', { class: 'g-btn-ghost', type: 'button' }, ['+ Add']);
+    addBtn.addEventListener('click', openAddStrategyWizard);
+    stratHead.appendChild(addBtn);
+    stratCard.appendChild(stratHead);
+
+    if (!strategies.length && !gs.plan) {
+      stratCard.appendChild(el('div', {
         class: 'home-empty',
-        text: 'No cycles yet. Run your first DCA.',
+        text: 'No strategies yet. Add one to automate USDT.',
       }));
     } else {
-      cycles.forEach(function (e) {
-        var row = el('div', { class: 'g-cycle-row' });
-        var ok = e.status === 'success';
-        row.appendChild(el('div', { class: 'g-cycle-dot ' + (ok ? 'g-cycle-dot-ok' : 'g-cycle-dot-fail') }));
-        var info = el('div', { class: 'home-cycle-info' });
-        info.appendChild(document.createTextNode(ok ? 'Success' : ('Failed — ' + failReason(e, plan, tonBal))));
-        info.appendChild(el('span', { class: 'home-cycle-date', text: fmtDate(e.executed_at) }));
-        row.appendChild(info);
-        row.appendChild(el('span', {
-          class: 'g-num',
-          text: e.usdt_spent ? '$' + fmt(e.usdt_spent) : '—',
+      strategies.forEach(function (s) {
+        var row = el('div', { class: 'strategy-list-row' });
+        var main = el('div', { class: 'strategy-list-main' });
+        main.appendChild(el('div', {
+          class: 'strategy-list-title',
+          text: strategyDisplayName(s),
         }));
-        cyclesCard.appendChild(row);
+        main.appendChild(el('div', {
+          class: 'strategy-list-sub',
+          text: '$' + fmt(s.amount_usdt, 0) + ' · ' + (FREQ_LABELS[s.frequency] || s.frequency) +
+            (s.next_run_at ? ' · next ' + fmtDate(s.next_run_at) : ''),
+        }));
+        row.appendChild(main);
+        var dot = el('div', {
+          class: 'strategy-status-dot' + (s.status === 'active' ? '' : ' paused'),
+        });
+        row.appendChild(dot);
+        stratCard.appendChild(row);
       });
     }
-    body.appendChild(cyclesCard);
+    body.appendChild(stratCard);
+
+    if (!strategies.length && !gs.plan) {
+      var cta = el('button', { class: 'g-btn-add', type: 'button', style: 'margin-top:12px' }, ['+ Add first strategy']);
+      cta.addEventListener('click', openAddStrategyWizard);
+      body.appendChild(cta);
+    }
   }
 
   function renderAssets(gs) {
@@ -2018,7 +2818,7 @@
 
     var addBtn = el('button', { class: 'g-btn-add', type: 'button' }, ['+ New strategy']);
     addBtn.addEventListener('click', function () {
-      window.location.href = '/app/onboarding.html';
+      openAddStrategyWizard();
     });
     body.appendChild(addBtn);
 
@@ -2270,34 +3070,262 @@
       });
   }
 
+  var tonConnectUI = null;
+  var gramityTonProof = null;
+  var withdrawPendingAddr = null;
+  var withdrawAddrVerified = false;
+  var withdrawAddrLocked = false;
+  var strategyEditDraft = { amount: null, frequency: null };
+
+  function updateWithdrawConfirmPanel(addr) {
+    var box = document.getElementById('withdraw-addr-confirm');
+    var addrEl = document.getElementById('withdraw-confirm-addr-text');
+    if (!box || !addrEl) return;
+    var show = !!(addr && withdrawAddrVerified && !withdrawAddrLocked);
+    box.classList.toggle('visible', show);
+    addrEl.textContent = show ? addr : '—';
+  }
+
+  function onTonProofVerified(addr) {
+    withdrawPendingAddr = addr;
+    withdrawAddrVerified = true;
+    updateWithdrawConnectBtn(addr);
+    updateWithdrawConfirmPanel(addr);
+    var wizOpen = document.getElementById('strategy-wizard-sheet').classList.contains('open');
+    if (wizOpen) renderWizardStep();
+    showToast('Wallet verified', 'ok');
+  }
+
+  function onTonProofFailed(err) {
+    withdrawPendingAddr = null;
+    withdrawAddrVerified = false;
+    updateWithdrawConnectBtn(null);
+    updateWithdrawConfirmPanel(null);
+    wizardDraft.withdrawal_confirmed = false;
+    wizardDraft.withdrawal_wallet = null;
+    var wizOpen = document.getElementById('strategy-wizard-sheet').classList.contains('open');
+    if (wizOpen) renderWizardStep();
+    showToast((err && err.message) || 'Wallet verification failed', 'err');
+  }
+
+  function openTonConnectWithProof() {
+    if (!gramityTonProof) return;
+    gramityTonProof.openWithProof().catch(function (err) {
+      showToast((err && err.message) || 'Could not start wallet connect', 'err');
+    });
+  }
+
+  function initTonConnect() {
+    try {
+      if (!window.TON_CONNECT_UI || !window.TON_CONNECT_UI.TonConnectUI) return;
+      if (!window.GramityTonProof) return;
+      tonConnectUI = new window.TON_CONNECT_UI.TonConnectUI({
+        manifestUrl: window.location.origin + '/app/tonconnect-manifest.json',
+      });
+      gramityTonProof = new window.GramityTonProof(tonConnectUI, apiPost);
+      gramityTonProof.onVerified(onTonProofVerified);
+      gramityTonProof.onFailed(onTonProofFailed);
+      tonConnectUI.onStatusChange(function (wallet) {
+        if (!wallet || !wallet.account || !wallet.account.address) {
+          withdrawPendingAddr = null;
+          withdrawAddrVerified = false;
+          updateWithdrawConnectBtn(null);
+          updateWithdrawConfirmPanel(null);
+          wizardDraft.withdrawal_confirmed = false;
+          wizardDraft.withdrawal_wallet = null;
+          var wizOpen2 = document.getElementById('strategy-wizard-sheet').classList.contains('open');
+          if (wizOpen2) renderWizardStep();
+        }
+      });
+    } catch (e) {
+      console.warn('[TonConnect] Init failed:', e);
+    }
+  }
+
+  function updateWithdrawConnectBtn(addr) {
+    var btn = document.getElementById('btnConnectWithdrawTON');
+    var sub = document.getElementById('withdraw-connect-sub');
+    if (!btn) return;
+    if (addr) {
+      var short = truncateAddr(addr);
+      btn.classList.add('connected');
+      btn.querySelector('.withdraw-co-name').textContent = 'TON Connected';
+      if (sub) sub.textContent = short;
+    } else {
+      btn.classList.remove('connected');
+      btn.querySelector('.withdraw-co-name').textContent = 'Connect TON wallet';
+      if (sub) sub.textContent = 'Tonkeeper · TON Space · MyTonWallet';
+    }
+  }
+
   function openWithdrawAddrSheet() {
     var plan = window.gramityState.plan;
-    var inp = document.getElementById('withdraw-addr-input');
-    if (inp && plan && plan.ton_address) inp.value = plan.ton_address;
+    var hint = document.getElementById('withdraw-addr-hint');
+    var current = document.getElementById('withdraw-addr-current');
+    var locked = document.getElementById('withdraw-addr-locked');
+    var btn = document.getElementById('btnConnectWithdrawTON');
+    withdrawAddrLocked = !!(plan && plan.ton_address && plan.ton_address.length > 8);
+    if (current) {
+      if (withdrawAddrLocked) {
+        current.style.display = 'block';
+        current.textContent = 'Current: ' + truncateAddr(plan.ton_address);
+      } else {
+        current.style.display = 'none';
+        current.textContent = '';
+      }
+    }
+    if (hint) {
+      hint.textContent = withdrawAddrLocked
+        ? 'Withdrawal address is set and locked.'
+        : 'Connect your TON wallet, then confirm the address below.';
+    }
+    if (locked) locked.style.display = withdrawAddrLocked ? 'block' : 'none';
+    if (btn) btn.style.display = withdrawAddrLocked ? 'none' : 'flex';
+    if (!withdrawAddrLocked) {
+      withdrawPendingAddr = null;
+      withdrawAddrVerified = false;
+      updateWithdrawConnectBtn(null);
+      updateWithdrawConfirmPanel(null);
+    } else if (plan && plan.ton_address) {
+      updateWithdrawConnectBtn(plan.ton_address);
+      updateWithdrawConfirmPanel(null);
+    }
     document.getElementById('withdraw-addr-sheet').classList.add('open');
     document.getElementById('withdraw-drawer-backdrop').classList.add('open');
   }
 
   function closeWithdrawAddrSheet() {
     document.getElementById('withdraw-addr-sheet').classList.remove('open');
-    if (!document.getElementById('withdraw-drawer').classList.contains('open')) {
+    withdrawPendingAddr = null;
+    updateWithdrawConfirmPanel(null);
+    if (!document.getElementById('withdraw-drawer').classList.contains('open') &&
+        !document.getElementById('strategy-edit-sheet').classList.contains('open') &&
+        !document.getElementById('strategy-wizard-sheet').classList.contains('open')) {
       document.getElementById('withdraw-drawer-backdrop').classList.remove('open');
     }
   }
 
   function saveWithdrawalAddress() {
-    var inp = document.getElementById('withdraw-addr-input');
-    var addr = inp && inp.value ? inp.value.trim() : '';
-    if (!addr || addr.length < 8) {
-      showToast('Enter a valid TON address', 'err');
+    var address = (withdrawPendingAddr || '').trim();
+    if (!address || address.length < 8) {
+      showToast('Connect a TON wallet first', 'err');
       return;
     }
-    var btn = document.getElementById('withdraw-addr-save');
-    btn.disabled = true;
-    apiPost('/plans/withdrawal-address', { ton_address: addr })
+    if (!withdrawAddrVerified) {
+      showToast('Verify wallet ownership first', 'err');
+      return;
+    }
+    if (withdrawAddrLocked) {
+      showToast('Address already locked', 'err');
+      return;
+    }
+    var btn = document.getElementById('withdraw-addr-save-btn');
+    if (btn) btn.disabled = true;
+    btn.textContent = 'Saving…';
+    apiPost('/plans/withdrawal-address', { ton_address: address })
       .then(function () {
         closeWithdrawAddrSheet();
         showToast('Withdrawal address saved', 'ok');
+        return reloadPortfolio();
+      })
+      .catch(function (err) {
+        if (err.message && err.message.indexOf('locked') !== -1) {
+          showToast('Address already set', 'ok');
+          closeWithdrawAddrSheet();
+        } else {
+          showToast(err.message || 'Save failed', 'err');
+        }
+      })
+      .finally(function () {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Save as withdrawal address';
+        }
+      });
+  }
+
+  var EDIT_AMOUNTS = [5, 10, 25, 50, 100];
+  var EDIT_FREQS = [
+    { id: 'weekly', label: 'Weekly' },
+    { id: 'biweekly', label: 'Every 2 weeks' },
+    { id: 'monthly', label: 'Monthly' },
+    { id: 'daily', label: 'Daily' },
+  ];
+
+  function renderStrategyEditChips() {
+    var amountRow = document.getElementById('edit-amount-chips');
+    var freqRow = document.getElementById('edit-freq-chips');
+    if (!amountRow || !freqRow) return;
+    amountRow.innerHTML = '';
+    freqRow.innerHTML = '';
+    EDIT_AMOUNTS.forEach(function (a) {
+      var chip = el('button', {
+        type: 'button',
+        class: 'edit-chip' + (strategyEditDraft.amount === a ? ' selected' : ''),
+        text: '$' + a,
+      });
+      chip.addEventListener('click', function () {
+        strategyEditDraft.amount = a;
+        renderStrategyEditChips();
+      });
+      amountRow.appendChild(chip);
+    });
+    EDIT_FREQS.forEach(function (f) {
+      var chip = el('button', {
+        type: 'button',
+        class: 'edit-chip' + (strategyEditDraft.frequency === f.id ? ' selected' : ''),
+        text: f.label,
+      });
+      chip.addEventListener('click', function () {
+        strategyEditDraft.frequency = f.id;
+        renderStrategyEditChips();
+      });
+      freqRow.appendChild(chip);
+    });
+  }
+
+  function openStrategyEditSheet() {
+    var plan = window.gramityState.plan;
+    if (!plan) {
+      showToast('No active strategy', 'err');
+      return;
+    }
+    strategyEditDraft.amount = plan.usdt_amount;
+    strategyEditDraft.frequency = plan.frequency;
+    renderStrategyEditChips();
+    document.getElementById('strategy-edit-sheet').classList.add('open');
+    document.getElementById('withdraw-drawer-backdrop').classList.add('open');
+  }
+
+  function closeStrategyEditSheet() {
+    document.getElementById('strategy-edit-sheet').classList.remove('open');
+    if (!document.getElementById('withdraw-drawer').classList.contains('open') &&
+        !document.getElementById('withdraw-addr-sheet').classList.contains('open')) {
+      document.getElementById('withdraw-drawer-backdrop').classList.remove('open');
+    }
+  }
+
+  function saveStrategyEdit() {
+    var plan = window.gramityState.plan;
+    if (!plan) return;
+    var payload = {};
+    if (strategyEditDraft.amount != null && strategyEditDraft.amount !== plan.usdt_amount) {
+      payload.usdt_amount = strategyEditDraft.amount;
+    }
+    if (strategyEditDraft.frequency && strategyEditDraft.frequency !== plan.frequency) {
+      payload.frequency = strategyEditDraft.frequency;
+    }
+    if (!payload.usdt_amount && !payload.frequency) {
+      closeStrategyEditSheet();
+      return;
+    }
+    var btn = document.getElementById('strategy-edit-save');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    apiPost('/plan/settings', payload)
+      .then(function () {
+        closeStrategyEditSheet();
+        showToast('Strategy updated', 'ok');
         return reloadPortfolio();
       })
       .catch(function (err) {
@@ -2305,6 +3333,7 @@
       })
       .finally(function () {
         btn.disabled = false;
+        btn.textContent = 'Save changes';
       });
   }
 
@@ -2327,9 +3356,7 @@
         class: 'g-setting-value',
         text: '$' + fmt(plan.usdt_amount, 0) + ' / ' + freqLabel,
       });
-      stratCard.appendChild(settingRow('g-setting-icon-blue', '✎', 'Edit strategy', editRight, function () {
-        window.location.href = '/app/onboarding.html';
-      }));
+      stratCard.appendChild(settingRow('g-setting-icon-blue', '✎', 'Edit strategy', editRight, openStrategyEditSheet));
 
       var hasWithdrawAddr = !!(plan.ton_address && plan.ton_address.length > 8);
       var addrRight = el('span', {
@@ -2394,7 +3421,7 @@
 
     var newRight = el('span', { class: 'g-setting-arrow', text: '→' });
     acctCard.appendChild(settingRow('g-setting-icon-blue', '＋', 'New strategy', newRight, function () {
-      window.location.href = '/app/onboarding.html';
+      openAddStrategyWizard();
     }));
 
     var botRight = el('span', { class: 'g-setting-value', text: APP_VERSION });
@@ -2458,7 +3485,7 @@
         frequency: s0.frequency,
       };
     }
-    updateHeaderStatus(displayPlan);
+    updateHeaderStatus(displayPlan, gs.strategies);
     renderHome(gs);
     renderAssets(gs);
     renderDeposit(gs);
@@ -2548,6 +3575,8 @@
   document.getElementById('withdraw-drawer-backdrop').addEventListener('click', function () {
     closeWithdrawDrawer();
     closeWithdrawAddrSheet();
+    closeStrategyEditSheet();
+    closeStrategyWizard();
   });
 
   document.getElementById('withdraw-drawer-usdt').addEventListener('click', function () {
@@ -2573,7 +3602,26 @@
   });
 
   document.getElementById('withdraw-addr-close').addEventListener('click', closeWithdrawAddrSheet);
-  document.getElementById('withdraw-addr-save').addEventListener('click', saveWithdrawalAddress);
+  document.getElementById('withdraw-addr-save-btn').addEventListener('click', saveWithdrawalAddress);
+  document.getElementById('btnConnectWithdrawTON').addEventListener('click', function () {
+    if (withdrawAddrLocked) return;
+    if (gramityTonProof) {
+      if (withdrawPendingAddr) {
+        tonConnectUI.disconnect().catch(function () {});
+      } else {
+        openTonConnectWithProof();
+      }
+    }
+  });
+  document.getElementById('strategy-edit-close').addEventListener('click', closeStrategyEditSheet);
+  document.getElementById('strategy-edit-save').addEventListener('click', saveStrategyEdit);
+  document.getElementById('strategy-wizard-close').addEventListener('click', closeStrategyWizard);
+  document.getElementById('wiz-back').addEventListener('click', wizardBack);
+  document.getElementById('wiz-next').addEventListener('click', wizardNext);
+  document.getElementById('header-logo-btn').addEventListener('click', function () {
+    window.location.href = '/app/onboarding.html';
+  });
+  initTonConnect();
 
   document.getElementById('runCancelBtn').addEventListener('click', function () {
     document.getElementById('runModal').classList.remove('open');
@@ -2622,47 +3670,4 @@
         return reloadPortfolio();
       })
       .catch(function (err) {
-        showToast(err.message || 'Withdraw failed', 'err');
-      })
-      .finally(function () {
-        btn.disabled = false;
-        btn.textContent = 'Withdraw all';
-      });
-  });
-
-  document.getElementById('runModal').addEventListener('click', function (e) {
-    if (e.target === this) this.classList.remove('open');
-  });
-  document.getElementById('withdrawAllModal').addEventListener('click', function (e) {
-    if (e.target === this) this.classList.remove('open');
-  });
-
-  function renderError(msg) {
-    var tabs = ['tab-home', 'tab-assets', 'tab-deposit', 'tab-more'];
-    tabs.forEach(function (id, i) {
-      var pane = document.getElementById(id);
-      if (!pane) return;
-      pane.innerHTML = '';
-      if (i === 0) {
-        var banner = el('div', { class: 'error-banner' });
-        banner.textContent = msg || 'Failed to load portfolio. Please try again.';
-        pane.appendChild(banner);
-      }
-    });
-    hasStickyActions = false;
-    updateStickyCta();
-    updateHeaderStatus(null);
-  }
-
-  try {
-    authenticate();
-  } catch (err) {
-    console.error('[APP] Fatal init error:', err);
-    hideLoader();
-    renderError('Ошибка загрузки. Закройте и откройте снова.');
-  }
-})();
-</script>
-<script type="module" src="/app/assets/metamask-connect.js"></script>
-</body>
-</html>
+        showT

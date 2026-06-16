@@ -1,13 +1,16 @@
 import { Skeleton } from "../../components/Skeleton";
 import type { PortfolioResponse } from "../../api/portfolio";
-import { S } from "../../styles";
 
 function PortfolioSkeleton() {
   return (
-    <div style={S.card}>
+    <div className="g-card">
       <Skeleton width="40%" height={12} style={{ marginBottom: 12 }} />
       <Skeleton width="55%" height={32} style={{ marginBottom: 12 }} />
-      <Skeleton width="75%" height={14} />
+      <div className="g-stat-grid">
+        <Skeleton height={36} />
+        <Skeleton height={36} />
+        <Skeleton height={36} />
+      </div>
     </div>
   );
 }
@@ -29,23 +32,23 @@ export function PortfolioBlock({
   const lp = data?.lpValue;
 
   return (
-    <div style={S.card}>
-      <div style={{ ...S.value, marginBottom: 8 }}>${estValue.toFixed(2)}</div>
-      <div
-        style={{
-          fontSize: 14,
-          color: "var(--tg-theme-hint-color, #888)",
-          display: "flex",
-          gap: 8,
-          flexWrap: "wrap",
-        }}
-      >
-        <span>USDT ${usdt.toFixed(2)}</span>
-        <span>·</span>
-        <span>TON {ton.toFixed(3)}</span>
-        <span>·</span>
-        <span>LP {lp != null ? `$${lp.toFixed(2)}` : "—"}</span>
+    <section className="g-card g-section" aria-label="Портфель">
+      <div className="g-section-label">Оценка портфеля</div>
+      <div className="g-hero-metric">${estValue.toFixed(2)}</div>
+      <div className="g-stat-grid">
+        <div className="g-stat-item">
+          <span className="g-stat-label">USDT</span>
+          <span className="g-stat-value">${usdt.toFixed(2)}</span>
+        </div>
+        <div className="g-stat-item">
+          <span className="g-stat-label">TON</span>
+          <span className="g-stat-value">{ton.toFixed(3)}</span>
+        </div>
+        <div className="g-stat-item">
+          <span className="g-stat-label">LP</span>
+          <span className="g-stat-value">{lp != null ? `$${lp.toFixed(2)}` : "—"}</span>
+        </div>
       </div>
-    </div>
+    </section>
   );
 }

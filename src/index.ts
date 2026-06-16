@@ -70,7 +70,9 @@ app.use((req, res, next) => {
       "img-src 'self' data: https:",
       "connect-src 'self' " +
         RAILWAY_PUBLIC_URL +
-        " https://toncenter.com https://tonapi.io https://api.ston.fi wss://omni-ws.ston.fi",
+        " https://toncenter.com https://tonapi.io https://api.ston.fi wss://omni-ws.ston.fi" +
+        " https://bridge.tonapi.io https://tonconnectbridge.mytonwallet.org https://connect.tonhubapi.com https://walletbot.me" +
+        " wss://bridge.tonapi.io wss://connect.tonhubapi.com",
       "frame-ancestors 'self' https://web.telegram.org https://webk.telegram.org https://webz.telegram.org",
     ].join("; ")
   );
@@ -308,6 +310,109 @@ app.post("/api/auth/telegram", async (req, res) => {
   }
 });
 
+function tonProofDomainHost(): string {
+  return new URL(RAILWAY_PUBLIC_URL).host;
+}
+
+async function assertVerifiedWithdrawalAddress(
+  telegramId: number,
+  rawAddress: string
+): Promise<
+  | { ok: true; normalized: string }
+  | { ok: false; status: number; error: string }
+> {
+  const normalized = normalizeTonAddress(rawAddress);
+  if (!normalized) {
+    return { ok: false, status: 400, error: "Invalid TON withdrawal address" };
+  }
+  const { getUserByTelegramId } = await import("./db/index.js");
+  const user = await getUserByTelegramId(telegramId);
+  const verified = user?.verified_ton_address
+    ? normalizeTonAddress(user.verified_ton_address)
+    : null;
+  if (!verified || verified !== normalized) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Address not verified. Connect wallet first.",
+    };
+  }
+  return { ok: true, normalized };
+}
+
+app.post("/api/auth/ton-proof/payload", tgAuth, async (req, res) => {
+  try {
+    const telegramId = req.telegramId!;
+    const { generateTonProofPayload } = await import("./utils/tonProof.js");
+    const { upsertTonProofPayload } = await import("./db/index.js");
+    const payload = await generateTonProofPayload();
+    await upsertTonProofPayload(telegramId, payload);
+    res.json({ payload });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post("/api/auth/ton-proof/verify", tgAuth, async (req, res) => {
+  try {
+    const telegramId = req.telegramId!;
+    const body = req.body ?? {};
+    const address = String(body.address ?? "").trim();
+    const publicKey = String(body.public_key ?? body.publicKey ?? "").trim();
+    const proof = body.proof;
+
+    if (!address || !publicKey || !proof) {
+      res.status(400).json({ error: "missing_proof_fields" });
+      return;
+    }
+
+    const {
+      getTonProofPayload,
+      deleteTonProofPayload,
+      setVerifiedTonAddress,
+    } = await import("./db/index.js");
+    const { verifyTonProof } = await import("./utils/tonProof.js");
+
+    const storedPayload = await getTonProofPayload(telegramId);
+    if (!storedPayload) {
+      res.status(400).json({ error: "payload_expired" });
+      return;
+    }
+
+    const normalized = normalizeTonAddress(address);
+    if (!normalized) {
+      res.status(400).json({ error: "invalid_address" });
+      return;
+    }
+
+    const isValid = await verifyTonProof({
+      address: normalized,
+      public_key: publicKey,
+      proof: {
+        timestamp: Number(proof.timestamp),
+        domain: proof.domain,
+        signature: String(proof.signature),
+        payload: String(proof.payload),
+        state_init: proof.state_init ? String(proof.state_init) : undefined,
+      },
+      expectedPayload: storedPayload,
+      expectedDomain: tonProofDomainHost(),
+    });
+
+    if (!isValid) {
+      res.status(401).json({ error: "invalid_signature" });
+      return;
+    }
+
+    await setVerifiedTonAddress(telegramId, normalized);
+    await deleteTonProofPayload(telegramId);
+
+    res.json({ verified: true, address: normalized });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
 // Portfolio
 app.get("/api/portfolio", tgAuth, async (req, res) => {
   try {
@@ -323,8 +428,13 @@ app.get("/api/portfolio", tgAuth, async (req, res) => {
       getStrategiesByTelegramId(telegramId).catch(() => []),
     ]);
     const addr = depositAddress ?? "";
-    const usdtBalance = addr ? await getUsdtBalance(addr) : 0;
-    const tonNano = addr ? await getTonBalance(addr) : 0n;
+    const { getAllVerifiedJettons } = await import("./services/tonapi.js");
+    const { USDT_ADDRESS } = await import("./config.js");
+    const [usdtBalance, tonNano, jettons] = await Promise.all([
+      addr ? getUsdtBalance(addr) : Promise.resolve(0),
+      addr ? getTonBalance(addr) : Promise.resolve(0n),
+      addr ? getAllVerifiedJettons(addr).catch(() => []) : Promise.resolve([]),
+    ]);
     const tonBalance = Number(tonNano) / 1e9;
 
     let lpValue: number | null = null;
@@ -351,6 +461,19 @@ app.get("/api/portfolio", tgAuth, async (req, res) => {
 
     res.json({
       depositAddress: addr,
+      wallet: {
+        address: addr,
+        usdt: usdtBalance,
+        ton: tonBalance,
+        jettons: jettons
+          .filter((j) => j.jettonAddress !== USDT_ADDRESS)
+          .map((j) => ({
+            address: j.jettonAddress,
+            symbol: j.symbol,
+            balance: j.balance,
+            decimals: j.decimals,
+          })),
+      },
       usdtBalance,
       tonBalance,
       lpValue,
@@ -376,6 +499,8 @@ app.get("/api/portfolio", tgAuth, async (req, res) => {
         amount_usdt: s.amount_usdt,
         frequency: s.frequency,
         withdrawal_wallet: s.withdrawal_wallet,
+        target_token_address: s.target_token_address,
+        target_token_symbol: s.target_token_symbol,
         output_mode: s.output_mode,
         status: s.status,
         total_cycles: s.total_cycles,
@@ -504,6 +629,54 @@ app.post("/api/plan/resume", tgAuth, async (req, res) => {
       next_execution_at: next.toISOString(),
     });
     res.json({ ok: true, active: true, next_execution_at: next.toISOString() });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post("/api/plan/settings", tgAuth, async (req, res) => {
+  try {
+    const telegramId = req.telegramId!;
+    const { getPlanByTelegramId, updatePlan } = await import("./db/index.js");
+    const { getNextPlanExecutionDate, MIN_DCA_USDT } = await import("./constants/dca.js");
+    const plan = await getPlanByTelegramId(telegramId);
+    if (!plan) { res.status(404).json({ error: "No plan" }); return; }
+
+    const updates: { usdt_amount?: number; frequency?: typeof plan.frequency; next_execution_at?: string } = {};
+    const rawAmount = req.body?.usdt_amount ?? req.body?.amount;
+    if (rawAmount != null) {
+      const amount = parseFloat(String(rawAmount).replace(",", "."));
+      if (isNaN(amount) || amount < MIN_DCA_USDT) {
+        res.status(400).json({ error: `Minimum per cycle is $${MIN_DCA_USDT} USDT` });
+        return;
+      }
+      updates.usdt_amount = amount;
+    }
+
+    const rawFreq = req.body?.frequency;
+    const allowedFreq = ["weekly", "biweekly", "monthly", "daily", "minutely", "hourly"] as const;
+    if (rawFreq != null) {
+      if (!allowedFreq.includes(rawFreq)) {
+        res.status(400).json({ error: "Invalid frequency" });
+        return;
+      }
+      updates.frequency = rawFreq;
+    }
+
+    if (!updates.usdt_amount && !updates.frequency) {
+      res.status(400).json({ error: "Nothing to update" });
+      return;
+    }
+
+    if (updates.frequency) {
+      updates.next_execution_at = getNextPlanExecutionDate({
+        ...plan,
+        frequency: updates.frequency,
+      }).toISOString();
+    }
+
+    await updatePlan(telegramId, updates);
+    res.json({ ok: true, ...updates });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
@@ -1023,6 +1196,8 @@ function serializeStrategy(s: import("./db/index.js").Strategy) {
     amount_usdt: s.amount_usdt,
     frequency: s.frequency,
     withdrawal_wallet: s.withdrawal_wallet,
+    target_token_address: s.target_token_address,
+    target_token_symbol: s.target_token_symbol,
     output_mode: s.output_mode,
     status: s.status,
     total_cycles: s.total_cycles,
@@ -1032,6 +1207,32 @@ function serializeStrategy(s: import("./db/index.js").Strategy) {
     last_error: s.last_error,
   };
 }
+
+app.get("/api/strategy-products", tgAuth, async (_req, res) => {
+  const { STRATEGY_PRODUCTS, POPULAR_SWAP_TOKENS } = await import("./config.js");
+  res.json({ products: STRATEGY_PRODUCTS, popular_tokens: POPULAR_SWAP_TOKENS });
+});
+
+app.get("/api/jettons/:address", tgAuth, async (req, res) => {
+  try {
+    const raw = String(req.params.address ?? "").trim();
+    if (!raw || raw === "ton" || raw === "native") {
+      res.json({ address: null, symbol: "TON", name: "Toncoin", decimals: 9, native: true });
+      return;
+    }
+    const { getJettonMetadata } = await import("./services/tonapi.js");
+    const { normalizeTonAddress } = await import("./utils/tonAddress.js");
+    const normalized = normalizeTonAddress(raw) ?? raw;
+    const meta = await getJettonMetadata(normalized);
+    if (!meta) {
+      res.status(404).json({ error: "jetton_not_found" });
+      return;
+    }
+    res.json({ ...meta, native: false });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
 
 app.get("/api/strategies", tgAuth, async (req, res) => {
   try {
@@ -1047,10 +1248,27 @@ app.post("/api/strategies", tgAuth, async (req, res) => {
   try {
     const telegramId = req.telegramId!;
     const body = req.body ?? {};
-    const strategyType = String(body.strategy_type ?? body.type ?? "");
-    const validTypes = ["dca_ton", "dca_tston", "dca_lp"];
+    let strategyType = String(body.strategy_type ?? body.type ?? "");
+    const validTypes = ["dca_ton", "dca_tston", "dca_lp", "dca_jetton"];
     if (!validTypes.includes(strategyType)) {
       res.status(400).json({ error: "invalid_strategy_type" });
+      return;
+    }
+
+    let targetTokenAddress: string | null = null;
+    let targetTokenSymbol: string | null = null;
+    const rawTarget = body.target_token_address ?? body.targetTokenAddress;
+    if (rawTarget != null && String(rawTarget).trim()) {
+      const { normalizeTonAddress } = await import("./utils/tonAddress.js");
+      targetTokenAddress = normalizeTonAddress(String(rawTarget)) ?? String(rawTarget).trim();
+      targetTokenSymbol = body.target_token_symbol ?? body.targetTokenSymbol ?? null;
+      if (strategyType === "dca_ton") {
+        strategyType = "dca_jetton";
+      }
+    }
+
+    if (strategyType === "dca_jetton" && !targetTokenAddress) {
+      res.status(400).json({ error: "target_token_address_required" });
       return;
     }
 
@@ -1076,11 +1294,15 @@ app.post("/api/strategies", tgAuth, async (req, res) => {
         res.status(400).json({ error: "withdrawal_address_required" });
         return;
       }
-      withdrawalWallet = normalizeTonAddress(String(rawWallet));
-      if (!withdrawalWallet) {
-        res.status(400).json({ error: "Invalid TON withdrawal address" });
+      const verifiedCheck = await assertVerifiedWithdrawalAddress(
+        telegramId,
+        String(rawWallet)
+      );
+      if (!verifiedCheck.ok) {
+        res.status(verifiedCheck.status).json({ error: verifiedCheck.error });
         return;
       }
+      withdrawalWallet = verifiedCheck.normalized;
     }
 
     const { createStrategy } = await import("./db/index.js");
@@ -1093,6 +1315,8 @@ app.post("/api/strategies", tgAuth, async (req, res) => {
       amount_usdt: amountUsdt,
       frequency,
       withdrawal_wallet: withdrawalWallet,
+      target_token_address: targetTokenAddress,
+      target_token_symbol: targetTokenSymbol ? String(targetTokenSymbol) : null,
       output_mode: outputMode,
       next_run_at: nextRun,
     });
@@ -1201,6 +1425,28 @@ async function handleCreatePlan(
     normalizedAddress = normalizeTonAddress(rawAddress);
     if (!normalizedAddress) {
       res.status(400).json({ error: "Invalid TON withdrawal address" });
+      return;
+    }
+
+    const verifiedCheck = await assertVerifiedWithdrawalAddress(
+      telegramId,
+      normalizedAddress
+    );
+    if (!verifiedCheck.ok) {
+      res.status(verifiedCheck.status).json({ error: verifiedCheck.error });
+      return;
+    }
+    normalizedAddress = verifiedCheck.normalized;
+
+    const { getPlanByTelegramId } = await import("./db/index.js");
+    const existing = await getPlanByTelegramId(telegramId).catch(() => null);
+    if (existing?.active) {
+      res.status(409).json({
+        error: "plan_exists",
+        message: "Active plan already exists",
+        plan_id: existing.id,
+        redirect: "/app/dashboard.html",
+      });
       return;
     }
 
@@ -1372,6 +1618,15 @@ app.post("/api/plans/withdrawal-address", tgAuth, async (req, res) => {
     const normalized = normalizeTonAddress(String(raw));
     if (!normalized) {
       res.status(400).json({ error: "Invalid TON withdrawal address" });
+      return;
+    }
+
+    const verifiedCheck = await assertVerifiedWithdrawalAddress(
+      telegramId,
+      normalized
+    );
+    if (!verifiedCheck.ok) {
+      res.status(verifiedCheck.status).json({ error: verifiedCheck.error });
       return;
     }
 

@@ -1,23 +1,22 @@
 import { formatRelativeTime } from "../../config";
 import { executionStatusBadge, StatusBadge } from "../../components/StatusBadge";
 import type { ExecutionInfo } from "../../api/portfolio";
-import { S } from "../../styles";
 
 export function ExecutionsList({ executions }: { executions?: ExecutionInfo[] }) {
   const list = (executions ?? []).slice(0, 5);
 
   if (list.length === 0) {
     return (
-      <div style={S.card}>
-        <div style={S.label}>Последние циклы</div>
-        <p style={S.hint}>Пока нет циклов</p>
-      </div>
+      <section className="g-card g-section">
+        <div className="g-section-label">Последние циклы</div>
+        <p className="g-hint">Пока нет циклов</p>
+      </section>
     );
   }
 
   return (
-    <div style={S.card}>
-      <div style={{ ...S.label, marginBottom: 12 }}>Последние циклы</div>
+    <section className="g-card g-section">
+      <div className="g-section-label">Последние циклы</div>
       {list.map((e, i) => {
         const date = formatRelativeTime(e.executed_at);
         const tx = e.tx_swap;
@@ -26,31 +25,20 @@ export function ExecutionsList({ executions }: { executions?: ExecutionInfo[] })
         return (
           <div
             key={i}
-            style={{
-              ...S.row,
-              borderBottom:
-                i < list.length - 1
-                  ? "1px solid var(--tg-theme-hint-color, #eee)"
-                  : undefined,
-              paddingBottom: 8,
-            }}
+            className="g-row"
+            style={i === 0 ? { borderTop: "none", paddingTop: 0 } : undefined}
           >
-            <span style={{ fontSize: 13 }}>{date}</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <StatusBadge
-                status={executionStatusBadge(e.status)}
-                label={e.status ?? "—"}
-              />
+            <span>{date}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <StatusBadge status={executionStatusBadge(e.status)} label={e.status ?? "—"} />
               {e.usdt_spent != null ? `$${e.usdt_spent}` : "—"}
               {txShort && (
                 <a
                   href={`https://tonviewer.com/transaction/${tx}`}
                   target="_blank"
                   rel="noreferrer"
-                  style={{
-                    fontSize: 11,
-                    color: "var(--tg-theme-link-color, #2481cc)",
-                  }}
+                  className="g-link"
+                  style={{ fontSize: 11 }}
                 >
                   {txShort}
                 </a>
@@ -59,6 +47,6 @@ export function ExecutionsList({ executions }: { executions?: ExecutionInfo[] })
           </div>
         );
       })}
-    </div>
+    </section>
   );
 }

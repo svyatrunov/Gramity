@@ -122,9 +122,7 @@ export async function getLastTxHash(
   }
 }
 
-/**
- * Returns TON balance in nanotons for `address`.
- */
+/** Get TON balance in nanotons for `address`. */
 export async function getTonBalance(address: string): Promise<bigint> {
   try {
     const url = `${TON_API_URL}/accounts/${encodeURIComponent(address)}`;
@@ -134,6 +132,59 @@ export async function getTonBalance(address: string): Promise<bigint> {
     return BigInt(data.balance ?? "0");
   } catch {
     return 0n;
+  }
+}
+
+/** Raw jetton balance for a wallet + jetton master. */
+export async function getJettonBalanceRaw(
+  walletAddress: string,
+  jettonMaster: string
+): Promise<bigint> {
+  try {
+    const url = `${TON_API_URL}/accounts/${encodeURIComponent(walletAddress)}/jettons/${encodeURIComponent(jettonMaster)}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) return 0n;
+    const data = (await res.json()) as { balance?: string };
+    return BigInt(data.balance ?? "0");
+  } catch {
+    return 0n;
+  }
+}
+
+export interface JettonMetadata {
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  image?: string | null;
+  verification?: string;
+}
+
+/** Fetch jetton metadata from TonAPI. */
+export async function getJettonMetadata(
+  jettonAddress: string
+): Promise<JettonMetadata | null> {
+  try {
+    const url = `${TON_API_URL}/jettons/${encodeURIComponent(jettonAddress)}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      metadata?: { symbol?: string; name?: string; image?: string };
+      symbol?: string;
+      decimals?: number;
+      verification?: string;
+    };
+    const meta = data.metadata ?? {};
+    return {
+      address: jettonAddress,
+      symbol: meta.symbol ?? data.symbol ?? "???",
+      name: meta.name ?? meta.symbol ?? "Unknown",
+      decimals: data.decimals ?? 9,
+      image: meta.image ?? null,
+      verification: data.verification,
+    };
+  } catch {
+    return null;
   }
 }
 

@@ -14,9 +14,9 @@ export function Skeleton({
       style={{
         width,
         height,
-        borderRadius: 6,
+        borderRadius: 8,
         background:
-          "linear-gradient(90deg, var(--tg-theme-secondary-bg-color, #eee) 25%, var(--tg-theme-bg-color, #fff) 50%, var(--tg-theme-secondary-bg-color, #eee) 75%)",
+          "linear-gradient(90deg, var(--g-surface) 25%, var(--g-surface-elevated) 50%, var(--g-surface) 75%)",
         backgroundSize: "200% 100%",
         animation: "shimmer 1.2s infinite",
         ...style,
@@ -27,14 +27,7 @@ export function Skeleton({
 
 export function CardSkeleton() {
   return (
-    <div
-      style={{
-        background: "var(--tg-theme-secondary-bg-color, #f5f5f5)",
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 12,
-      }}
-    >
+    <div className="g-card">
       <Skeleton width="40%" height={12} style={{ marginBottom: 12 }} />
       <Skeleton width="60%" height={28} style={{ marginBottom: 8 }} />
       <Skeleton width="80%" height={14} />
