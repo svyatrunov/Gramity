@@ -234,6 +234,24 @@ CREATE TABLE IF NOT EXISTS bot_state (
   extra        JSONB DEFAULT '{}',
   updated_at   TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Per-asset withdrawal journal (enables progress tracking + resume on partial failure)
+CREATE TABLE IF NOT EXISTS withdrawal_log (
+  id           UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
+  batch_id     UUID        NOT NULL,
+  telegram_id  BIGINT      NOT NULL,
+  to_address   TEXT        NOT NULL,
+  asset        TEXT        NOT NULL,
+  master       TEXT        NOT NULL,
+  amount_raw   NUMERIC,
+  status       TEXT        NOT NULL DEFAULT 'pending',
+  tx_hash      TEXT,
+  error        TEXT,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_withdrawal_log_batch ON withdrawal_log(batch_id);
+CREATE INDEX IF NOT EXISTS idx_withdrawal_log_tg ON withdrawal_log(telegram_id);
 `;
 
 export async function initDb(): Promise<void> {
@@ -1076,4 +1094,72 @@ export async function clearBotState(telegramId: string): Promise<void> {
   await getPool().query("DELETE FROM bot_state WHERE telegram_id = $1", [
     telegramId,
   ]);
+}
+
+// ─── Withdrawal journal ─────────────────────────────────────────────────────────
+
+export type WithdrawalItemStatus = "pending" | "sent" | "failed" | "skipped";
+
+export interface WithdrawalItem {
+  id: string;
+  batch_id: string;
+  telegram_id: number;
+  to_address: string;
+  asset: string;
+  master: string;
+  amount_raw: string | null;
+  status: WithdrawalItemStatus;
+  tx_hash: string | null;
+  error: string | null;
+}
+
+/** Create a withdrawal batch with one pending row per asset; returns batch id. */
+export async function startWithdrawalBatch(
+  telegramId: number,
+  toAddress: string,
+  items: { asset: string; master: string; amountRaw: bigint }[]
+): Promise<string> {
+  const idRes = await getPool().query<{ id: string }>("SELECT gen_random_uuid() AS id");
+  const batchId = idRes.rows[0].id;
+  for (const it of items) {
+    await getPool().query(
+      `INSERT INTO withdrawal_log (batch_id, telegram_id, to_address, asset, master, amount_raw, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'pending')`,
+      [batchId, telegramId, toAddress, it.asset, it.master, it.amountRaw.toString()]
+    );
+  }
+  return batchId;
+}
+
+export async function markWithdrawalItem(
+  id: string,
+  status: WithdrawalItemStatus,
+  txHash?: string | null,
+  error?: string | null
+): Promise<void> {
+  await getPool().query(
+    `UPDATE withdrawal_log
+       SET status = $2, tx_hash = COALESCE($3, tx_hash), error = $4, updated_at = NOW()
+     WHERE id = $1`,
+    [id, status, txHash ?? null, error ?? null]
+  );
+}
+
+export async function getBatchItems(batchId: string): Promise<WithdrawalItem[]> {
+  const { rows } = await getPool().query<WithdrawalItem>(
+    "SELECT * FROM withdrawal_log WHERE batch_id = $1 ORDER BY created_at",
+    [batchId]
+  );
+  return rows;
+}
+
+/** Most recent batch for a user that still has pending/failed items (resumable). */
+export async function getResumableBatchId(telegramId: number): Promise<string | null> {
+  const { rows } = await getPool().query<{ batch_id: string }>(
+    `SELECT batch_id FROM withdrawal_log
+     WHERE telegram_id = $1 AND status IN ('pending', 'failed')
+     ORDER BY created_at DESC LIMIT 1`,
+    [telegramId]
+  );
+  return rows[0]?.batch_id ?? null;
 }

@@ -31,7 +31,7 @@ import {
   getUserDepositAddress,
   getUserWalletContext,
 } from "./services/userWallet.js";
-import { executeFullExit } from "./execution/exit.js";
+import { executeFullExit, previewExit, type WithdrawAssetFilter } from "./execution/exit.js";
 import { sendJettonTransfer } from "./services/jetton.js";
 import {
   MIN_DCA_USDT,
@@ -731,7 +731,33 @@ app.post("/api/plan/payout", tgAuth, async (req, res) => {
   }
 });
 
-// Withdraw all
+function parseAssetFilter(v: unknown): WithdrawAssetFilter {
+  return v === "usdt" || v === "native" ? v : "all";
+}
+
+function explorerLink(txHash: string | null): string | null {
+  return txHash ? `https://tonviewer.com/transaction/${txHash}` : null;
+}
+
+// Preview a withdrawal (no funds moved)
+app.post("/api/withdraw/preview", tgAuth, async (req, res) => {
+  try {
+    const telegramId = req.telegramId!;
+    const { getPlanByTelegramId } = await import("./db/index.js");
+    const plan = await getPlanByTelegramId(telegramId);
+    if (!plan) { res.status(404).json({ error: "No plan" }); return; }
+    if (!hasWithdrawalAddress(plan.ton_address)) {
+      res.status(400).json({ error: "Withdrawal address not set" });
+      return;
+    }
+    const preview = await previewExit(plan, parseAssetFilter(req.body?.assets));
+    res.json(preview);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// Withdraw (all assets as-is, or filtered)
 app.post("/api/withdraw/all", tgAuth, async (req, res) => {
   try {
     const telegramId = req.telegramId!;
@@ -742,9 +768,53 @@ app.post("/api/withdraw/all", tgAuth, async (req, res) => {
       res.status(400).json({ error: "Withdrawal address not set" });
       return;
     }
-    await updatePlan(telegramId, { active: false });
-    const result = await executeFullExit(plan);
-    res.json({ summary: result.summary });
+    const filter = parseAssetFilter(req.body?.assets);
+    if (filter === "all") {
+      await updatePlan(telegramId, { active: false });
+    }
+    const result = await executeFullExit(plan, { assets: filter });
+    res.json({
+      summary: result.summary,
+      batchId: result.batchId,
+      gasWarning: result.gasWarning ?? null,
+      items: result.items.map((i) => ({
+        asset: i.asset,
+        amount: i.amount,
+        status: i.status,
+        txHash: i.txHash,
+        explorer: explorerLink(i.txHash),
+        error: i.error ?? null,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// Resume a partially-failed withdrawal batch
+app.post("/api/withdraw/resume", tgAuth, async (req, res) => {
+  try {
+    const telegramId = req.telegramId!;
+    const { getPlanByTelegramId, getResumableBatchId } = await import("./db/index.js");
+    const plan = await getPlanByTelegramId(telegramId);
+    if (!plan) { res.status(404).json({ error: "No plan" }); return; }
+    const batchId = (typeof req.body?.batchId === "string" && req.body.batchId)
+      || (await getResumableBatchId(telegramId));
+    if (!batchId) { res.status(404).json({ error: "Nothing to resume" }); return; }
+    const result = await executeFullExit(plan, { batchId });
+    res.json({
+      summary: result.summary,
+      batchId: result.batchId,
+      gasWarning: result.gasWarning ?? null,
+      items: result.items.map((i) => ({
+        asset: i.asset,
+        amount: i.amount,
+        status: i.status,
+        txHash: i.txHash,
+        explorer: explorerLink(i.txHash),
+        error: i.error ?? null,
+      })),
+    });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
