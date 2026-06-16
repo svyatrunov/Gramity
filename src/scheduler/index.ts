@@ -27,6 +27,7 @@ import {
 import { InsufficientFundsError, type ExecutionResult } from "../execution/index.js";
 import { executeDcaCycle } from "../execution/cycle.js";
 import { preflightCheck } from "../execution/preflight.js";
+import { shouldPayout, executePayout } from "../execution/payout.js";
 import type { Plan } from "../db/index.js";
 import type { Strategy } from "../db/index.js";
 import {
@@ -123,6 +124,9 @@ async function runStrategyJob(
         consecutive_failures: 0,
         last_error: strategy.last_error,
         is_running: false,
+        payout_enabled: false,
+        payout_percent: 0,
+        payout_every_n_cycles: 1,
       };
 
       const preflight = await preflightCheck(syntheticPlan);
@@ -366,6 +370,45 @@ async function checkAndExecute() {
           }
 
           await resetConsecutiveFailures(plan.id).catch(() => {});
+
+          // ── Auto-payout: partial withdrawal of accumulated target asset ──
+          try {
+            const fresh = await getPlanByTelegramId(plan.telegram_id);
+            if (fresh && shouldPayout(fresh, fresh.cycles_completed)) {
+              const payout = await executePayout(fresh);
+              if (payout.sent) {
+                await logNotification(
+                  plan.id,
+                  "payout_sent",
+                  true,
+                  `${payout.amount} ${payout.symbol}`
+                );
+                try {
+                  const { bot } = await import("../bot/index.js");
+                  await bot.api
+                    .sendMessage(
+                      plan.telegram_id,
+                      `💸 *Auto-payout sent*\n\n` +
+                        `${payout.amount} ${payout.symbol} → your withdrawal wallet\n\n` +
+                        `${fresh.payout_percent}% every ${fresh.payout_every_n_cycles} cycle(s) · cycle ${fresh.cycles_completed}`,
+                      { parse_mode: "Markdown" }
+                    )
+                    .catch(() => {});
+                } catch {}
+              } else if (
+                payout.reason &&
+                payout.reason !== "below_minimum" &&
+                payout.reason !== "zero_balance"
+              ) {
+                await logNotification(plan.id, "payout_failed", false, undefined, payout.reason);
+              }
+            }
+          } catch (err) {
+            console.error(
+              `[SCHEDULER] Payout check failed for plan ${plan.id}:`,
+              err instanceof Error ? err.message : String(err)
+            );
+          }
 
           if (isQuickPlan(plan.demo_mode, plan.frequency)) {
             const updated = await getPlanByTelegramId(plan.telegram_id);

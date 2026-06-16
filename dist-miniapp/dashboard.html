@@ -681,6 +681,23 @@
       z-index: 110;
     }
     #strategy-edit-sheet.open { display: block; }
+
+    /* Auto-payout settings */
+    .payout-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px; }
+    .payout-title { font-size:14px; font-weight:600; color:var(--g-text,#fff); }
+    .payout-sub { font-size:12px; color:var(--g-muted,rgba(255,255,255,0.5)); margin-top:2px; line-height:1.4; }
+    .payout-switch { position:relative; display:inline-block; width:44px; height:26px; flex-shrink:0; }
+    .payout-switch input { opacity:0; width:0; height:0; }
+    .payout-slider-sw { position:absolute; inset:0; background:rgba(255,255,255,0.15); border-radius:999px; transition:.2s; cursor:pointer; }
+    .payout-slider-sw::before { content:''; position:absolute; height:20px; width:20px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+    .payout-switch input:checked + .payout-slider-sw { background:#4F87F7; }
+    .payout-switch input:checked + .payout-slider-sw::before { transform:translateX(18px); }
+    .payout-pct-label { font-size:13px; color:var(--g-muted,rgba(255,255,255,0.5)); margin:12px 0 6px; }
+    .payout-pct-label span { color:var(--g-text,#fff); font-weight:700; }
+    #payout-pct { -webkit-appearance:none; appearance:none; width:100%; height:6px; border-radius:3px; background:rgba(255,255,255,0.12); outline:none; cursor:pointer; }
+    #payout-pct::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; border-radius:50%; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.4); cursor:pointer; }
+    #payout-pct::-moz-range-thumb { width:22px; height:22px; border-radius:50%; border:none; background:#fff; cursor:pointer; }
+    .payout-freq-row { display:flex; flex-wrap:wrap; gap:8px; }
     .edit-section-label {
       font-size: 11px;
       font-weight: 600;
@@ -1501,7 +1518,26 @@
     <div class="edit-amount-row" id="edit-amount-chips"></div>
     <div class="edit-section-label">Frequency</div>
     <div class="edit-freq-row" id="edit-freq-chips"></div>
-    <button type="button" class="g-btn-primary" id="strategy-edit-save" style="width:100%;height:42px">Save changes</button>
+
+    <div class="edit-section-label" style="margin-top:18px">Auto-payout</div>
+    <div class="payout-row">
+      <div>
+        <div class="payout-title">Auto-withdraw to your wallet</div>
+        <div class="payout-sub" id="payout-asset-hint">Sends a share of accumulated TON</div>
+      </div>
+      <label class="payout-switch">
+        <input type="checkbox" id="payout-enabled"/>
+        <span class="payout-slider-sw"></span>
+      </label>
+    </div>
+    <div id="payout-controls" style="display:none">
+      <div class="payout-pct-label">Withdraw <span id="payout-pct-val">50</span>% each payout</div>
+      <input type="range" id="payout-pct" min="0" max="100" step="5" value="50"/>
+      <div class="edit-section-label" style="margin-top:14px">How often</div>
+      <div class="payout-freq-row" id="payout-freq-chips"></div>
+    </div>
+
+    <button type="button" class="g-btn-primary" id="strategy-edit-save" style="width:100%;height:42px;margin-top:18px">Save changes</button>
   </div>
 
   <div id="strategy-wizard-sheet">
@@ -3075,7 +3111,7 @@
   var withdrawPendingAddr = null;
   var withdrawAddrVerified = false;
   var withdrawAddrLocked = false;
-  var strategyEditDraft = { amount: null, frequency: null };
+  var strategyEditDraft = { amount: null, frequency: null, payoutEnabled: false, payoutPercent: 50, payoutEveryN: 1 };
 
   function updateWithdrawConfirmPanel(addr) {
     var box = document.getElementById('withdraw-addr-confirm');
@@ -3284,6 +3320,39 @@
     });
   }
 
+  function renderPayoutEditControls() {
+    var plan = window.gramityState.plan || {};
+    var assetByMode = { accumulate: 'TON', stake_only: 'tsTON', full: 'LP tokens' };
+    var asset = assetByMode[plan.strategy_mode] || 'TON';
+    var hint = document.getElementById('payout-asset-hint');
+    if (hint) {
+      hint.textContent = plan.withdrawal_address_set
+        ? 'Sends a share of accumulated ' + asset + ' to your withdrawal wallet'
+        : 'Set a withdrawal wallet first to enable payouts';
+    }
+    var en = document.getElementById('payout-enabled');
+    var ctrls = document.getElementById('payout-controls');
+    if (en) en.checked = !!strategyEditDraft.payoutEnabled;
+    if (ctrls) ctrls.style.display = strategyEditDraft.payoutEnabled ? 'block' : 'none';
+    var pct = document.getElementById('payout-pct');
+    var pctVal = document.getElementById('payout-pct-val');
+    if (pct) pct.value = strategyEditDraft.payoutPercent;
+    if (pctVal) pctVal.textContent = strategyEditDraft.payoutPercent;
+    var freqRow = document.getElementById('payout-freq-chips');
+    if (freqRow) {
+      freqRow.innerHTML = '';
+      [{ n: 1, l: 'Every cycle' }, { n: 2, l: 'Every 2' }, { n: 4, l: 'Every 4' }, { n: 7, l: 'Every 7' }].forEach(function (o) {
+        var c = el('button', { type: 'button', class: 'edit-chip' + (strategyEditDraft.payoutEveryN === o.n ? ' selected' : '') });
+        c.textContent = o.l;
+        c.addEventListener('click', function () {
+          strategyEditDraft.payoutEveryN = o.n;
+          renderPayoutEditControls();
+        });
+        freqRow.appendChild(c);
+      });
+    }
+  }
+
   function openStrategyEditSheet() {
     var plan = window.gramityState.plan;
     if (!plan) {
@@ -3292,7 +3361,11 @@
     }
     strategyEditDraft.amount = plan.usdt_amount;
     strategyEditDraft.frequency = plan.frequency;
+    strategyEditDraft.payoutEnabled = !!plan.payout_enabled;
+    strategyEditDraft.payoutPercent = Number(plan.payout_percent) > 0 ? Number(plan.payout_percent) : 50;
+    strategyEditDraft.payoutEveryN = Number(plan.payout_every_n_cycles) >= 1 ? Number(plan.payout_every_n_cycles) : 1;
     renderStrategyEditChips();
+    renderPayoutEditControls();
     document.getElementById('strategy-edit-sheet').classList.add('open');
     document.getElementById('withdraw-drawer-backdrop').classList.add('open');
   }
@@ -3308,21 +3381,38 @@
   function saveStrategyEdit() {
     var plan = window.gramityState.plan;
     if (!plan) return;
-    var payload = {};
+    var settingsPayload = {};
     if (strategyEditDraft.amount != null && strategyEditDraft.amount !== plan.usdt_amount) {
-      payload.usdt_amount = strategyEditDraft.amount;
+      settingsPayload.usdt_amount = strategyEditDraft.amount;
     }
     if (strategyEditDraft.frequency && strategyEditDraft.frequency !== plan.frequency) {
-      payload.frequency = strategyEditDraft.frequency;
+      settingsPayload.frequency = strategyEditDraft.frequency;
     }
-    if (!payload.usdt_amount && !payload.frequency) {
+    var payoutPayload = {};
+    if (strategyEditDraft.payoutEnabled !== !!plan.payout_enabled) {
+      payoutPayload.payout_enabled = strategyEditDraft.payoutEnabled;
+    }
+    if (strategyEditDraft.payoutEnabled) {
+      if (Number(strategyEditDraft.payoutPercent) !== Number(plan.payout_percent)) {
+        payoutPayload.payout_percent = strategyEditDraft.payoutPercent;
+      }
+      if (Number(strategyEditDraft.payoutEveryN) !== Number(plan.payout_every_n_cycles)) {
+        payoutPayload.payout_every_n_cycles = strategyEditDraft.payoutEveryN;
+      }
+    }
+    var hasSettings = Object.keys(settingsPayload).length > 0;
+    var hasPayout = Object.keys(payoutPayload).length > 0;
+    if (!hasSettings && !hasPayout) {
       closeStrategyEditSheet();
       return;
     }
     var btn = document.getElementById('strategy-edit-save');
     btn.disabled = true;
     btn.textContent = 'Saving…';
-    apiPost('/plan/settings', payload)
+    var tasks = [];
+    if (hasSettings) tasks.push(apiPost('/plan/settings', settingsPayload));
+    if (hasPayout) tasks.push(apiPost('/plan/payout', payoutPayload));
+    Promise.all(tasks)
       .then(function () {
         closeStrategyEditSheet();
         showToast('Strategy updated', 'ok');
@@ -3615,6 +3705,20 @@
   });
   document.getElementById('strategy-edit-close').addEventListener('click', closeStrategyEditSheet);
   document.getElementById('strategy-edit-save').addEventListener('click', saveStrategyEdit);
+  (function wirePayoutControls() {
+    var en = document.getElementById('payout-enabled');
+    if (en) en.addEventListener('change', function () {
+      strategyEditDraft.payoutEnabled = this.checked;
+      var ctrls = document.getElementById('payout-controls');
+      if (ctrls) ctrls.style.display = this.checked ? 'block' : 'none';
+    });
+    var pct = document.getElementById('payout-pct');
+    if (pct) pct.addEventListener('input', function () {
+      strategyEditDraft.payoutPercent = parseInt(this.value, 10) || 0;
+      var v = document.getElementById('payout-pct-val');
+      if (v) v.textContent = strategyEditDraft.payoutPercent;
+    });
+  })();
   document.getElementById('strategy-wizard-close').addEventListener('click', closeStrategyWizard);
   document.getElementById('wiz-back').addEventListener('click', wizardBack);
   document.getElementById('wiz-next').addEventListener('click', wizardNext);
@@ -3670,4 +3774,48 @@
         return reloadPortfolio();
       })
       .catch(function (err) {
-        showT
+        showToast(err.message || 'Withdraw failed', 'err');
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = 'Withdraw all';
+      });
+  });
+
+  document.getElementById('runModal').addEventListener('click', function (e) {
+    if (e.target === this) this.classList.remove('open');
+  });
+  document.getElementById('withdrawAllModal').addEventListener('click', function (e) {
+    if (e.target === this) this.classList.remove('open');
+  });
+
+  function renderError(msg) {
+    if (msg && String(msg).indexOf('SESSION_EXPIRED') !== -1) return;
+    var tabs = ['tab-home', 'tab-assets', 'tab-deposit', 'tab-more'];
+    tabs.forEach(function (id, i) {
+      var pane = document.getElementById(id);
+      if (!pane) return;
+      pane.innerHTML = '';
+      if (i === 0) {
+        var banner = el('div', { class: 'error-banner' });
+        banner.textContent = msg || 'Failed to load portfolio. Please try again.';
+        pane.appendChild(banner);
+      }
+    });
+    hasStickyActions = false;
+    updateStickyCta();
+    updateHeaderStatus(null);
+  }
+
+  try {
+    authenticate();
+  } catch (err) {
+    console.error('[APP] Fatal init error:', err);
+    hideLoader();
+    renderError('Ошибка загрузки. Закройте и откройте снова.');
+  }
+})();
+</script>
+<script type="module" src="/app/assets/metamask-connect.js"></script>
+</body>
+</html>

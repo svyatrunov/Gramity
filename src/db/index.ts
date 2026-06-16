@@ -71,6 +71,23 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 
+-- Auto-payout config (idempotent): partial periodic withdrawal of the
+-- accumulated target asset to the withdrawal wallet.
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN payout_enabled BOOLEAN NOT NULL DEFAULT false;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN payout_percent NUMERIC NOT NULL DEFAULT 0;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE plans ADD COLUMN payout_every_n_cycles INT NOT NULL DEFAULT 1;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
 CREATE TABLE IF NOT EXISTS executions (
   id                UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
   plan_id           UUID        REFERENCES plans(id),
@@ -363,6 +380,12 @@ export interface Plan {
   withdrawal_chain?: WithdrawalChainDb | null;
   withdrawal_token?: string | null;
   withdrawal_address_set?: boolean;
+  /** Auto-payout: send a % of the accumulated target asset every N cycles. */
+  payout_enabled: boolean;
+  /** 0-100. Percentage of the target-asset balance withdrawn per payout. */
+  payout_percent: number;
+  /** Payout fires when cycles_completed % payout_every_n_cycles === 0 (>=1). */
+  payout_every_n_cycles: number;
 }
 
 export type WithdrawalChainDb = "ton" | "eth" | "bnb" | "base" | "polygon";
@@ -414,11 +437,25 @@ export async function getPlanByTelegramId(
     cycles_completed: Number(row.cycles_completed),
     consecutive_failures: Number(row.consecutive_failures),
     max_cycles: row.max_cycles != null ? Number(row.max_cycles) : null,
+    payout_enabled: Boolean(row.payout_enabled),
+    payout_percent: row.payout_percent != null ? Number(row.payout_percent) : 0,
+    payout_every_n_cycles:
+      row.payout_every_n_cycles != null ? Math.max(1, Number(row.payout_every_n_cycles)) : 1,
   };
 }
 
 export async function upsertPlan(
-  plan: Omit<Plan, "id" | "created_at" | "consecutive_failures" | "last_error" | "is_running">
+  plan: Omit<
+    Plan,
+    | "id"
+    | "created_at"
+    | "consecutive_failures"
+    | "last_error"
+    | "is_running"
+    | "payout_enabled"
+    | "payout_percent"
+    | "payout_every_n_cycles"
+  >
 ): Promise<Plan> {
   const { rows } = await getPool().query<Plan>(
     `INSERT INTO plans
@@ -463,7 +500,7 @@ export async function incrementCyclesCompleted(planId: string): Promise<number> 
 
 export async function updatePlan(
   telegramId: number,
-  updates: Partial<Pick<Plan, "active" | "next_execution_at" | "usdt_amount" | "frequency" | "strategy_mode" | "ton_address" | "demo_mode" | "cycles_completed" | "max_cycles" | "consecutive_failures" | "last_error">>
+  updates: Partial<Pick<Plan, "active" | "next_execution_at" | "usdt_amount" | "frequency" | "strategy_mode" | "ton_address" | "demo_mode" | "cycles_completed" | "max_cycles" | "consecutive_failures" | "last_error" | "payout_enabled" | "payout_percent" | "payout_every_n_cycles">>
 ): Promise<void> {
   const fields: string[] = [];
   const values: unknown[] = [];

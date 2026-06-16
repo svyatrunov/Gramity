@@ -491,6 +491,9 @@ app.get("/api/portfolio", tgAuth, async (req, res) => {
             cycles_completed: cyclesCompleted,
             is_running: plan.is_running ?? false,
             consecutive_failures: plan.consecutive_failures ?? 0,
+            payout_enabled: plan.payout_enabled ?? false,
+            payout_percent: plan.payout_percent ?? 0,
+            payout_every_n_cycles: plan.payout_every_n_cycles ?? 1,
           }
         : null,
       strategies: strategies.map((s) => ({
@@ -673,6 +676,52 @@ app.post("/api/plan/settings", tgAuth, async (req, res) => {
         ...plan,
         frequency: updates.frequency,
       }).toISOString();
+    }
+
+    await updatePlan(telegramId, updates);
+    res.json({ ok: true, ...updates });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// Auto-payout settings
+app.post("/api/plan/payout", tgAuth, async (req, res) => {
+  try {
+    const telegramId = req.telegramId!;
+    const { getPlanByTelegramId, updatePlan } = await import("./db/index.js");
+    const plan = await getPlanByTelegramId(telegramId);
+    if (!plan) { res.status(404).json({ error: "No plan" }); return; }
+
+    const updates: {
+      payout_enabled?: boolean;
+      payout_percent?: number;
+      payout_every_n_cycles?: number;
+    } = {};
+
+    if (req.body?.payout_enabled != null) {
+      updates.payout_enabled = Boolean(req.body.payout_enabled);
+    }
+    if (req.body?.payout_percent != null) {
+      const pct = Math.round(parseFloat(String(req.body.payout_percent).replace(",", ".")));
+      if (isNaN(pct) || pct < 0 || pct > 100) {
+        res.status(400).json({ error: "payout_percent must be 0-100" });
+        return;
+      }
+      updates.payout_percent = pct;
+    }
+    if (req.body?.payout_every_n_cycles != null) {
+      const n = Math.floor(Number(req.body.payout_every_n_cycles));
+      if (isNaN(n) || n < 1 || n > 365) {
+        res.status(400).json({ error: "payout_every_n_cycles must be 1-365" });
+        return;
+      }
+      updates.payout_every_n_cycles = n;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: "Nothing to update" });
+      return;
     }
 
     await updatePlan(telegramId, updates);
