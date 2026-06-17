@@ -840,7 +840,7 @@
     .slide-wizard .slide-footer {
       padding-top: 12px;
       padding-bottom: max(8px, env(safe-area-inset-bottom));
-      background: linear-gradient(to top, var(--bg) 70%, transparent);
+      background: transparent;
     }
     .slide-wizard .nav-arrow     { display: none !important; }
 
@@ -1438,8 +1438,9 @@
 
     .skip-intro-btn {
       position: fixed;
-      top: max(12px, env(safe-area-inset-top));
-      right: 14px;
+      bottom: max(12px, env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%);
       z-index: 50;
       background: rgba(255,255,255,0.06);
       border: 0.5px solid rgba(255,255,255,0.12);
@@ -1454,13 +1455,18 @@
     .skip-intro-btn:active { opacity: 0.85; }
     body.setup-mode .skip-intro-btn { display: none; }
 
+    /* Arrows-only intro nav: hide per-slide Next + per-slide Skip; one persistent bottom Skip */
+    .btn-slide-advance,
+    .btn-skip-intro { display: none !important; }
+    .slide:not(.slide-wizard) .slide-footer { padding-bottom: 44px; }
+
     /* ── Setup mode (app shell, not intro slides) ── */
     body.setup-mode {
-      background: #0B0B12;
+      background: var(--bg);
     }
     body.setup-mode .app {
       max-width: 430px;
-      background: #0B0B12;
+      background: var(--bg);
     }
     body.setup-mode .nav-arrow,
     body.setup-mode .dots,
@@ -1480,7 +1486,7 @@
       min-height: 100dvh;
       padding-top: calc(max(12px, env(safe-area-inset-top)) + 88px);
       padding-bottom: max(24px, env(safe-area-inset-bottom));
-      background: #0B0B12;
+      background: var(--bg);
     }
     body.setup-mode .slide.setup-visible {
       display: flex;
@@ -1489,8 +1495,8 @@
       justify-content: flex-start;
     }
     body.setup-mode .slide-wizard .slide-footer {
-      background: #0B0B12;
-      border-top: 0.5px solid rgba(255,255,255,0.07);
+      background: transparent;
+      border-top: none;
     }
 
     .setup-header {
@@ -1502,7 +1508,7 @@
       max-width: 430px;
       z-index: 60;
       padding: max(12px, env(safe-area-inset-top)) 14px 10px;
-      background: #0B0B12;
+      background: var(--bg);
       border-bottom: 0.5px solid rgba(255,255,255,0.07);
     }
     .setup-header-row {
@@ -1542,7 +1548,7 @@
       display: flex;
       gap: 6px;
       padding: 0 14px 8px;
-      background: #0B0B12;
+      background: var(--bg);
     }
     .setup-step-pill {
       flex: 1;
@@ -2803,7 +2809,7 @@
       function updateArrows() {
         var inWizard = current >= WIZARD_CONNECT;
         btnPrev.classList.toggle('hidden', current === 0 || inWizard || setupMode);
-        btnNext.classList.toggle('hidden', current >= INTRO_LAST || inWizard || setupMode);
+        btnNext.classList.toggle('hidden', inWizard || setupMode);
       }
 
       function getOffset() { return -(current * (100 / TOTAL)); }
@@ -2850,7 +2856,7 @@
 
       function next() {
         if (setupMode) return;
-        if (current >= INTRO_LAST) return;
+        if (current >= INTRO_LAST) { enterSetupMode(); return; }
         goTo(current + 1);
       }
       function prev() { if (!setupMode) goTo(current - 1); }
